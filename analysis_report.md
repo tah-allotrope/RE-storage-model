@@ -28,6 +28,140 @@ This document maps the mathematical relationships and data flows in the Excel fi
 
 ---
 
+## VBA Macros (Original Macro-Enabled File)
+
+The original `.xlsm` file contains VBA modules that provide automation functionality. These macros are **not captured** in the `.xlsx` export but are critical for understanding the model's intended workflow.
+
+### Module 2: Debt Sizing Solver (`Solve_Debt_Size_DSCR`)
+
+**Purpose:** Automatically calculates optimal debt size based on Debt Service Coverage Ratio (DSCR) constraints using Excel's GoalSeek function.
+
+```vba
+Sub Solve_Debt_Size_DSCR()
+    Dim ws As Worksheet
+    Dim calcMode As XlCalculation
+    
+    Set ws = ThisWorkbook.Worksheets("Financial")
+    
+    ' Disable screen updating and set manual calculation for performance
+    calcMode = Application.Calculation
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.Calculation = xlCalculationManual
+    
+    ' Set initial guess from capacity-based debt size
+    On Error Resume Next
+    ws.Range("DebtSize_DSCR_Solver").Value = ws.Range("DebtSize_DSCR_Capacity").Value
+    On Error GoTo 0
+    
+    ws.Calculate
+    
+    ' GoalSeek: Adjust DebtSize_DSCR_Solver until DebtSize_Check equals 0
+    ws.Range("DebtSize_Check").GoalSeek Goal:=0, _
+        ChangingCell:=ws.Range("DebtSize_DSCR_Solver")
+    
+CleanExit:
+    Application.Calculation = calcMode
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+End Sub
+```
+
+**Key Named Ranges:**
+- **`DebtSize_DSCR_Solver`**: The cell being adjusted (debt amount)
+- **`DebtSize_DSCR_Capacity`**: Initial guess based on project capacity
+- **`DebtSize_Check`**: Validation cell that should equal 0 when DSCR constraint is satisfied
+
+**Financial Logic:** This macro implements iterative debt sculpting to find the maximum debt that satisfies DSCR covenants. The GoalSeek varies the debt size until the check cell (likely `Min DSCR - Target DSCR`) equals zero.
+
+---
+
+### Module 3: Navigation Utilities
+
+**Purpose:** UI helper macros for navigating between sheets and resetting views.
+
+#### `Nav_Click()` - Sheet Navigation
+```vba
+Public Sub Nav_Click()
+    Dim shp As Shape
+    Dim SheetName As String
+    Dim ws As Worksheet
+    Dim prevVis As XlSheetVisibility
+    
+    On Error GoTo ErrHandler
+    Set shp = ActiveSheet.Shapes(Application.Caller)
+    SheetName = shp.Name
+    Set ws = ThisWorkbook.Worksheets(SheetName)
+    prevVis = ws.Visible
+    
+    ' Make hidden sheets visible temporarily
+    If prevVis <> xlSheetVisible Then
+        ws.Visible = xlSheetVisible
+        gTempSheetName = ws.Name
+        gTempSheetPrevVisible = prevVis
+    Else
+        gTempSheetName = ""
+    End If
+    
+    ' Navigate to sheet and reset view
+    ws.Activate
+    ws.Range("A1").Select
+    ActiveWindow.Zoom = 100
+    With ActiveWindow
+        .ScrollRow = 1
+        .ScrollColumn = 1
+    End With
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Navigation Error: " & Err.Description, vbCritical
+End Sub
+```
+
+#### `Reset_All_Sheets_View()` - View Reset
+```vba
+Public Sub Reset_All_Sheets_View()
+    Dim ws As Worksheet
+    Dim prevSheet As Worksheet
+    
+    On Error Resume Next
+    Set prevSheet = ActiveSheet
+    On Error GoTo 0
+    
+    For Each ws In ThisWorkbook.Worksheets
+        If ws.Visible = xlSheetVisible Then
+            ws.Activate
+            ws.Range("A1").Select
+            With ActiveWindow
+                .ScrollRow = 1
+                .ScrollColumn = 1
+            End With
+            ' Different zoom levels for different sheets
+            Select Case ws.Name
+                Case "Cover", "NAV"
+                    ActiveWindow.Zoom = 100
+                Case Else
+                    ActiveWindow.Zoom = 80
+            End Select
+        End If
+    Next ws
+    
+    On Error Resume Next
+    If Not prevSheet Is Nothing Then prevSheet.Activate
+    On Error GoTo 0
+End Sub
+```
+
+**UI Features:**
+- Shape-based navigation buttons (clicking a shape named after a sheet navigates to it)
+- Temporary visibility for hidden sheets
+- Standardized zoom levels (100% for Cover/NAV, 80% for calculation sheets)
+- Global state tracking via `gTempSheetName` and `gTempSheetPrevVisible`
+
+---
+
+
+
 ## Sheet: Cover
 
 ### Purpose
