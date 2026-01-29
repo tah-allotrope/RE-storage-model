@@ -269,3 +269,171 @@ pytest tests/unit/test_settlement_*.py -v
 - `src/re_storage/settlement/grid.py`
 - `tests/unit/test_settlement_dppa.py`
 - `tests/unit/test_settlement_grid.py`
+
+# Implementation Plan — Aggregation Layer (Monthly + Annual + Lifetime)
+
+## Why this design
+Aggregation is a pure rollup of hourly physics + settlement outputs, so we keep the API minimal and deterministic: monthly and annual summaries accept explicit column names with unit suffixes, and lifetime projections apply degradation tables without mutating inputs. This mirrors the Excel `Helper`/`Measures`/`Lifetime` sheets while honoring AGENTS.md unit naming rules.
+
+---
+
+## Step 1 — Create Aggregation Package
+**Files:**
+- `src/re_storage/aggregation/__init__.py`
+- `src/re_storage/aggregation/monthly.py`
+- `src/re_storage/aggregation/annual.py`
+- `src/re_storage/aggregation/lifetime.py`
+
+---
+
+## Step 2 — Implement `aggregation.monthly`
+**File:** `src/re_storage/aggregation/monthly.py`
+
+### Functions & Signatures
+```python
+def aggregate_hourly_to_monthly(
+    hourly_data: HourlyTimeSeries,
+    demand_reduction_target_ratio: float,
+    datetime_column: str = "datetime",
+    load_column: str = "load_kw",
+    bau_expense_column: str = "bau_expense_usd",
+    re_expense_column: str = "re_expense_usd",
+    grid_after_solar_column: str = "grid_load_after_solar_kw",
+    grid_after_re_column: str = "grid_load_after_re_kw",
+) -> MonthlyTimeSeries: ...
+```
+
+### Output Columns (unit suffix enforced)
+- `baseline_peak_kw`
+- `demand_target_kw` (baseline_peak_kw × (1 - demand_reduction_target_ratio))
+- `bau_grid_expense_usd`
+- `re_grid_expense_usd`
+- `peak_demand_after_solar_kw`
+- `peak_demand_after_re_kw`
+- `grid_savings_usd` (bau_grid_expense_usd - re_grid_expense_usd)
+
+### Validation Rules
+- Required columns must exist; raise `InputValidationError` if missing.
+- `demand_reduction_target_ratio` must be within [0, 1].
+- `datetime_column` must be timezone-naive or uniform; month extraction via `dt.month`.
+- Function must not mutate input DataFrames.
+
+---
+
+## Step 3 — Implement `aggregation.annual`
+**File:** `src/re_storage/aggregation/annual.py`
+
+### Functions & Signatures
+```python
+def calculate_total_solar_generation_mwh(
+    hourly_data: HourlyTimeSeries,
+    solar_gen_column: str = "solar_gen_kw",
+    scale_factor: float = 1.0,
+) -> float: ...
+
+def calculate_total_dppa_revenue_usd(
+    dppa_hourly: HourlyTimeSeries,
+    total_dppa_column: str = "total_dppa_revenue_usd",
+) -> float: ...
+
+def calculate_year1_totals(
+    monthly_data: MonthlyTimeSeries,
+    hourly_data: HourlyTimeSeries,
+    dppa_hourly: HourlyTimeSeries,
+    scale_factor: float,
+    solar_gen_column: str = "solar_gen_kw",
+    total_dppa_column: str = "total_dppa_revenue_usd",
+) -> AnnualTimeSeries: ...
+```
+
+### Output Columns (Year 1 row, unit suffix enforced)
+- `year`
+- `total_solar_generation_mwh`
+- `total_dppa_revenue_usd`
+- `total_grid_savings_usd`
+- `baseline_peak_kw`
+- `demand_target_kw`
+- `peak_demand_after_solar_kw`
+- `peak_demand_after_re_kw`
+
+### Validation Rules
+- Required columns must exist in monthly/hourly inputs.
+- All energy columns must be non-negative.
+- No mutation of inputs.
+
+---
+
+## Step 4 — Implement `aggregation.lifetime`
+**File:** `src/re_storage/aggregation/lifetime.py`
+
+### Functions & Signatures
+```python
+def project_lifetime_generation_mwh(
+    year1_generation_mwh: float,
+    degradation_table: pd.DataFrame,
+    project_years: int = 25,
+) -> pd.Series: ...
+
+def project_battery_capacity_kwh(
+    initial_capacity_kwh: float,
+    degradation_table: pd.DataFrame,
+    replacement_cycle: int = 11,
+    project_years: int = 25,
+) -> pd.Series: ...
+
+def build_lifetime_projection(
+    year1_totals: AnnualTimeSeries,
+    degradation_table: pd.DataFrame,
+    initial_capacity_kwh: float,
+    project_years: int = 25,
+    replacement_cycle: int = 11,
+) -> AnnualTimeSeries: ...
+```
+
+### Output Columns (unit suffix enforced)
+- `year`
+- `generation_mwh`
+- `battery_capacity_kwh`
+- `dppa_revenue_usd` (degraded from year1 if applicable)
+- `grid_savings_usd` (degraded from year1 if applicable)
+
+### Validation Rules
+- Degradation table must cover years 1..project_years, else `DegradationTableError`.
+- Degradation factor columns must be within (0, 1].
+- No mutation of inputs.
+
+---
+
+## Step 5 — Write Unit Tests (Aggregation)
+**Files:**
+- `tests/unit/test_aggregation_monthly.py`
+- `tests/unit/test_aggregation_annual.py`
+- `tests/unit/test_aggregation_lifetime.py`
+
+### Test Coverage
+- Monthly aggregation groups by month and produces unit-suffixed columns.
+- Demand target calculation uses ratio bounds and rejects invalid values.
+- Annual totals compute expected MWh, DPPA revenue, and grid savings.
+- Lifetime projections apply degradation factors and validate missing years.
+
+### Testing Strategy
+Use small, deterministic hourly/monthly frames (e.g., 48 hours across 2 months) to assert exact aggregations and column names.
+
+---
+
+## Step 6 — Verification
+Run:
+```bash
+pytest tests/unit/test_aggregation_*.py -v
+```
+
+---
+
+## Files to be Modified/Created
+- `src/re_storage/aggregation/__init__.py`
+- `src/re_storage/aggregation/monthly.py`
+- `src/re_storage/aggregation/annual.py`
+- `src/re_storage/aggregation/lifetime.py`
+- `tests/unit/test_aggregation_monthly.py`
+- `tests/unit/test_aggregation_annual.py`
+- `tests/unit/test_aggregation_lifetime.py`
