@@ -1,0 +1,28 @@
+Metadata-Version: 2.4
+Name: re-storage
+Version: 0.1.0
+Summary: Vietnam Solar + BESS Financial Model Simulation Engine
+Author: RE-Storage Team
+License: MIT
+Keywords: solar,battery,bess,financial-model,energy,vietnam,dppa
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Financial and Insurance Industry
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Scientific/Engineering
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: openpyxl>=3.1.0
+Requires-Dist: scipy>=1.11.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
+Requires-Dist: hypothesis>=6.82.0; extra == "dev"
+Requires-Dist: mypy>=1.5.0; extra == "dev"
+Requires-Dist: ruff>=0.0.290; extra == "dev"
+Requires-Dist: black>=23.9.0; extra == "dev"
+Requires-Dist: isort>=5.12.0; extra == "dev"
