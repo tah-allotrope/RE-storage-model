@@ -69,7 +69,7 @@ class TestLifetimeProjection:
 
     def test_missing_years_raise(self) -> None:
         table = _degradation_table().iloc[:2].copy()
-        with pytest.raises(DegradationTableError, match="covers"):
+        with pytest.raises(DegradationTableError, match="does not cover"):
             project_lifetime_generation_mwh(100.0, table, project_years=3)
 
     def test_invalid_factors_raise(self) -> None:
