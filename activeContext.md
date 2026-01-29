@@ -4,7 +4,7 @@
 
 ## 1. Current Focus
 
-We are in **Build Mode** with a verified **Core + Physics** implementation. The next steps are the **Inputs** and **Settlement** layers, followed by Aggregation and Financial layers once physics validations remain stable.
+We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement** implementations. The next steps are the **Aggregation** and **Financial** layers, followed by integration/validation once the end-to-end pipeline is stable.
 
 ## 2. Key Reference Documents
 
@@ -17,6 +17,11 @@ We are in **Build Mode** with a verified **Core + Physics** implementation. The 
 ### Core Layer
 - `src/re_storage/core/types.py` — Type aliases, unit conventions, enums (`StrategyMode`, `ChargingMode`, `TimePeriod`, `GridChargeMode`).
 - `src/re_storage/core/exceptions.py` — Domain-specific exceptions (energy balance, SoC bounds, input validation, etc.).
+
+### Inputs Layer
+- `src/re_storage/inputs/schemas.py` — Pydantic models (`SystemAssumptions`, `HourlyInputRow`, `DegradationRow`) with strict validation and `extra="forbid"`.
+- `src/re_storage/inputs/loaders.py` — Excel loaders (`load_assumptions`, `load_hourly_data`, `load_degradation_table`, `load_tariff_schedule`) with DataFrame-level validation and domain exceptions.
+- `src/re_storage/inputs/__init__.py` — Public exports for schemas and loaders.
 
 ### Physics Layer
 - `src/re_storage/physics/solar.py`
@@ -36,15 +41,47 @@ We are in **Build Mode** with a verified **Core + Physics** implementation. The 
   - SoC bounds validation (scalar + vectorized)
   - Power rating validation
 
+### Settlement Layer
+- `src/re_storage/settlement/dppa.py` — DPPA/CfD revenue calculations (`calculate_delivered_re`, `calculate_cfd_settlement`, `calculate_dppa_revenue`) with DPPA disabled guard and input validation.
+- `src/re_storage/settlement/grid.py` — Grid expense calculations by tariff period (`calculate_energy_expense`, `calculate_bau_expense`, `calculate_re_expense`, `calculate_demand_charges`, `calculate_grid_savings`).
+- `src/re_storage/settlement/__init__.py` — Public exports for DPPA and grid functions.
+
 ### Testing
 - `tests/unit/test_battery.py` — Battery unit tests + property-based SoC tests
 - `tests/unit/test_solar.py` — Solar unit tests
 - `tests/unit/test_balance.py` — Physics validation tests
+- `tests/unit/test_inputs_schemas.py` — Input schema validation tests
+- `tests/unit/test_inputs_loaders.py` — Input loader validation tests
+- `tests/unit/test_settlement_dppa.py` — DPPA/CfD revenue calculation tests
+- `tests/unit/test_settlement_grid.py` — Grid expense and savings tests
 - `tests/conftest.py` — Shared fixtures
 
-**Latest test run:** `pytest tests/` — **96 passed**
+**Latest test runs:**
+- `pytest tests/unit/test_battery.py tests/unit/test_solar.py tests/unit/test_balance.py` — 96 passed
+- `pytest tests/unit/test_inputs_*.py` — 25 passed
+- `pytest tests/unit/test_settlement_*.py` — 18 passed
 
-## 4. Architectural Patterns Observed
+## 5. Recent Progress (2026-01-29)
+
+### Inputs Layer Completed
+- Created `inputs` package with Pydantic schemas and Excel loaders.
+- Implemented strict validation for system assumptions, hourly data, degradation tables, and tariff schedules.
+- Added comprehensive unit tests (25 passed) covering valid/invalid cases and edge conditions.
+- Ensured immutability and defensive programming per AGENTS.md.
+
+### Settlement Layer Completed
+- Implemented DPPA/CfD revenue calculations with k-factor/kpp adjustments and consumed RE capping.
+- Implemented grid expense calculations by tariff period, demand charges, and grid savings.
+- Added guard behavior when DPPA is disabled (zeros + warning).
+- Added comprehensive unit tests (18 passed) for formulas, validation, and edge cases.
+
+### Documentation
+- Updated `implementation.md` with detailed settlement layer plan.
+- All code follows type hints, docstrings, and auditability standards.
+
+---
+
+## 6. Architectural Patterns Observed
 
 1. **Layered Architecture**: `core → inputs → physics → settlement → aggregation → financial → validation` (per `implementation_spec.md`).
 2. **Immutability by Design**:
@@ -60,13 +97,13 @@ We are in **Build Mode** with a verified **Core + Physics** implementation. The 
    - Invalid inputs raise explicit exceptions.
    - Overlapping discharge conditions log warnings.
 
-## 5. Implementation Checklist
+## 7. Implementation Checklist
 
 ### Phase 1: Foundation (Week 1)
 - [x] Implement `core.types` and `core.exceptions`
-- [ ] Implement `inputs.schemas` with Pydantic models
-- [ ] Implement `inputs.loaders` with Excel reader
-- [ ] Write unit tests for input validation
+- [x] Implement `inputs.schemas` with Pydantic models
+- [x] Implement `inputs.loaders` with Excel reader
+- [x] Write unit tests for input validation
 
 ### Phase 2: Physics Engine (Week 2)
 - [x] Implement `physics.solar` (scale, direct consumption)
@@ -75,8 +112,8 @@ We are in **Build Mode** with a verified **Core + Physics** implementation. The 
 - [x] Write property-based tests for SoC bounds
 
 ### Phase 3: Settlement (Week 3)
-- [ ] Implement `settlement.dppa` (CfD calculations)
-- [ ] Implement `settlement.grid` (tariff application)
+- [x] Implement `settlement.dppa` (CfD calculations)
+- [x] Implement `settlement.grid` (tariff application)
 
 ### Phase 4: Aggregation (Week 4)
 - [ ] Implement `aggregation.monthly`

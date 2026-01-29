@@ -136,3 +136,136 @@ pytest tests/unit/test_inputs_*.py -v
 - `src/re_storage/inputs/loaders.py`
 - `tests/unit/test_inputs_schemas.py`
 - `tests/unit/test_inputs_loaders.py`
+
+# Implementation Plan — Settlement Layer (DPPA + Grid)
+
+## Why this design
+The settlement layer should be **pure, auditable transformations** over hourly time series. We keep functions small and explicit so each formula maps cleanly to the DPPA and grid logic in `model_architecture.md`, while preserving the “Physics First” ordering by only consuming already-balanced energy results.
+
+---
+
+## Step 1 — Create Settlement Package
+**Files:**
+- `src/re_storage/settlement/__init__.py`
+- `src/re_storage/settlement/dppa.py`
+- `src/re_storage/settlement/grid.py`
+
+---
+
+## Step 2 — Implement `settlement.dppa`
+**File:** `src/re_storage/settlement/dppa.py`
+
+### Functions & Signatures
+```python
+def calculate_delivered_re(
+    net_gen_kwh: float,
+    k_factor: float,
+    kpp: float,
+    delta: float = 1.0,
+) -> float: ...
+
+def calculate_consumed_re(
+    delivered_re_kwh: float,
+    load_kwh: float,
+) -> float: ...
+
+def calculate_market_revenue(
+    net_gen_kwh: float,
+    fmp_usd_per_kwh: float,
+) -> float: ...
+
+def calculate_cfd_settlement(
+    consumed_re_kwh: float,
+    strike_price_usd_per_kwh: float,
+    spot_price_usd_per_kwh: float,
+) -> float: ...
+
+def calculate_total_dppa_revenue(
+    market_revenue_usd: float,
+    cfd_settlement_usd: float,
+) -> float: ...
+
+def calculate_dppa_revenue(
+    hourly_data: HourlyTimeSeries,
+    assumptions: SystemAssumptions,
+    net_gen_column: str = "net_gen_for_dppa_kwh",
+    load_column: str = "load_kwh",
+    fmp_column: str = "fmp_usd_per_kwh",
+    delta: float = 1.0,
+) -> pd.DataFrame: ...
+```
+
+### Validation Rules
+- Fail on negative energy inputs (kWh < 0).
+- `calculate_dppa_revenue` must **not mutate** input DataFrames.
+- When `assumptions.dppa_enabled` is `False`, return zeroed revenue columns and log a warning.
+
+---
+
+## Step 3 — Implement `settlement.grid`
+**File:** `src/re_storage/settlement/grid.py`
+
+### Functions & Signatures
+```python
+def calculate_energy_expense(
+    energy_kwh: pd.Series,
+    time_period: pd.Series,
+    tariff_rates_usd_per_kwh: dict[TimePeriod, float],
+) -> pd.Series: ...
+
+def calculate_bau_expense(
+    load_kwh: pd.Series,
+    time_period: pd.Series,
+    tariff_rates_usd_per_kwh: dict[TimePeriod, float],
+) -> pd.Series: ...
+
+def calculate_re_expense(
+    grid_load_after_re_kwh: pd.Series,
+    time_period: pd.Series,
+    tariff_rates_usd_per_kwh: dict[TimePeriod, float],
+) -> pd.Series: ...
+
+def calculate_demand_charges(
+    peak_demand_kw: float,
+    demand_charge_rate_usd_per_kw: float,
+) -> float: ...
+
+def calculate_grid_savings(
+    bau_expense_usd: pd.Series,
+    re_expense_usd: pd.Series,
+) -> pd.Series: ...
+```
+
+### Validation Rules
+- Reject negative energy inputs.
+- Ensure time period values are valid `TimePeriod` enums and covered by the tariff map.
+
+---
+
+## Step 4 — Write Unit Tests (Settlement)
+**Files:**
+- `tests/unit/test_settlement_dppa.py`
+- `tests/unit/test_settlement_grid.py`
+
+### Test Coverage
+- DPPA formulas (delivered, consumed, market revenue, CfD, total).
+- `calculate_dppa_revenue` behavior when DPPA is disabled (zeros + warning).
+- Grid expenses by tariff period, demand charges, and grid savings.
+- Validation errors for negative energy and invalid tariff periods.
+
+---
+
+## Step 5 — Verification
+Run:
+```bash
+pytest tests/unit/test_settlement_*.py -v
+```
+
+---
+
+## Files to be Modified/Created
+- `src/re_storage/settlement/__init__.py`
+- `src/re_storage/settlement/dppa.py`
+- `src/re_storage/settlement/grid.py`
+- `tests/unit/test_settlement_dppa.py`
+- `tests/unit/test_settlement_grid.py`
