@@ -554,6 +554,38 @@ The debt size may be stale or inconsistent with DSCR constraints.
 
 ---
 
+#### Risk 7: Battery Augmentation Jumps at Years 11 & 22 ⚠️ INVESTIGATED
+**Location:** `Lifetime` sheet rows (`BESStoLoad_MWh`, `BESS ConvLoss Annual`) ← `Loss!Col F`
+
+**Observed Behavior:**
+| Year | Loss!F ("Battery wt Replacement") | % Change |
+|------|-----------------------------------|----------|
+| 10 | 0.8098 | — |
+| **11** | **0.9745** | **+20.35%** |
+| 21 | 0.7916 | — |
+| **22** | **0.9745** | **+23.11%** |
+
+**Root Cause:** The `Loss` sheet Column F ("Battery wt Replacement") models **battery augmentation events** at years 11 and 22, resetting the capacity factor back to 0.9745 (equivalent to Year 2 levels).
+
+**Formulas affected in Lifetime sheet:**
+```
+BESStoLoad_MWh:     =BESS_to_Load * XLOOKUP(Year, Loss!$A, Loss!$F) / 1000
+BESS ConvLoss:      =Usable_BESS_Capacity * 365 * ... * XLOOKUP(Year, Loss!$A, Loss!$F) / 1000
+```
+
+**Potential Issues:**
+1. **Full replacement assumption:** Reset to 0.9745 implies ~100% capacity restoration, not partial augmentation (typically 20-30% cell replacement)
+2. **Timing ambiguity:** Augmentation appears at *start* of Year 11/22, meaning full restored capacity for entire year — realistic projects often augment mid-year
+3. **Inconsistent degradation columns:** `Loss!Col C` (Battery without replacement) degrades continuously, while `Loss!Col F` resets — formulas must use the correct column
+4. **Cost linkage unclear:** Verify `Other Input` MRA build-up schedule funds augmentation at matching years
+
+**Recommendation:** 
+- Validate augmentation cost in `Financial` sheet aligns with Years 11 & 22
+- Consider if partial augmentation (e.g., restore to 90% instead of 97.45%) is more realistic
+- Add comment in `Loss` sheet documenting the augmentation assumption
+
+---
+
 #### Risk 6: Balance Check Column Unused?
 **Location:** `Calc!Col R` (Blance_Check) — note typo in original
 
@@ -575,6 +607,7 @@ The debt size may be stale or inconsistent with DSCR constraints.
 | **Exchange Rate Timing** | Single `Exchange_rate` used throughout, but FX may vary over 25-year project life | Revenue projections may be optimistic/pessimistic |
 | **Tariff Escalation** | Unable to verify if electricity tariffs escalate annually | If flat, real returns will be lower than modeled |
 | **Named Range Proliferation** | Heavy use of named ranges (`Strike_Price`, `Kpp`, `CDPPAdv`, etc.) | Makes auditing difficult without Name Manager |
+| **Battery Augmentation Resets** | `Loss!Col F` resets to 0.9745 at Years 11 & 22 (full replacement assumption) | May overstate post-augmentation capacity if only partial cell replacement is planned |
 
 ---
 
