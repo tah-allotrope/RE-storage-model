@@ -1,10 +1,10 @@
 # Active Context — RE-Storage Model
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-01-30
 
 ## 1. Current Focus
 
-We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement** implementations. The next steps are the **Aggregation** and **Financial** layers, followed by integration/validation once the end-to-end pipeline is stable.
+We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement + Aggregation + Financial** implementations. The next steps are **Validation** plus integration/regression testing once the end-to-end pipeline is stable.
 
 ## 2. Key Reference Documents
 
@@ -46,6 +46,18 @@ We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement** 
 - `src/re_storage/settlement/grid.py` — Grid expense calculations by tariff period (`calculate_energy_expense`, `calculate_bau_expense`, `calculate_re_expense`, `calculate_demand_charges`, `calculate_grid_savings`).
 - `src/re_storage/settlement/__init__.py` — Public exports for DPPA and grid functions.
 
+### Aggregation Layer
+- `src/re_storage/aggregation/monthly.py` — Monthly aggregation (`aggregate_hourly_to_monthly`) with unit-suffixed columns and validation.
+- `src/re_storage/aggregation/annual.py` — Year 1 totals (`calculate_year1_totals`, `calculate_total_solar_generation_mwh`, `calculate_total_dppa_revenue_usd`).
+- `src/re_storage/aggregation/lifetime.py` — Lifetime projection with degradation and augmentation factors.
+- `src/re_storage/aggregation/__init__.py` — Public exports for aggregation functions.
+
+### Financial Layer
+- `src/re_storage/financial/waterfall.py` — Cash flow waterfall (`build_cash_flow_waterfall`).
+- `src/re_storage/financial/debt.py` — Amortization schedule + DSCR sizing (`calculate_amortization_schedule`, `size_debt_for_dscr`).
+- `src/re_storage/financial/metrics.py` — XNPV/XIRR + DSCR series calculations.
+- `src/re_storage/financial/__init__.py` — Public exports for financial functions.
+
 ### Testing
 - `tests/unit/test_battery.py` — Battery unit tests + property-based SoC tests
 - `tests/unit/test_solar.py` — Solar unit tests
@@ -54,14 +66,22 @@ We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement** 
 - `tests/unit/test_inputs_loaders.py` — Input loader validation tests
 - `tests/unit/test_settlement_dppa.py` — DPPA/CfD revenue calculation tests
 - `tests/unit/test_settlement_grid.py` — Grid expense and savings tests
+- `tests/unit/test_aggregation_monthly.py` — Monthly aggregation tests
+- `tests/unit/test_aggregation_annual.py` — Annual aggregation tests
+- `tests/unit/test_aggregation_lifetime.py` — Lifetime projection tests
+- `tests/unit/test_financial_waterfall.py` — Waterfall tests
+- `tests/unit/test_financial_debt.py` — Debt sizing tests
+- `tests/unit/test_financial_metrics.py` — Metrics tests
 - `tests/conftest.py` — Shared fixtures
 
 **Latest test runs:**
 - `pytest tests/unit/test_battery.py tests/unit/test_solar.py tests/unit/test_balance.py` — 96 passed
 - `pytest tests/unit/test_inputs_*.py` — 25 passed
 - `pytest tests/unit/test_settlement_*.py` — 18 passed
+- `pytest tests/unit/test_aggregation_monthly.py tests/unit/test_aggregation_annual.py tests/unit/test_aggregation_lifetime.py` — 12 passed
+- `pytest tests/unit/test_financial_metrics.py` — 5 passed
 
-## 5. Recent Progress (2026-01-29)
+## 5. Recent Progress (2026-01-30)
 
 ### Inputs Layer Completed
 - Created `inputs` package with Pydantic schemas and Excel loaders.
@@ -78,6 +98,16 @@ We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement** 
 ### Documentation
 - Updated `implementation.md` with detailed settlement layer plan.
 - All code follows type hints, docstrings, and auditability standards.
+
+### Aggregation Layer Completed
+- Implemented monthly, annual, and lifetime aggregations with unit-suffixed columns.
+- Added validation for missing columns and degradation tables.
+- Added unit tests for monthly/annual/lifetime aggregation (12 passed).
+
+### Financial Layer Completed
+- Implemented cash flow waterfall, debt sizing, and return metrics.
+- Added unit tests for financial waterfall, debt, and metrics.
+- Fixed metrics date handling for DatetimeIndex inputs.
 
 ---
 
@@ -116,14 +146,14 @@ We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement** 
 - [x] Implement `settlement.grid` (tariff application)
 
 ### Phase 4: Aggregation (Week 4)
-- [ ] Implement `aggregation.monthly`
-- [ ] Implement `aggregation.annual`
-- [ ] Implement `aggregation.lifetime`
+- [x] Implement `aggregation.monthly`
+- [x] Implement `aggregation.annual`
+- [x] Implement `aggregation.lifetime`
 
 ### Phase 5: Financial (Week 5)
-- [ ] Implement `financial.waterfall`
-- [ ] Implement `financial.debt`
-- [ ] Implement `financial.metrics`
+- [x] Implement `financial.waterfall`
+- [x] Implement `financial.debt`
+- [x] Implement `financial.metrics`
 
 ### Phase 6: Integration & Validation (Week 6)
 - [ ] Implement `validation.checks`

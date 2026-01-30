@@ -429,6 +429,145 @@ pytest tests/unit/test_aggregation_*.py -v
 
 ---
 
+## Step 7 — Implement `financial.waterfall`
+**File:** `src/re_storage/financial/waterfall.py`
+
+### Functions & Signatures
+```python
+def build_cash_flow_waterfall(
+    lifetime_revenue: AnnualTimeSeries,
+    lifetime_opex: AnnualTimeSeries,
+    debt_schedule: AnnualTimeSeries,
+    capex: dict[str, float | pd.Series],
+) -> AnnualTimeSeries: ...
+```
+
+### Expected Inputs (unit suffix enforced)
+**lifetime_revenue** columns:
+- `year`
+- `dppa_revenue_usd`
+- `grid_savings_usd`
+- `demand_charge_savings_usd`
+
+**lifetime_opex** columns:
+- `year`
+- `o_and_m_usd`
+- `insurance_usd`
+- `land_lease_usd`
+- `management_fees_usd`
+- `grid_connection_usd`
+- `taxes_usd`
+- `mra_contribution_usd`
+
+**debt_schedule** columns:
+- `year`
+- `interest_usd`
+- `principal_usd`
+- `total_debt_service_usd`
+
+**capex** keys:
+- `initial_capex_usd` (scalar, applied to year 0)
+- `augmentation_capex_usd` (optional `pd.Series` indexed by year)
+
+### Output Columns (unit suffix enforced)
+- `year`
+- `total_revenue_usd` (= dppa + grid + demand charge savings)
+- `total_opex_usd` (= o_and_m + insurance + land_lease + management_fees + grid_connection)
+- `ebitda_usd`
+- `interest_usd`
+- `principal_usd`
+- `total_debt_service_usd`
+- `cfads_usd` (= ebitda - total debt service)
+- `taxes_usd`
+- `mra_contribution_usd`
+- `free_cash_flow_to_equity_usd` (= cfads - taxes - mra_contribution)
+- `capex_usd` (year 0 and optional augmentation)
+
+### Validation Rules
+- Required columns must exist; raise `InputValidationError` if missing.
+- `year` indices must align between revenue, opex, and debt schedules.
+- `capex` must include `initial_capex_usd` >= 0.
+- Function must not mutate input DataFrames.
+
+---
+
+## Step 8 — Implement `financial.debt`
+**File:** `src/re_storage/financial/debt.py`
+
+### Functions & Signatures
+```python
+def calculate_amortization_schedule(
+    debt_amount_usd: float,
+    interest_rate_pct: float,
+    tenor_years: int,
+) -> AnnualTimeSeries: ...
+
+def size_debt_for_dscr(
+    ebitda_series: pd.Series,
+    interest_rate_pct: float,
+    tenor_years: int,
+    target_dscr: float,
+    initial_guess_usd: float,
+) -> tuple[float, AnnualTimeSeries]: ...
+```
+
+### Output Columns (unit suffix enforced)
+- `year`
+- `opening_balance_usd`
+- `interest_usd`
+- `principal_usd`
+- `total_debt_service_usd`
+- `closing_balance_usd`
+
+### Validation Rules
+- `debt_amount_usd`, `interest_rate_pct`, `tenor_years`, `target_dscr`, `initial_guess_usd` must be positive.
+- `ebitda_series` must align with the schedule years; raise `InputValidationError` if lengths mismatch.
+- Raise `DSCRConstraintError` if no feasible debt amount exists.
+
+---
+
+## Step 9 — Implement `financial.metrics`
+**File:** `src/re_storage/financial/metrics.py`
+
+### Functions & Signatures
+```python
+def calculate_npv(cashflows: pd.Series, dates: pd.Series, discount_rate_pct: float) -> float: ...
+
+def calculate_project_irr(cashflows: pd.Series, dates: pd.Series) -> float: ...
+
+def calculate_equity_irr(equity_cashflows: pd.Series, dates: pd.Series) -> float: ...
+
+def calculate_dscr_series(ebitda_usd: pd.Series, debt_service_usd: pd.Series) -> pd.Series: ...
+```
+
+### Validation Rules
+- `cashflows` and `dates` must be same length; include at least one positive and one negative cash flow.
+- `discount_rate_pct` must be > -100.
+- `debt_service_usd` must be positive for DSCR; raise `InputValidationError` if zero or negative.
+
+---
+
+## Step 10 — Write Unit Tests (Financial)
+**Files:**
+- `tests/unit/test_financial_waterfall.py`
+- `tests/unit/test_financial_debt.py`
+- `tests/unit/test_financial_metrics.py`
+
+### Test Coverage
+- Waterfall: revenue + opex → EBITDA → CFADS → free cash flow; capex year 0 handling.
+- Debt: amortization schedule totals; DSCR sizing success + failure path.
+- Metrics: XNPV/XIRR with simple cashflows; DSCR series validation.
+
+---
+
+## Step 11 — Verification
+Run:
+```bash
+pytest tests/unit/test_financial_*.py -v
+```
+
+---
+
 ## Files to be Modified/Created
 - `src/re_storage/aggregation/__init__.py`
 - `src/re_storage/aggregation/monthly.py`
@@ -437,3 +576,10 @@ pytest tests/unit/test_aggregation_*.py -v
 - `tests/unit/test_aggregation_monthly.py`
 - `tests/unit/test_aggregation_annual.py`
 - `tests/unit/test_aggregation_lifetime.py`
+- `src/re_storage/financial/__init__.py`
+- `src/re_storage/financial/waterfall.py`
+- `src/re_storage/financial/debt.py`
+- `src/re_storage/financial/metrics.py`
+- `tests/unit/test_financial_waterfall.py`
+- `tests/unit/test_financial_debt.py`
+- `tests/unit/test_financial_metrics.py`
