@@ -1292,6 +1292,9 @@ pytest tests/regression/ -v
 - `tests/regression/__init__.py`
 - `tests/regression/test_excel_comparison.py`
 <<<<<<< C:/Users/tukum/Downloads/RE-storage-model/implementation.md
+<<<<<<< C:/Users/tukum/Downloads/RE-storage-model/implementation.md
+>>>>>>> C:/Users/tukum/.windsurf/worktrees/RE-storage-model/RE-storage-model-86eaba68/implementation.md
+=======
 >>>>>>> C:/Users/tukum/.windsurf/worktrees/RE-storage-model/RE-storage-model-86eaba68/implementation.md
 =======
 >>>>>>> C:/Users/tukum/.windsurf/worktrees/RE-storage-model/RE-storage-model-86eaba68/implementation.md
