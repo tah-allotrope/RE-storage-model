@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/financial/waterfall.py
+# hypothesis_version: 6.151.4
+
+[0.0, 'capex_usd', 'cfads_usd', 'debt_schedule', 'dppa_revenue_usd', 'ebitda_usd', 'grid_connection_usd', 'grid_savings_usd', 'initial_capex_usd', 'insurance_usd', 'interest_usd', 'land_lease_usd', 'lifetime_opex', 'lifetime_revenue', 'management_fees_usd', 'mra_contribution_usd', 'o_and_m_usd', 'principal_usd', 'taxes_usd', 'total_opex_usd', 'total_revenue_usd', 'year']

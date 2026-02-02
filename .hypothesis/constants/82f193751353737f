@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/inputs/schemas.py
+# hypothesis_version: 6.151.4
+
+[0.5, 1.0, 'Battery power limit', 'Installed capacity', 'Max PV to battery', 'Min PV to load', 'Net battery capacity', 'PV output multiplier', 'forbid']

@@ -242,6 +242,7 @@ def validate_full_model(
     assumptions: SystemAssumptions,
     degradation_table: pd.DataFrame | None = None,
     project_years: int = 25,
+    augmentation_years: list[int] | None = None,
 ) -> list[str]:
     """
     Run all validation checks and return consolidated warnings.
@@ -273,6 +274,8 @@ def validate_full_model(
         warnings.extend(
             validate_degradation_coverage(degradation_table, project_years=project_years)
         )
-    warnings.extend(validate_augmentation_funding(lifetime_results))
+    warnings.extend(
+        validate_augmentation_funding(lifetime_results, augmentation_years=augmentation_years)
+    )
 
     return warnings

@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/validation/checks.py
+# hypothesis_version: 6.151.4
+
+[0.001, 'charged_kwh', 'degradation_table', 'dppa_revenue_usd', 'hourly_results', 'lifetime_results', 'max_capacity_kwh', 'mra_balance_usd', 'project_years', 'soc_kwh', 'solar_gen_kwh', 'surplus_kwh', 'year']

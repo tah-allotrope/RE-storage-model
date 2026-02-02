@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/settlement/__init__.py
+# hypothesis_version: 6.151.4
+
+['calculate_re_expense']

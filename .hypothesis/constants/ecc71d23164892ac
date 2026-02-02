@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/physics/battery.py
+# hypothesis_version: 6.151.4
+
+[0.0, 0.01, 1.0, 'after_sunset', 'optimize', 'peak', 'when_needed']

@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/inputs/loaders.py
+# hypothesis_version: 6.151.4
+
+['Assumption', 'Data Input', 'Loss', 'Tariff Schedule', 'cfmp_usd_per_kwh', 'datetime', 'fmp_usd_per_kwh', 'hour', 'irradiation_wh_m2', 'load_kw', 'off_peak', 'peak', 'period', 'pv_factor', 'standard', 'year']

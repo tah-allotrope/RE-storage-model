@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/aggregation/monthly.py
+# hypothesis_version: 6.151.4
+
+['baseline_peak_kw', 'bau_expense_usd', 'bau_grid_expense_usd', 'coerce', 'datetime', 'demand_target_kw', 'grid_savings_usd', 'load_kw', 'max', 're_expense_usd', 're_grid_expense_usd', 'sum']

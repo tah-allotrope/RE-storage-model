@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/financial/metrics.py
+# hypothesis_version: 6.151.4
+
+[-0.9999, 1.0, 100.0, 365.0, -100, 1000, 'coerce', 'dscr_ratio', 'equity', 'npv', 'project']

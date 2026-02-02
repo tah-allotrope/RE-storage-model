@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/aggregation/annual.py
+# hypothesis_version: 6.151.4
+
+[1.0, 1000.0, 'baseline_peak_kw', 'demand_target_kw', 'dppa_hourly', 'grid_savings_usd', 'hourly_data', 'monthly_data', 'scale_factor', 'solar_gen_kw', 'year']

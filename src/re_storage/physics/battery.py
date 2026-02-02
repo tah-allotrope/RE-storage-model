@@ -111,6 +111,12 @@ class BatteryConfig:
     optimize_mode: bool = False
     peak_mode: bool = True
 
+    # Optimization windows (Vietnam defaults)
+    optimize_start_hour: int = 16
+    optimize_end_hour: int = 21
+    sunday_peak_start_hour: int = 17
+    sunday_peak_end_hour: int = 20
+
     def __post_init__(self) -> None:
         """Validate configuration parameters."""
         if self.usable_capacity_kwh <= 0:
@@ -419,9 +425,17 @@ def evaluate_discharge_permission(
         when_needed=config.when_needed and (load_kw > solar_gen_kw),
         after_sunset=config.after_sunset and (hour >= 17),
         optimize=config.optimize_mode
-        and (_is_in_optimization_window(hour) or is_peak_period),
+        and (
+            (config.optimize_start_hour <= hour <= config.optimize_end_hour) or is_peak_period
+        ),
         peak=config.peak_mode
-        and (is_peak_period or (is_sunday and _is_sunday_peak_window(hour))),
+        and (
+            is_peak_period
+            or (
+                is_sunday
+                and (config.sunday_peak_start_hour <= hour <= config.sunday_peak_end_hour)
+            )
+        ),
     )
 
     # Log warning if multiple conditions are active (potential strategy conflict)
@@ -434,29 +448,6 @@ def evaluate_discharge_permission(
     return conditions
 
 
-def _is_in_optimization_window(hour: int) -> bool:
-    """
-    Check if hour is in optimization window.
-
-    The optimization window is typically defined as hours when
-    time-of-use arbitrage is most valuable (shoulder periods
-    before/after peak).
-
-    Default: 16:00-21:00 (before and during evening peak)
-    """
-    return 16 <= hour <= 21
-
-
-def _is_sunday_peak_window(hour: int) -> bool:
-    """
-    Check if hour is in Sunday peak window.
-
-    Sunday often has different tariff structures. This defines
-    the window when Sunday peak tariffs apply.
-
-    Default: 17:00-20:00
-    """
-    return 17 <= hour <= 20
 
 
 # =============================================================================
@@ -523,6 +514,7 @@ def calculate_grid_charge_power(
     current_soc_kwh: EnergyKWH,
     config: BatteryConfig,
     step_hours: float = 1.0,
+    max_power_kw: PowerKW | None = None,
 ) -> PowerKW:
     """
     Calculate power to charge battery from grid.
@@ -538,6 +530,8 @@ def calculate_grid_charge_power(
         current_soc_kwh: Current battery SoC (kWh).
         config: Battery configuration.
         step_hours: Timestep duration in hours.
+        max_power_kw: Optional override for maximum charging power.
+            If None, uses config.power_rating_kw.
 
     Returns:
         Grid charging power (kW).
@@ -562,8 +556,13 @@ def calculate_grid_charge_power(
     # Calculate charge rate
     charge_rate_kw = charge_needed_kwh / (config.charge_efficiency * step_hours)
 
-    # Constrain by grid charge capacity and inverter rating
-    return min(charge_rate_kw, config.grid_charge_capacity_kw, config.power_rating_kw)
+    # Determine power limit
+    power_limit_kw = config.power_rating_kw
+    if max_power_kw is not None:
+        power_limit_kw = min(power_limit_kw, max_power_kw)
+
+    # Constrain by grid charge capacity and power limit
+    return min(charge_rate_kw, config.grid_charge_capacity_kw, power_limit_kw)
 
 
 # =============================================================================
@@ -699,6 +698,7 @@ def dispatch_single_timestep(
         BatteryState with all power flows and resulting SoC.
     """
     # Step 1: Calculate PV charging
+    # PV charging has priority over grid charging
     pv_to_bess_kw = calculate_pv_to_bess(
         solar_gen_kw=solar_gen_kw,
         load_kw=load_kw,
@@ -710,17 +710,23 @@ def dispatch_single_timestep(
     )
 
     # Step 2: Calculate grid charging
+    # Must respect remaining capacity and power after PV charging
+    pv_charged_kwh = pv_to_bess_kw * step_hours * config.charge_efficiency
+    soc_after_pv = min(previous_soc_kwh + pv_charged_kwh, config.usable_capacity_kwh)
+    remaining_power_kw = max(config.power_rating_kw - pv_to_bess_kw, 0.0)
+
     grid_charge_kw = calculate_grid_charge_power(
-        current_soc_kwh=previous_soc_kwh,
+        current_soc_kwh=soc_after_pv,
         config=config,
         step_hours=step_hours,
+        max_power_kw=remaining_power_kw,
     )
 
-    # Step 3: Calculate intermediate SoC after charging
+    # Step 3: Calculate intermediate SoC after all charging
     # (needed to determine discharge capacity)
-    charged_kwh = (pv_to_bess_kw + grid_charge_kw) * step_hours
+    total_charged_kwh = (pv_to_bess_kw + grid_charge_kw) * step_hours
     soc_after_charge = min(
-        previous_soc_kwh + charged_kwh * config.charge_efficiency,
+        previous_soc_kwh + total_charged_kwh * config.charge_efficiency,
         config.usable_capacity_kwh,
     )
 

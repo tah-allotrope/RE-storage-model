@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/settlement/dppa.py
+# hypothesis_version: 6.151.4
+
+[0.0, 1.0, 'cfd_settlement_usd', 'consumed_re_kwh', 'delivered_re_kwh', 'fmp_usd_per_kwh', 'load_kwh', 'market_revenue_usd', 'net_gen_for_dppa_kwh']

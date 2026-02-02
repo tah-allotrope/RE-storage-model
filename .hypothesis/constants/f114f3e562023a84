@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/aggregation/lifetime.py
+# hypothesis_version: 6.151.4
+
+[0.0, 'battery_capacity_kwh', 'dppa_revenue_usd', 'generation_mwh', 'grid_savings_usd', 'pv_factor', 'year']

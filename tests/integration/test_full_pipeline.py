@@ -74,7 +74,7 @@ def _time_periods(datetimes: pd.Series) -> pd.Series:
 
 
 def _build_hourly_results(hours: int = 48) -> pd.DataFrame:
-    datetimes = pd.date_range("2025-01-31", periods=hours, freq="H")
+    datetimes = pd.date_range("2025-01-31", periods=hours, freq="h")
     simulation_profile_kw = pd.Series(50.0, index=datetimes)
     load_kw = pd.Series(40.0, index=datetimes)
 
@@ -162,7 +162,7 @@ class TestFullPipeline:
         assert (dppa_hourly["total_dppa_revenue_usd"] == 0).all()
 
     def test_leap_year_monthly_aggregation(self) -> None:
-        datetimes = pd.date_range("2024-01-01", periods=8784, freq="H")
+        datetimes = pd.date_range("2024-01-01", periods=8784, freq="h")
         hourly = pd.DataFrame(
             {
                 "datetime": datetimes,

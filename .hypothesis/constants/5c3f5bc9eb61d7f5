@@ -1,0 +1,4 @@
+# file: /app/src/re_storage/financial/debt.py
+# hypothesis_version: 6.151.4
+
+[0.0, 1e-06, 100.0, 'closing_balance_usd', 'interest_usd', 'opening_balance_usd', 'principal_usd', 'year']
