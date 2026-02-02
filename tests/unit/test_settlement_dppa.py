@@ -55,9 +55,10 @@ class TestDppaFormulas:
     """Tests for core DPPA formula functions."""
 
     def test_calculate_delivered_re(self) -> None:
-        """Delivered RE should apply k-factor, kpp, and delta."""
+        """Delivered RE should apply division by k-factor and kpp."""
+        # 100 / (0.98 * 1.05) = 100 / 1.029 = 97.1817...
         result = calculate_delivered_re(net_gen_kwh=100.0, k_factor=0.98, kpp=1.05, delta=1.0)
-        assert result == pytest.approx(102.9)
+        assert result == pytest.approx(97.1817, abs=0.0001)
 
     def test_calculate_consumed_re(self) -> None:
         """Consumed RE should be capped by load."""
@@ -106,6 +107,8 @@ class TestCalculateDppaRevenue:
         result = calculate_dppa_revenue(hourly_data, assumptions)
 
         assert "total_dppa_revenue_usd" in result.columns
+        # delivered[0] = 100 / (0.98 * 1.05) = 97.18
+        # load[0] = 80 -> consumed[0] = 80
         assert result["consumed_re_kwh"].iloc[0] == pytest.approx(80.0)
         assert result["market_revenue_usd"].iloc[1] == pytest.approx(1.5)
 

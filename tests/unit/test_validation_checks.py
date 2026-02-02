@@ -128,7 +128,8 @@ class TestValidateDegradationCoverage:
 class TestValidateAugmentationFunding:
     def test_warns_when_mra_insufficient(self) -> None:
         warnings = validate_augmentation_funding(
-            _lifetime_results(augmentation_capex_usd=1000.0, mra_balance_usd=200.0)
+            _lifetime_results(augmentation_capex_usd=1000.0, mra_balance_usd=200.0),
+            augmentation_years=[2],
         )
         assert len(warnings) == 1
         assert "augmentation" in warnings[0].lower()
@@ -151,6 +152,7 @@ class TestValidateFullModel:
             assumptions=_assumptions(dppa_enabled=True),
             degradation_table=degradation_table,
             project_years=2,
+            augmentation_years=[2],
         )
 
         assert any("Energy balance failed" in warning for warning in warnings)

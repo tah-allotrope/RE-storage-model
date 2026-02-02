@@ -753,6 +753,84 @@ class TestDispatchSingleTimestep:
         assert result.discharged_kw > 0
         assert result.discharge_permitted
 
+    def test_simultaneous_pv_and_grid_charging(self, default_battery_config: BatteryConfig) -> None:
+        """PV and Grid charging should be coordinated and respect capacity."""
+        # Setup config to allow both PV and Grid charging
+        # GridChargeMode.TO_FULL is active
+        from re_storage.core.types import GridChargeMode
+        config = BatteryConfig(
+            usable_capacity_kwh=100.0,
+            power_rating_kw=50.0,
+            charge_efficiency=1.0,  # Use 1.0 for simpler math
+            discharge_efficiency=1.0,
+            strategy_mode=StrategyMode.ARBITRAGE,
+            charging_mode=ChargingMode.TIME_WINDOW,
+            charge_start_hour=9,
+            charge_end_hour=15,
+            precharge_target_hour=17,
+            precharge_target_soc_kwh=80.0,
+            min_direct_pv_share=0.0,
+            active_pv2bess_share=1.0,
+            demand_target_kw=100.0,
+            grid_charge_mode=GridChargeMode.TO_FULL,
+            grid_charge_capacity_kw=100.0,
+        )
+
+        # Battery has 90 kWh, 10 kWh headroom.
+        # PV wants to charge 8 kW. Grid wants to charge as much as possible.
+        # Total charge should be 10 kW (limited by SoC), not 8 + 50 (power rating) or 8 + 10.
+        # Actually, if PV takes 8, Grid can only take 2 to reach 100 kWh.
+        result = dispatch_single_timestep(
+            solar_gen_kw=8.0,
+            load_kw=0.0,
+            previous_soc_kwh=90.0,
+            hour=12,
+            config=config,
+            is_peak_period=False,
+        )
+
+        assert result.pv_charged_kw == 8.0
+        assert result.grid_charged_kw == 2.0
+        assert result.soc_kwh == 100.0
+
+    def test_simultaneous_charging_power_limit(self, default_battery_config: BatteryConfig) -> None:
+        """PV and Grid charging should combined respect inverter power rating."""
+        from re_storage.core.types import GridChargeMode
+        config = BatteryConfig(
+            usable_capacity_kwh=100.0,
+            power_rating_kw=50.0, # Power limit
+            charge_efficiency=1.0,
+            discharge_efficiency=1.0,
+            strategy_mode=StrategyMode.ARBITRAGE,
+            charging_mode=ChargingMode.TIME_WINDOW,
+            charge_start_hour=9,
+            charge_end_hour=15,
+            precharge_target_hour=17,
+            precharge_target_soc_kwh=80.0,
+            min_direct_pv_share=0.0,
+            active_pv2bess_share=1.0,
+            demand_target_kw=100.0,
+            grid_charge_mode=GridChargeMode.TO_FULL,
+            grid_charge_capacity_kw=100.0,
+        )
+
+        # Battery is empty, plenty of headroom.
+        # PV wants to charge 40 kW. Grid wants to charge 50 kW (power rating).
+        # Combined they should be limited to 50 kW.
+        # Since PV has priority, PV = 40, Grid = 10.
+        result = dispatch_single_timestep(
+            solar_gen_kw=40.0,
+            load_kw=0.0,
+            previous_soc_kwh=0.0,
+            hour=12,
+            config=config,
+            is_peak_period=False,
+        )
+
+        assert result.pv_charged_kw == 40.0
+        assert result.grid_charged_kw == 10.0
+        assert result.pv_charged_kw + result.grid_charged_kw == 50.0
+
     def test_energy_conservation(self, default_battery_config: BatteryConfig) -> None:
         """Energy should be conserved across timestep."""
         prev_soc = 50.0

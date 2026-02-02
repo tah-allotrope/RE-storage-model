@@ -51,7 +51,7 @@ def calculate_delivered_re(
     if delta <= 0:
         raise ValueError(f"delta must be positive: {delta}")
 
-    return net_gen_kwh * k_factor * kpp * delta
+    return (net_gen_kwh / (k_factor * kpp)) * delta
 
 
 def calculate_consumed_re(delivered_re_kwh: float, load_kwh: float) -> float:
@@ -184,8 +184,8 @@ def calculate_dppa_revenue(
         return result
 
     delivered_re_kwh = (
-        result[net_gen_column] * assumptions.k_factor * assumptions.kpp * delta
-    )
+        result[net_gen_column] / (assumptions.k_factor * assumptions.kpp)
+    ) * delta
     consumed_re_kwh = delivered_re_kwh.where(
         delivered_re_kwh <= result[load_column], result[load_column]
     )
