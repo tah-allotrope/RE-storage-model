@@ -7,11 +7,17 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 import os
 
+# Resolve project root relative to this script's location (scripts/ -> project root)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
+
+
 def find_excel_file():
-    """Find the Excel file in the current directory."""
-    for f in os.listdir('.'):
+    """Find the Excel file in the project's data/ directory."""
+    for f in os.listdir(DATA_DIR):
         if f.endswith('.xlsx') and not f.startswith('~$'):
-            return f
+            return os.path.join(DATA_DIR, f)
     return None
 
 def investigate_besstoload(excel_file):
@@ -230,7 +236,8 @@ if __name__ == "__main__":
         report = investigate_besstoload(excel_file)
         
         # Write to file
-        output_file = "besstoload_investigation.md"
+        output_file = os.path.join(DOCS_DIR, "besstoload_investigation.md")
+        os.makedirs(DOCS_DIR, exist_ok=True)
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write("# BESS-to-Load Jump Investigation Report\n\n")
             f.write(report)
@@ -239,4 +246,4 @@ if __name__ == "__main__":
         print("\n" + "=" * 60)
         print(report)
     else:
-        print("❌ No Excel file found in current directory")
+        print(f"❌ No Excel file found in {DATA_DIR}")

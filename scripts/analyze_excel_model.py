@@ -11,11 +11,17 @@ from openpyxl.utils import get_column_letter, column_index_from_string
 import glob
 
 
+# Resolve project root relative to this script's location (scripts/ -> project root)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
+
+
 def find_excel_file():
-    """Find Excel file in current directory."""
-    xlsx_files = glob.glob("*.xlsx")
+    """Find Excel file in the project's data/ directory."""
+    xlsx_files = glob.glob(os.path.join(DATA_DIR, "*.xlsx"))
     if not xlsx_files:
-        raise FileNotFoundError("No Excel files found in current directory")
+        raise FileNotFoundError(f"No Excel files found in {DATA_DIR}")
     return xlsx_files[0]
 
 
@@ -526,7 +532,8 @@ def main():
     print("\n📝 Generating markdown report...")
     report = generate_markdown_report(analyses, excel_file)
     
-    output_file = "analysis_report.md"
+    output_file = os.path.join(DOCS_DIR, "analysis_report.md")
+    os.makedirs(DOCS_DIR, exist_ok=True)
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(report)
     

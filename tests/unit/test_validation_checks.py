@@ -72,12 +72,18 @@ def _lifetime_results(
     augmentation_capex_usd: float = 0.0,
     mra_balance_usd: float = 0.0,
 ) -> pd.DataFrame:
+    years = list(range(1, 26))
+    dppa = [dppa_revenue_usd] * 25
+    aug_capex = [0.0] * 25
+    mra = [mra_balance_usd] * 25
+    aug_capex[10] = augmentation_capex_usd  # Year 11 (index 10)
+    aug_capex[21] = augmentation_capex_usd  # Year 22 (index 21)
     return pd.DataFrame(
         {
-            "year": [1, 2],
-            "dppa_revenue_usd": [dppa_revenue_usd, dppa_revenue_usd],
-            "augmentation_capex_usd": [0.0, augmentation_capex_usd],
-            "mra_balance_usd": [mra_balance_usd, mra_balance_usd],
+            "year": years,
+            "dppa_revenue_usd": dppa,
+            "augmentation_capex_usd": aug_capex,
+            "mra_balance_usd": mra,
         }
     ).set_index("year", drop=False)
 
@@ -130,8 +136,8 @@ class TestValidateAugmentationFunding:
         warnings = validate_augmentation_funding(
             _lifetime_results(augmentation_capex_usd=1000.0, mra_balance_usd=200.0)
         )
-        assert len(warnings) == 1
-        assert "augmentation" in warnings[0].lower()
+        assert len(warnings) == 2
+        assert all("augmentation" in w.lower() for w in warnings)
 
 
 class TestValidateFullModel:
