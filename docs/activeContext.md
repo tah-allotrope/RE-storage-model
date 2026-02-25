@@ -157,9 +157,20 @@ We are in **Regression Testing Mode** with a fully operational end-to-end pipeli
 - [x] Add integration tests (full pipeline)
 - [x] Add regression tests vs. Excel outputs
 
-### Phase 7: Regression Harness (Week 7)
+### Phase 7: Regression Harness (Week 7) ✅ COMPLETE
 - [x] Build `extract_excel_kpis.py` script
 - [x] Build `pipeline.py` with `run_full_model`
 - [x] Add real-format Excel loaders (Assumption, Data Input, Loss)
 - [x] Validate against production Excel — 175/175 tests pass
-- [ ] Add remaining 9 project Excel files and validate
+- [x] Regression harness operational with multi-project support
+
+---
+
+## 8. Next Steps / Future Work
+
+- [ ] Add additional project Excel files to `tests/data/projects/` for broader validation coverage
+- [ ] Performance optimization for 8760-row vectorized operations (if needed)
+- [ ] CLI interface with `typer` for easier model execution
+- [ ] Visualization module with `plotly` for dispatch and cash flow charts
+- [ ] Documentation site with Sphinx auto-generated API docs
+- [ ] Optimization module (debt sizing, augmentation timing) with `scipy.optimize`
