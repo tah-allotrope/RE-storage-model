@@ -1,10 +1,10 @@
 # Active Context — RE-Storage Model
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-25
 
 ## 1. Current Focus
 
-We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement + Aggregation + Financial + Validation** implementations. The next steps are to mature integration coverage and wire regression tests to Excel reference fixtures once the end-to-end pipeline entrypoint is available.
+We are in **Regression Testing Mode** with a fully operational end-to-end pipeline (`run_full_model`) and a multi-project regression test harness validated against the production Excel model. All 175 tests pass (169 unit + 3 integration + 3 regression).
 
 ## 2. Key Reference Documents
 
@@ -20,7 +20,12 @@ We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement + 
 
 ### Inputs Layer
 - `src/re_storage/inputs/schemas.py` — Pydantic models (`SystemAssumptions`, `HourlyInputRow`, `DegradationRow`) with strict validation and `extra="forbid"`.
-- `src/re_storage/inputs/loaders.py` — Excel loaders (`load_assumptions`, `load_hourly_data`, `load_degradation_table`, `load_tariff_schedule`) with DataFrame-level validation and domain exceptions.
+- `src/re_storage/inputs/loaders.py` — Excel loaders with real-format adapters:
+  - `load_assumptions` — flat single-row loader (for preprocessed sheets)
+  - `load_assumptions_from_cells` — multi-region cell-based loader (for production Excel files)
+  - `load_hourly_data` — with auto column rename (`SimulationProfile_kW` → `simulation_profile_kw`, etc.)
+  - `load_degradation_table` — with Loss sheet header detection and column rename
+  - `load_tariff_schedule` — tariff period loader
 - `src/re_storage/inputs/__init__.py` — Public exports for schemas and loaders.
 
 ### Physics Layer
@@ -62,65 +67,44 @@ We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement + 
 - `src/re_storage/validation/checks.py` — Validation warnings for energy balance, SoC bounds, DPPA revenue, degradation coverage, and augmentation funding.
 - `src/re_storage/validation/__init__.py` — Public exports for validation checks.
 
+### Pipeline
+- `src/re_storage/pipeline.py` — End-to-end `run_full_model(excel_path)` entrypoint wiring: inputs → physics → settlement → aggregation → financial → metrics. Returns flat `dict[str, float]` of KPIs.
+
+### Scripts
+- `scripts/extract_excel_kpis.py` — Reference KPI extractor from Excel files using `openpyxl data_only=True`. Reads Financial sheet cells, Calc column stats, and Measures sheet labels. Outputs JSON to `tests/data/references/`.
+
 ### Testing
-- `tests/unit/test_battery.py` — Battery unit tests + property-based SoC tests
-- `tests/unit/test_solar.py` — Solar unit tests
-- `tests/unit/test_balance.py` — Physics validation tests
-- `tests/unit/test_inputs_schemas.py` — Input schema validation tests
-- `tests/unit/test_inputs_loaders.py` — Input loader validation tests
-- `tests/unit/test_settlement_dppa.py` — DPPA/CfD revenue calculation tests
-- `tests/unit/test_settlement_grid.py` — Grid expense and savings tests
-- `tests/unit/test_aggregation_monthly.py` — Monthly aggregation tests
-- `tests/unit/test_aggregation_annual.py` — Annual aggregation tests
-- `tests/unit/test_aggregation_lifetime.py` — Lifetime projection tests
-- `tests/unit/test_financial_waterfall.py` — Waterfall tests
-- `tests/unit/test_financial_debt.py` — Debt sizing tests
-- `tests/unit/test_financial_metrics.py` — Metrics tests
-- `tests/unit/test_validation_checks.py` — Validation warning tests
-- `tests/integration/test_full_pipeline.py` — End-to-end pipeline integration tests
-- `tests/regression/test_excel_comparison.py` — Excel regression scaffolding (skipped until fixtures exist)
+- `tests/unit/` — 169 unit tests across all modules
+- `tests/integration/test_full_pipeline.py` — End-to-end pipeline integration tests (3 tests)
+- `tests/regression/test_excel_comparison.py` — Parametrized multi-project, multi-layer regression tests:
+  - Auto-discovers `.xlsx` in `tests/data/projects/` + `.json` in `tests/data/references/`
+  - `test_all_kpis` — compares all available KPIs
+  - `test_physics_layer` — isolates solar gen + SoC tracking
+  - `test_financial_kpis` — isolates IRR/NPV/DSCR
+  - Tolerance tiers: Energy ±0.01%, Revenue ±0.01%, IRR ±0.0001, DSCR ±0.001
+- `tests/data/projects/` — Excel input files for regression testing
+- `tests/data/references/` — JSON reference KPIs extracted from Excel
 - `tests/conftest.py` — Shared fixtures
 
-**Latest test runs:**
-- `pytest tests/unit/test_battery.py tests/unit/test_solar.py tests/unit/test_balance.py` — 96 passed
-- `pytest tests/unit/test_inputs_*.py` — 25 passed
-- `pytest tests/unit/test_settlement_*.py` — 18 passed
-- `pytest tests/unit/test_aggregation_monthly.py tests/unit/test_aggregation_annual.py tests/unit/test_aggregation_lifetime.py` — 12 passed
-- `pytest tests/unit/test_financial_metrics.py` — 5 passed
+**Latest test run (2026-02-25):**
+- `pytest tests/` — **175 passed** (169 unit + 3 integration + 3 regression)
 
-## 5. Recent Progress (2026-02-02)
+## 5. Recent Progress
 
-### Inputs Layer Completed
-- Created `inputs` package with Pydantic schemas and Excel loaders.
-- Implemented strict validation for system assumptions, hourly data, degradation tables, and tariff schedules.
-- Added comprehensive unit tests (25 passed) covering valid/invalid cases and edge conditions.
-- Ensured immutability and defensive programming per AGENTS.md.
+### Regression Test Harness (2026-02-25)
+- Built `scripts/extract_excel_kpis.py` for automated Excel KPI extraction.
+- Built `src/re_storage/pipeline.py` with `run_full_model()` entrypoint.
+- Rewrote `tests/regression/test_excel_comparison.py` with parametrized multi-project, multi-layer comparison.
+- Added `load_assumptions_from_cells()` to handle real Excel multi-region Assumption sheet layout.
+- Added column normalization for Data Input sheet (`SimulationProfile_kW` → `simulation_profile_kw`).
+- Added Loss sheet header detection and column rename (`PV` → `pv_factor`, etc.).
+- Fixed k-factor label matching (exact match for short labels to avoid "k" matching "Ca_peak").
+- Fixed PV2BESS Mode 0: all surplus charges BESS at any hour with `min_direct_pv_share=1.0` and `active_pv2bess_share=1.0`.
+- Validated against production Excel file: **all 3 regression tests pass** (physics, financial, all_kpis).
 
-### Settlement Layer Completed
-- Implemented DPPA/CfD revenue calculations with k-factor/kpp adjustments and consumed RE capping.
-- Implemented grid expense calculations by tariff period, demand charges, and grid savings.
-- Added guard behavior when DPPA is disabled (zeros + warning).
-- Added comprehensive unit tests (18 passed) for formulas, validation, and edge cases.
-
-### Documentation
-- Updated `implementation.md` with detailed settlement layer plan.
-- All code follows type hints, docstrings, and auditability standards.
-
-### Aggregation Layer Completed
-- Implemented monthly, annual, and lifetime aggregations with unit-suffixed columns.
-- Added validation for missing columns and degradation tables.
-- Added unit tests for monthly/annual/lifetime aggregation (12 passed).
-
-### Financial Layer Completed
-- Implemented cash flow waterfall, debt sizing, and return metrics.
-- Added unit tests for financial waterfall, debt, and metrics.
-- Fixed metrics date handling for DatetimeIndex inputs.
-
-### Validation + Integration Scaffolding Completed
-- Added validation checks for energy balance, SoC bounds, DPPA revenue, degradation coverage, and augmentation funding.
-- Added unit tests to verify validation warnings and missing-column failures.
-- Added integration tests for small synthetic pipeline runs and leap-year aggregation.
-- Added regression test scaffolding for Excel KPI comparison with fixture guidance.
+### Previous Milestones
+- Core + Physics + Inputs + Settlement + Aggregation + Financial + Validation layers implemented and tested.
+- Integration tests for synthetic pipeline runs and leap-year aggregation.
 
 ---
 
@@ -172,3 +156,10 @@ We are in **Build Mode** with verified **Core + Physics + Inputs + Settlement + 
 - [x] Implement `validation.checks`
 - [x] Add integration tests (full pipeline)
 - [x] Add regression tests vs. Excel outputs
+
+### Phase 7: Regression Harness (Week 7)
+- [x] Build `extract_excel_kpis.py` script
+- [x] Build `pipeline.py` with `run_full_model`
+- [x] Add real-format Excel loaders (Assumption, Data Input, Loss)
+- [x] Validate against production Excel — 175/175 tests pass
+- [ ] Add remaining 9 project Excel files and validate

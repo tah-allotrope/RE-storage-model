@@ -1,0 +1,21 @@
+{
+  "_source_file": "AUDIT 20251201 40MW Solar ^M BESS Ecoplexus.xlsx",
+  "project_irr": 0.050735542178153986,
+  "equity_irr": 0.04637605249881745,
+  "unlevered_irr": 0.08833179771900176,
+  "npv_usd": -2653309.3660635054,
+  "calc_solar_gen_sum_kwh": 71808298.6286,
+  "calc_soc_min_kwh": 0.0,
+  "calc_soc_max_kwh": 56100.0,
+  "measures_total_solar_gen": 71808298.62859994,
+  "measures_scale_factor": 1.0,
+  "measures_bau_grid_expense": 308435590914.5167,
+  "measures_grid_expense": 199339876444.39343,
+  "measures_bess_to_load": 8677222.913506528,
+  "measures_direct_pv_consumption": 61106382.35360867,
+  "measures_total_dppa_revenue": 125741709275.28995,
+  "measures_market_energy_payment": 93226578817.01515,
+  "measures_cfd_payment": 32515130458.2748,
+  "measures_total_grid_savings": 109095714470.12329,
+  "measures_first_year_revenue_usd": 4576659.856527493
+}
