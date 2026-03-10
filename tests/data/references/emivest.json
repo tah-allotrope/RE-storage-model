@@ -1,0 +1,15 @@
+{
+  "_source_file": "Emivest.json",
+  "_note": "Reference KPIs from external model — fill in actual values",
+  "project_irr": null,
+  "equity_irr": null,
+  "unlevered_irr": null,
+  "npv_usd": null,
+  "dscr_min": null,
+  "calc_solar_gen_sum_kwh": null,
+  "calc_soc_min_kwh": null,
+  "calc_soc_max_kwh": null,
+  "year1_solar_generation_mwh": null,
+  "year1_dppa_revenue_usd": null,
+  "year1_grid_savings_usd": null
+}

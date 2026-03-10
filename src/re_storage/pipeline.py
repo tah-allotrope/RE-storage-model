@@ -44,6 +44,13 @@ from re_storage.inputs.loaders import (
     load_hourly_data,
     load_tariff_schedule,
 )
+from re_storage.inputs.json_loader import (
+    load_assumptions_from_json,
+    load_degradation_from_json,
+    load_financial_params_from_json,
+    load_hourly_data_from_csv,
+    load_tariff_rates_from_json,
+)
 from re_storage.inputs.schemas import SystemAssumptions
 from re_storage.physics.battery import BatteryConfig, dispatch_single_timestep
 from re_storage.physics.solar import (
@@ -190,12 +197,16 @@ def _run_physics(
 
     # Derived columns
     direct_pv_kw = calculate_direct_pv_consumption_vectorized(
-        solar_gen_kw, load_kw_arr, pv_charged_kw,
+        solar_gen_kw,
+        load_kw_arr,
+        pv_charged_kw,
     )
     result["direct_pv_consumption_kw"] = direct_pv_kw
 
     surplus_kw = calculate_surplus_generation_vectorized(
-        solar_gen_kw, direct_pv_kw, pv_charged_kw,
+        solar_gen_kw,
+        direct_pv_kw,
+        pv_charged_kw,
     )
     result["surplus_kw"] = surplus_kw
 
@@ -205,7 +216,8 @@ def _run_physics(
 
     # Grid load after solar + BESS (discharge reduces grid import)
     grid_load_after_re_kw = np.maximum(
-        grid_load_after_solar_kw - discharged_kw, 0.0,
+        grid_load_after_solar_kw - discharged_kw,
+        0.0,
     )
     result["grid_load_after_re_kw"] = grid_load_after_re_kw
 
@@ -240,10 +252,14 @@ def _run_settlement(
 
     # Grid expenses
     bau_expense = calculate_bau_expense(
-        result["load_kwh"], result["time_period"], tariff_rates,
+        result["load_kwh"],
+        result["time_period"],
+        tariff_rates,
     )
     re_expense = calculate_re_expense(
-        result["grid_load_after_re_kw"], result["time_period"], tariff_rates,
+        result["grid_load_after_re_kw"],
+        result["time_period"],
+        tariff_rates,
     )
     result["bau_expense_usd"] = bau_expense
     result["re_expense_usd"] = re_expense
@@ -312,16 +328,18 @@ def _build_placeholder_opex(project_years: int) -> pd.DataFrame:
     Other Input, these will be replaced with real values.
     """
     years = list(range(1, project_years + 1))
-    return pd.DataFrame({
-        "year": years,
-        "o_and_m_usd": 0.0,
-        "insurance_usd": 0.0,
-        "land_lease_usd": 0.0,
-        "management_fees_usd": 0.0,
-        "grid_connection_usd": 0.0,
-        "taxes_usd": 0.0,
-        "mra_contribution_usd": 0.0,
-    })
+    return pd.DataFrame(
+        {
+            "year": years,
+            "o_and_m_usd": 0.0,
+            "insurance_usd": 0.0,
+            "land_lease_usd": 0.0,
+            "management_fees_usd": 0.0,
+            "grid_connection_usd": 0.0,
+            "taxes_usd": 0.0,
+            "mra_contribution_usd": 0.0,
+        }
+    )
 
 
 def _run_financial(
@@ -345,12 +363,14 @@ def _run_financial(
     years = list(range(1, project_years + 1))
 
     # Revenue schedule from lifetime projection
-    revenue = pd.DataFrame({
-        "year": years,
-        "dppa_revenue_usd": lifetime["dppa_revenue_usd"].values,
-        "grid_savings_usd": lifetime["grid_savings_usd"].values,
-        "demand_charge_savings_usd": 0.0,  # Placeholder until demand charges added
-    })
+    revenue = pd.DataFrame(
+        {
+            "year": years,
+            "dppa_revenue_usd": lifetime["dppa_revenue_usd"].values,
+            "grid_savings_usd": lifetime["grid_savings_usd"].values,
+            "demand_charge_savings_usd": 0.0,  # Placeholder until demand charges added
+        }
+    )
 
     opex = _build_placeholder_opex(project_years)
 
@@ -382,20 +402,24 @@ def _run_financial(
     except Exception as exc:
         logger.warning("Debt sizing failed: %s — using zero debt", exc)
         debt_amount_usd = 0.0
-        debt_schedule = pd.DataFrame({
+        debt_schedule = pd.DataFrame(
+            {
+                "year": years,
+                "interest_usd": 0.0,
+                "principal_usd": 0.0,
+                "total_debt_service_usd": 0.0,
+            }
+        ).set_index("year", drop=False)
+
+    # Pad debt schedule to cover full project lifetime
+    full_debt = pd.DataFrame(
+        {
             "year": years,
             "interest_usd": 0.0,
             "principal_usd": 0.0,
             "total_debt_service_usd": 0.0,
-        }).set_index("year", drop=False)
-
-    # Pad debt schedule to cover full project lifetime
-    full_debt = pd.DataFrame({
-        "year": years,
-        "interest_usd": 0.0,
-        "principal_usd": 0.0,
-        "total_debt_service_usd": 0.0,
-    }).set_index("year", drop=False)
+        }
+    ).set_index("year", drop=False)
 
     for col in ["interest_usd", "principal_usd", "total_debt_service_usd"]:
         overlap = full_debt.index.intersection(debt_schedule.index)
@@ -455,9 +479,7 @@ def _run_financial(
         results["npv_usd"] = float("nan")
 
     # DSCR
-    debt_service_years = full_debt.loc[
-        full_debt["total_debt_service_usd"] > 0
-    ]
+    debt_service_years = full_debt.loc[full_debt["total_debt_service_usd"] > 0]
     if len(debt_service_years) > 0:
         dscr_series = calculate_dscr_series(
             ebitda_series.loc[debt_service_years.index],
@@ -589,15 +611,9 @@ def run_full_model(
 
     # Aggregation intermediate KPIs
     year1 = agg["year1"]
-    results["year1_solar_generation_mwh"] = float(
-        year1.loc[1, "total_solar_generation_mwh"]
-    )
-    results["year1_dppa_revenue_usd"] = float(
-        year1.loc[1, "total_dppa_revenue_usd"]
-    )
-    results["year1_grid_savings_usd"] = float(
-        year1.loc[1, "total_grid_savings_usd"]
-    )
+    results["year1_solar_generation_mwh"] = float(year1.loc[1, "total_solar_generation_mwh"])
+    results["year1_dppa_revenue_usd"] = float(year1.loc[1, "total_dppa_revenue_usd"])
+    results["year1_grid_savings_usd"] = float(year1.loc[1, "total_grid_savings_usd"])
 
     logger.info(
         "Model complete — Project IRR: %.4f, Equity IRR: %.4f, NPV: %.0f",
@@ -605,5 +621,96 @@ def run_full_model(
         results.get("equity_irr", float("nan")),
         results.get("npv_usd", float("nan")),
     )
+
+    return results
+
+
+def run_model_from_json(
+    project_dir: Path,
+    tariff_rates: dict[TimePeriod, float] | None = None,
+) -> dict[str, Any]:
+    """
+    Run the full RE-Storage pipeline using JSON+CSV project inputs.
+
+    Returns the same scalar KPI keys as run_full_model, plus report-friendly
+    DataFrames under underscore-prefixed keys: _hourly_df and _lifetime_df.
+    """
+    project_dir = Path(project_dir)
+    if not project_dir.exists() or not project_dir.is_dir():
+        raise ValueError(f"project_dir must be an existing directory: {project_dir}")
+
+    json_files = sorted(project_dir.glob("*.json"))
+    csv_files = sorted(project_dir.glob("*.csv"))
+
+    if len(json_files) != 1:
+        raise ValueError(
+            f"Expected exactly one JSON file in {project_dir}, found {len(json_files)}"
+        )
+    if len(csv_files) != 1:
+        raise ValueError(f"Expected exactly one CSV file in {project_dir}, found {len(csv_files)}")
+
+    json_path = json_files[0]
+    csv_path = csv_files[0]
+    logger.info("Running JSON model on %s", project_dir)
+
+    assumptions = load_assumptions_from_json(json_path)
+    hourly_data = load_hourly_data_from_csv(csv_path)
+    financial_params = load_financial_params_from_json(json_path)
+    project_years = int(financial_params["project_years"])
+    degradation_table = load_degradation_from_json(json_path, project_years=project_years)
+
+    schedule = {
+        TimePeriod.OFF_PEAK: list(range(0, 7)),
+        TimePeriod.STANDARD: list(range(7, 17)),
+        TimePeriod.PEAK: list(range(17, 24)),
+    }
+
+    if tariff_rates is None:
+        tariff_rates = load_tariff_rates_from_json(json_path)
+
+    exchange_rate_usd_vnd = float(financial_params["exchange_rate_usd_vnd"])
+    if exchange_rate_usd_vnd <= 0:
+        raise ValueError("exchange_rate_usd_vnd must be positive")
+
+    hourly_data = hourly_data.copy()
+    hourly_data["fmp_usd_per_kwh"] = hourly_data["fmp_usd_per_kwh"] / exchange_rate_usd_vnd
+    hourly_data["cfmp_usd_per_kwh"] = hourly_data["cfmp_usd_per_kwh"] / exchange_rate_usd_vnd
+
+    hourly_result = _run_physics(hourly_data, assumptions, schedule)
+    settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates)
+    agg = _run_aggregation(
+        settlement_result,
+        settlement_result,
+        assumptions.model_copy(update={"actual_capacity_kwp": assumptions.simulation_capacity_kwp}),
+        degradation_table,
+        project_years=project_years,
+    )
+
+    financial_kpis = _run_financial(
+        lifetime=agg["lifetime"],
+        project_years=project_years,
+        interest_rate_pct=float(financial_params["interest_rate_pct"]),
+        tenor_years=int(financial_params["tenor_years"]),
+        target_dscr=float(financial_params["target_dscr"]),
+        initial_capex_usd=float(financial_params["initial_capex_usd"]),
+        discount_rate_pct=float(financial_params["discount_rate_pct"]),
+        cod_date=str(financial_params["cod_date"]),
+    )
+
+    results: dict[str, Any] = {}
+    results.update(financial_kpis)
+
+    results["calc_solar_gen_sum_kwh"] = float(hourly_result["solar_gen_kw"].sum())
+    soc_series = hourly_result["soc_kwh"]
+    results["calc_soc_min_kwh"] = float(soc_series.min())
+    results["calc_soc_max_kwh"] = float(soc_series.max())
+
+    year1 = agg["year1"]
+    results["year1_solar_generation_mwh"] = float(year1.loc[1, "total_solar_generation_mwh"])
+    results["year1_dppa_revenue_usd"] = float(year1.loc[1, "total_dppa_revenue_usd"])
+    results["year1_grid_savings_usd"] = float(year1.loc[1, "total_grid_savings_usd"])
+
+    results["_hourly_df"] = settlement_result
+    results["_lifetime_df"] = agg["lifetime"]
 
     return results
