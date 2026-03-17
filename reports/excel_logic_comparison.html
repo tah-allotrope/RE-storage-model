@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Excel Logic Comparison Report</title>
+  <style>
+    :root {
+      --ink: #1b2733;
+      --muted: #5d6a76;
+      --bg: #f5f7fa;
+      --card: #fff;
+      --border: #d5dde5;
+      --header: #12324a;
+      --structural: #6b7280;
+      --potential: #b7791f;
+      --material: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+      font-family: Georgia, 'Times New Roman', serif; }
+    .wrap { max-width: 1300px; margin: 0 auto; padding: 20px; }
+    h1, h2 { color: var(--header); margin: 0 0 10px; }
+    section { background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px;
+      font-size: 13px; vertical-align: top; }
+    thead th { background: #e7eef5; }
+    code { font-family: Consolas, monospace; font-size: 12px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .chip { display: inline-block; border-radius: 999px; font-size: 11px;
+      padding: 2px 8px; color: #fff; }
+    .chip-structural { background: var(--structural); }
+    .chip-potential { background: var(--potential); }
+    .chip-material { background: var(--material); }
+    .muted { color: var(--muted); font-size: 13px; }
+    .finding { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+    .kv td:first-child { width: 30%; font-weight: 700; }
+    @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+    @media print { @page { size: A4; margin: 12mm; }
+      body { background: #fff; } section { break-inside: avoid; }
+      .wrap { padding: 0; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Excel Version Logic Comparison Report</h1>
+    <p class="muted">Focused on material logic changes, KPI impact, and forensic evidence.</p>
+    <section>
+      <h2>1. Comparison Overview</h2>
+      <table class="kv"><tbody>
+        <tr><td>Selection Mode</td><td>auto-discovery</td></tr>
+        <tr><td>Latest Workbook</td><td>llm 20260129 SOLAR BESS MODEL - Editing - for processing test.xlsx</td></tr>
+        <tr><td>Latest Modified (UTC)</td><td>2026-03-17T06:21:43.059706+00:00</td></tr>
+        <tr><td>Latest Size (bytes)</td><td>9,783,861</td></tr>
+        <tr><td>Previous Workbook</td><td>AUDIT 20251201 40MW Solar ^M BESS Ecoplexus.xlsx</td></tr>
+        <tr><td>Previous Modified (UTC)</td><td>2026-01-28T13:16:19.897160+00:00</td></tr>
+        <tr><td>Previous Size (bytes)</td><td>9,760,537</td></tr>
+      </tbody></table>
+    </section>
+    <section>
+      <h2>2. Structure Diff</h2>
+      <div class="grid2">
+        <div><h3>Added Sheets</h3><ul><li>Claude Log</li><li>Dashboard</li><li>Quick Start</li><li>Scenarios</li></ul></div>
+        <div><h3>Removed Sheets</h3><ul><li>None</li></ul></div>
+      </div>
+      <h3>Shared Sheet Dimension Deltas</h3>
+      <table>
+        <thead><tr><th>Sheet</th><th>Previous Rows</th><th>Latest Rows</th>
+        <th>Previous Cols</th><th>Latest Cols</th></tr></thead>
+        <tbody><tr><td>Assumption</td><td>74</td><td>77</td><td>18</td><td>18</td></tr><tr><td>Data Input</td><td>8761</td><td>8768</td><td>6</td><td>10</td></tr><tr><td>Loss</td><td>27</td><td>33</td><td>6</td><td>6</td></tr><tr><td>NAV</td><td>57</td><td>69</td><td>18</td><td>18</td></tr><tr><td>Other Input</td><td>23</td><td>25</td><td>6</td><td>6</td></tr></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>3. KPI Delta Dashboard</h2>
+      <table>
+        <thead><tr><th>KPI</th><th>Previous</th><th>Latest</th>
+        <th>Absolute Delta</th><th>Relative Delta</th><th>Significance</th></tr></thead>
+        <tbody><tr><td>calc_soc_max_kwh</td><td>56,100.00</td><td>56,100.00</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>calc_soc_min_kwh</td><td>0.000000</td><td>0.000000</td><td>+0.000000</td><td>N/A</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>calc_solar_gen_sum_kwh</td><td>71,808,298.63</td><td>71,808,298.63</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>equity_irr</td><td>0.046376</td><td>0.083994</td><td>+0.037618</td><td>+81.12%</td><td><span class='chip chip-material'>Material</span></td></tr><tr><td>measures_bau_grid_expense</td><td>308,435,590,914.52</td><td>353,029,759,046.16</td><td>+44,594,168,131.65</td><td>+14.46%</td><td><span class='chip chip-potential'>Potentially Material</span></td></tr><tr><td>measures_bess_to_load</td><td>8,677,222.91</td><td>8,677,222.91</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>measures_cfd_payment</td><td>32,515,130,458.27</td><td>32,515,130,458.27</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>measures_direct_pv_consumption</td><td>61,106,382.35</td><td>61,106,382.35</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>measures_first_year_revenue_usd</td><td>4,576,659.86</td><td>4,576,659.86</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>measures_grid_expense</td><td>199,339,876,444.39</td><td>198,097,494,725.12</td><td>-1,242,381,719.27</td><td>-0.62%</td><td><span class='chip chip-potential'>Potentially Material</span></td></tr><tr><td>measures_market_energy_payment</td><td>93,226,578,817.02</td><td>93,226,578,817.02</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>measures_scale_factor</td><td>1.00</td><td>1.00</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>measures_total_dppa_revenue</td><td>125,741,709,275.29</td><td>125,741,709,275.29</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>measures_total_grid_savings</td><td>109,095,714,470.12</td><td>154,932,264,321.04</td><td>+45,836,549,850.92</td><td>+42.01%</td><td><span class='chip chip-potential'>Potentially Material</span></td></tr><tr><td>measures_total_solar_gen</td><td>71,808,298.63</td><td>71,808,298.63</td><td>+0.000000</td><td>+0.00%</td><td><span class='chip chip-structural'>Structural</span></td></tr><tr><td>npv_usd</td><td>-2,653,309.37</td><td>22,033,885.71</td><td>+24,687,195.08</td><td>+930.43%</td><td><span class='chip chip-material'>Material</span></td></tr><tr><td>project_irr</td><td>0.050736</td><td>0.089522</td><td>+0.038786</td><td>+76.45%</td><td><span class='chip chip-material'>Material</span></td></tr><tr><td>unlevered_irr</td><td>0.088332</td><td>0.194025</td><td>+0.105693</td><td>+119.66%</td><td><span class='chip chip-material'>Material</span></td></tr></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>4. Material Logic Changes</h2>
+      <article class='finding'><h3>Financial solver state - Financial solver state appears refreshed in latest workbook <span class='chip chip-material'>Material</span></h3><p><strong>Confidence:</strong> High</p><p><strong>Observed Facts</strong></p><ul><li>Financial!G170 cached value changed: previous=-8373198.664 latest=0</li><li>Financial!H1 formula previous=None latest==IF(ABS(G170)&lt;50000,&quot;✅ FRESH&quot;,IF(ABS(G170)&lt;500000,&quot;⚠️ DRIFT&quot;,&quot;❌ STALE — Re-run Solver&quot;))</li><li>Financial!H1 cached value previous=None latest=✅ FRESH</li><li>G123: previous=0.05073554218 latest=0.08952173889</li><li>G136: previous=0.0463760525 latest=0.0839941889</li><li>G189: previous=0.08833179772 latest=0.1940252244</li><li>G193: previous=-2653309.366 latest=22033885.71</li><li>equity_irr: 0.04637605249881745 -&gt; 0.08399418890476229 (delta=0.037618136405944844)</li><li>npv_usd: -2653309.3660635054 -&gt; 22033885.713421218 (delta=24687195.079484724)</li><li>project_irr: 0.050735542178153986 -&gt; 0.08952173888683321 (delta=0.03878619670867922)</li><li>unlevered_irr: 0.08833179771900176 -&gt; 0.19402522444725037 (delta=0.10569342672824861)</li></ul><p><strong>Assumptions</strong></p><ul><li>Interpretation assumes data_only cached values represent workbook solve state at save-time.</li><li>If either workbook was saved without recalc, this can be overstated.</li></ul><table><thead><tr><th>Cell</th><th>Previous Formula</th><th>Latest Formula</th><th>Previous Value</th><th>Latest Value</th></tr></thead><tbody><tr><td>Financial!G170</td><td><code>=J165-H168</code></td><td><code>=J165-H168</code></td><td>-8373198.664</td><td>0</td></tr><tr><td>Financial!H1</td><td><code>N/A</code></td><td><code>=IF(ABS(G170)&lt;50000,&quot;✅ FRESH&quot;,IF(ABS(G170)&lt;500000,&quot;⚠️ DRIFT&quot;,&quot;❌ STALE — Re-run Solver&quot;))</code></td><td>N/A</td><td>✅ FRESH</td></tr><tr><td>Financial!J1</td><td><code>N/A</code></td><td><code>=G170</code></td><td>N/A</td><td>0</td></tr></tbody></table></article><article class='finding'><h3>Loss/Lifetime reference-window shifts - Lifetime formulas shifted Loss-year reference windows <span class='chip chip-potential'>Potentially Material</span></h3><p><strong>Confidence:</strong> Medium</p><p><strong>Observed Facts</strong></p><ul><li>Observed reference window shift: Loss!$A$3:$A$27 -&gt; Loss!$A$9:$A$33</li><li>Detected 400 formula locations with this shift pattern</li><li>Representative formula cell: Lifetime!B12</li></ul><p><strong>Assumptions</strong></p><ul><li>Materiality depends on whether shifted ranges change years included in calculations.</li></ul><table><thead><tr><th>Cell</th><th>Previous Formula</th><th>Latest Formula</th><th>Previous Value</th><th>Latest Value</th></tr></thead><tbody><tr><td>Lifetime!B12</td><td><code>=PV_Surplus*_xlfn.XLOOKUP(B$1,Loss!$A$3:$A$27,Loss!$E$3:$E$27,0,0)/1000</code></td><td><code>=PV_Surplus*_xlfn.XLOOKUP(B$1,Loss!$A$9:$A$33,Loss!$E$9:$E$33,0,0)/1000</code></td><td>N/A</td><td>N/A</td></tr></tbody></table></article><article class='finding'><h3>Assumption formula edits - Assumption!K43 changed from hardcoded multiplier to parameterized reference <span class='chip chip-potential'>Potentially Material</span></h3><p><strong>Confidence:</strong> Medium</p><p><strong>Observed Facts</strong></p><ul><li>Previous Assumption!K43 formula: =0.16*K41*Actual_installation_capacity/1000</li><li>Latest Assumption!K43 formula: =K45*K41*Actual_installation_capacity/1000</li><li>Pattern observed: hardcoded 0.16 multiplier replaced by K45-linked expression.</li></ul><p><strong>Assumptions</strong></p><ul><li>Parameterization can improve consistency but also increases sensitivity to K45 edits.</li></ul><table><thead><tr><th>Cell</th><th>Previous Formula</th><th>Latest Formula</th><th>Previous Value</th><th>Latest Value</th></tr></thead><tbody><tr><td>Assumption!K43</td><td><code>=0.16*K41*Actual_installation_capacity/1000</code></td><td><code>=K45*K41*Actual_installation_capacity/1000</code></td><td>4843200</td><td>4843200</td></tr></tbody></table></article><article class='finding'><h3>Grid-expense path notes - Grid-expense KPIs moved while core generation KPIs stayed stable <span class='chip chip-potential'>Potentially Material</span></h3><p><strong>Confidence:</strong> Medium</p><p><strong>Observed Facts</strong></p><ul><li>measures_total_grid_savings: 109095714470.12329 -&gt; 154932264321.04102</li><li>measures_bau_grid_expense: 308435590914.5167 -&gt; 353029759046.1635</li><li>No grouped Measures formula changes detected.</li></ul><p><strong>Assumptions</strong></p><ul><li>Interpretation assumes stable calc solar/SoC KPIs indicate unchanged core generation physics.</li></ul></article>
+      <h3>Grouped Formula Change Patterns</h3>
+      <table>
+        <thead><tr><th>Sheet</th><th>Change Type</th><th>Span</th>
+        <th>Count</th><th>Representative Cell</th></tr></thead>
+        <tbody><tr><td>Assumption</td><td>changed_formula</td><td>K21</td><td>1</td><td>K21</td></tr><tr><td>Assumption</td><td>changed_formula</td><td>K43</td><td>1</td><td>K43</td></tr><tr><td>Loss</td><td>added_formula</td><td>C28-33</td><td>6</td><td>C28</td></tr><tr><td>Loss</td><td>added_formula</td><td>E28-33</td><td>6</td><td>E28</td></tr><tr><td>Loss</td><td>added_formula</td><td>F28-33</td><td>6</td><td>F28</td></tr><tr><td>Loss</td><td>changed_formula</td><td>C4</td><td>1</td><td>C4</td></tr><tr><td>Loss</td><td>changed_formula</td><td>C5</td><td>1</td><td>C5</td></tr><tr><td>Loss</td><td>changed_formula</td><td>E4</td><td>1</td><td>E4</td></tr><tr><td>Loss</td><td>changed_formula</td><td>F10-27</td><td>18</td><td>F10</td></tr><tr><td>Loss</td><td>changed_formula</td><td>F4</td><td>1</td><td>F4</td></tr><tr><td>Loss</td><td>changed_formula</td><td>F7</td><td>1</td><td>F7</td></tr><tr><td>Loss</td><td>removed_formula</td><td>C6-9</td><td>4</td><td>C6</td></tr><tr><td>Loss</td><td>removed_formula</td><td>E5-9</td><td>5</td><td>E5</td></tr><tr><td>Loss</td><td>removed_formula</td><td>F5-9</td><td>4</td><td>F5</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B12</td><td>1</td><td>B12</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B13</td><td>1</td><td>B13</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B14</td><td>1</td><td>B14</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B15</td><td>1</td><td>B15</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B16</td><td>1</td><td>B16</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B17</td><td>1</td><td>B17</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B18</td><td>1</td><td>B18</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B19</td><td>1</td><td>B19</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B2</td><td>1</td><td>B2</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B20</td><td>1</td><td>B20</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B21</td><td>1</td><td>B21</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B23</td><td>1</td><td>B23</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B25-26</td><td>2</td><td>B25</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B3</td><td>1</td><td>B3</td></tr><tr><td>Lifetime</td><td>changed_formula</td><td>B4</td><td>1</td><td>B4</td></tr><tr><td>Financial</td><td>added_formula</td><td>H1</td><td>1</td><td>H1</td></tr><tr><td>Financial</td><td>added_formula</td><td>J1</td><td>1</td><td>J1</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AA100</td><td>1</td><td>AA100</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AA99</td><td>1</td><td>AA99</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AB100</td><td>1</td><td>AB100</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AB99</td><td>1</td><td>AB99</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AC100</td><td>1</td><td>AC100</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AC99</td><td>1</td><td>AC99</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AD100</td><td>1</td><td>AD100</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AD99</td><td>1</td><td>AD99</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AE100</td><td>1</td><td>AE100</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AE99</td><td>1</td><td>AE99</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AF100</td><td>1</td><td>AF100</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AF99</td><td>1</td><td>AF99</td></tr><tr><td>Financial</td><td>changed_formula</td><td>AG100</td><td>1</td><td>AG100</td></tr></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>5. Defined Names Retargeting</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Previous Ref</th><th>Latest Ref</th>
+        <th>Previous Value</th><th>Latest Value</th><th>Interpretation</th></tr></thead>
+        <tbody><tr><td>Corporate_Tax_Rate</td><td>Assumption!$K$59</td><td>Assumption!$K$62</td><td>0.2</td><td>0.2</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>First_Discount</td><td>Assumption!$K$61</td><td>Assumption!$K$64</td><td>0.05</td><td>0.05</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Off_peak_110</td><td>&#x27;Other Input&#x27;!$D$21</td><td>&#x27;Other Input&#x27;!$D$23</td><td>1146</td><td>1146</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Off_peak_22</td><td>&#x27;Other Input&#x27;!$C$21</td><td>&#x27;Other Input&#x27;!$C$23</td><td>1190</td><td>1190</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Peak_110</td><td>&#x27;Other Input&#x27;!$D$23</td><td>&#x27;Other Input&#x27;!$D$25</td><td>3266</td><td>3266</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Peak_22</td><td>&#x27;Other Input&#x27;!$C$23</td><td>&#x27;Other Input&#x27;!$C$25</td><td>3398</td><td>3398</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Second_discount</td><td>Assumption!$K$62</td><td>Assumption!$K$65</td><td>0.1</td><td>0.1</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Std_110</td><td>&#x27;Other Input&#x27;!$D$22</td><td>&#x27;Other Input&#x27;!$D$24</td><td>1811</td><td>1811</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Std_22</td><td>&#x27;Other Input&#x27;!$C$22</td><td>&#x27;Other Input&#x27;!$C$24</td><td>1833</td><td>1833</td><td>Structural: name target moved but sampled value appears unchanged</td></tr><tr><td>Tax_Holiday</td><td>Assumption!$K$60</td><td>Assumption!$K$63</td><td>0</td><td>0</td><td>Structural: name target moved but sampled value appears unchanged</td></tr></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>6. Risk and Interpretation Notes</h2>
+      <ul>
+        <li><strong>Observed fact:</strong> Values come from cached workbook values.</li>
+        <li><strong>Observed fact:</strong> Formula diffs are grouped to suppress copy noise.</li>
+        <li><strong>Assumption:</strong>
+          Stale workbook caches can distort materiality inference.</li>
+        <li><strong>Confidence model:</strong>
+          Findings include confidence tags by evidence quality.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>7. Reproducibility Footer</h2>
+      <table class="kv"><tbody>
+        <tr><td>Command</td><td><code>python scripts/compare_excel_versions.py --latest &quot;C:\Users\tukum\Downloads\RE-storage-model\data\llm 20260129 SOLAR BESS MODEL - Editing - for processing test.xlsx&quot; --previous &quot;C:\Users\tukum\Downloads\RE-storage-model\data\AUDIT 20251201 40MW Solar ^M BESS Ecoplexus.xlsx&quot; --output &quot;reports\excel_logic_comparison.html&quot;</code></td></tr>
+        <tr><td>Generated (UTC)</td><td>2026-03-17T11:18:37.687791+00:00</td></tr>
+        <tr><td>Latest SHA256</td><td><code>c3c3089410418b99b83aba22a576f5b27d861f9658336cbc7f53c4351f59b61f</code></td></tr>
+        <tr><td>Previous SHA256</td><td><code>50f811e32fe988708dc146f237ad3a2583899b6d000fc616d0b96ab1c67ace48</code></td></tr>
+      </tbody></table>
+    </section>
+  </div>
+</body>
+</html>
