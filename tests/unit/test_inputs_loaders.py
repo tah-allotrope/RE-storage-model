@@ -21,7 +21,9 @@ from re_storage.core.types import HOURS_PER_LEAP_YEAR, HOURS_PER_YEAR, TimePerio
 from re_storage.inputs.loaders import (
     load_assumptions,
     load_degradation_table,
+    load_financial_params_from_cells,
     load_hourly_data,
+    load_tariff_rates_from_cells,
     load_tariff_schedule,
 )
 
@@ -116,13 +118,55 @@ class TestLoadAssumptions:
             load_assumptions(path)
 
 
+def _write_assumption_label_workbook(path: Path) -> Path:
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        raise RuntimeError("Workbook active sheet unavailable")
+    ws.title = "Assumption"
+
+    ws["I2"] = "Project Lifetime"
+    ws["K2"] = 20
+    ws["I3"] = "Base Rate (floating)"
+    ws["K3"] = 0.065
+    ws["I4"] = "Debt Margin"
+    ws["K4"] = 0.02
+    ws["I5"] = "Maximum Debt Tenor"
+    ws["K5"] = 10
+    ws["I6"] = "Target DSCR"
+    ws["K6"] = 1.3
+    ws["I7"] = "Target Minimum Equity IRR"
+    ws["K7"] = 0.10
+    ws["I8"] = "Solar"
+    ws["K8"] = 750000
+    ws["I9"] = "BESS"
+    ws["K9"] = 200000
+    ws["I10"] = "BOP"
+    ws["K10"] = 4843200
+    ws["I11"] = "Land acquisition"
+    ws["K11"] = 1200000
+    ws["I12"] = "Commercial Operation Date"
+    ws["K12"] = pd.Timestamp("2026-01-01")
+
+    ws["O2"] = "Standard"
+    ws["Q2"] = 70
+    ws["O3"] = "Peak"
+    ws["Q3"] = 120
+    ws["O4"] = "Off-Peak"
+    ws["Q4"] = 45
+
+    wb.save(path)
+    wb.close()
+    return path
+
+
 class TestLoadHourlyData:
     """Tests for load_hourly_data."""
 
-    @pytest.mark.parametrize("rows", [HOURS_PER_YEAR, HOURS_PER_LEAP_YEAR])
-    def test_load_hourly_data_accepts_valid_lengths(
-        self, tmp_path: Path, rows: int
-    ) -> None:
+    @pytest.mark.parametrize("rows", [HOURS_PER_YEAR, HOURS_PER_LEAP_YEAR])  # type: ignore[untyped-decorator]
+    def test_load_hourly_data_accepts_valid_lengths(self, tmp_path: Path, rows: int) -> None:
         """Should accept 8760 and 8784 rows."""
         path = _write_excel(tmp_path / "inputs.xlsx", {"Data Input": _hourly_frame(rows)})
         df = load_hourly_data(path)
@@ -149,6 +193,37 @@ class TestLoadHourlyData:
         with pytest.raises(InputValidationError, match="contains negative values"):
             load_hourly_data(path)
 
+    def test_load_hourly_data_with_preamble_rows(self, tmp_path: Path) -> None:
+        """Loader should detect shifted header rows in new-style Data Input sheets."""
+        rows = HOURS_PER_YEAR
+        data = _hourly_frame(rows)
+        preamble = pd.DataFrame(
+            {
+                "HOURLY SIMULATION DATA": ["meta1", "meta2"],
+                "Unnamed: 1": [None, None],
+                "Unnamed: 2": [None, None],
+                "Unnamed: 3": [None, None],
+                "Unnamed: 4": [None, None],
+                "Unnamed: 5": [None, None],
+            }
+        )
+        renamed = data.rename(
+            columns={
+                "datetime": "DateTime",
+                "simulation_profile_kw": "SimulationProfile_kW",
+                "irradiation_wh_m2": "Irradiation_W/m2",
+                "load_kw": "Load_kW",
+                "fmp_usd_per_kwh": "FMP",
+                "cfmp_usd_per_kwh": "CFMP",
+            }
+        )
+        combined = pd.concat([preamble, renamed], ignore_index=True)
+        path = _write_excel(tmp_path / "inputs.xlsx", {"Data Input": combined})
+
+        df = load_hourly_data(path)
+        assert len(df) == rows
+        assert "datetime" in df.columns
+
 
 class TestLoadDegradationTable:
     """Tests for load_degradation_table."""
@@ -173,6 +248,41 @@ class TestLoadDegradationTable:
         path = _write_excel(tmp_path / "inputs.xlsx", {"Loss": frame})
         with pytest.raises(InputValidationError, match="out of range"):
             load_degradation_table(path)
+
+    def test_load_degradation_table_with_preamble_rows(self, tmp_path: Path) -> None:
+        """Loader should detect shifted Loss header rows in new-style sheets."""
+        preamble = pd.DataFrame(
+            {
+                "DEGRADATION & LOSS FACTORS": [
+                    "intro",
+                    "another intro",
+                    None,
+                    "sync row",
+                    None,
+                ]
+            }
+        )
+        loss = pd.DataFrame(
+            {
+                "Year": np.arange(1, 26),
+                "BESS Annual Loss (%)": np.linspace(0.02, 0.03, 25),
+                "BESS Cumulative Retention": np.linspace(1.0, 0.8, 25),
+                "PV Annual Loss (%)": np.linspace(0.01, 0.02, 25),
+                "PV Cumulative Retention": np.linspace(1.0, 0.9, 25),
+                "BESS w/ Replacement": np.linspace(1.0, 0.97, 25),
+            }
+        )
+        combined = pd.concat([preamble, loss], ignore_index=True)
+        path = _write_excel(tmp_path / "inputs.xlsx", {"Loss": combined})
+
+        df = load_degradation_table(path)
+        assert len(df) == 25
+        assert {
+            "year",
+            "pv_factor",
+            "battery_factor_no_replacement",
+            "battery_factor_with_replacement",
+        }.issubset(df.columns)
 
 
 class TestLoadTariffSchedule:
@@ -201,3 +311,27 @@ class TestLoadTariffSchedule:
         path = _write_excel(tmp_path / "inputs.xlsx", {"Tariff Schedule": frame})
         with pytest.raises(InputValidationError, match="Invalid hour"):
             load_tariff_schedule(path)
+
+
+class TestLoadTariffAndFinancialFromCells:
+    def test_load_tariff_rates_from_cells(self, tmp_path: Path) -> None:
+        path = _write_assumption_label_workbook(tmp_path / "assumption.xlsx")
+
+        rates = load_tariff_rates_from_cells(path)
+
+        assert rates[TimePeriod.STANDARD] == pytest.approx(0.07)
+        assert rates[TimePeriod.PEAK] == pytest.approx(0.12)
+        assert rates[TimePeriod.OFF_PEAK] == pytest.approx(0.045)
+
+    def test_load_financial_params_from_cells(self, tmp_path: Path) -> None:
+        path = _write_assumption_label_workbook(tmp_path / "assumption.xlsx")
+
+        params = load_financial_params_from_cells(path)
+
+        assert params["project_years"] == 20
+        assert params["interest_rate_pct"] == pytest.approx(8.5)
+        assert params["tenor_years"] == 10
+        assert params["target_dscr"] == pytest.approx(1.3)
+        assert params["initial_capex_usd"] == pytest.approx(6993200.0)
+        assert params["discount_rate_pct"] == pytest.approx(10.0)
+        assert params["cod_date"] == "2026-01-01"

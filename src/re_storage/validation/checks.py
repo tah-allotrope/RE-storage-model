@@ -7,9 +7,11 @@ warnings so users can review issues without losing the full audit trail.
 
 from __future__ import annotations
 
-from typing import Iterable
+import math
+from collections.abc import Iterable
 
 import pandas as pd
+from openpyxl import load_workbook
 
 from re_storage.core.exceptions import EnergyBalanceError, InputValidationError, SoCBoundsError
 from re_storage.core.types import HourlyTimeSeries, MonthlyTimeSeries
@@ -23,9 +25,7 @@ from re_storage.physics.balance import (
 def _require_columns(data: pd.DataFrame, required: set[str], label: str) -> None:
     missing = required - set(data.columns)
     if missing:
-        raise InputValidationError(
-            f"Missing required columns in {label}: {sorted(missing)}"
-        )
+        raise InputValidationError(f"Missing required columns in {label}: {sorted(missing)}")
 
 
 def _with_year_index(data: pd.DataFrame, label: str) -> pd.DataFrame:
@@ -68,9 +68,7 @@ def validate_energy_balance_series(
     try:
         validate_energy_balance_vectorized(
             solar_gen_kwh=hourly_results[solar_gen_column].to_numpy(dtype=float),
-            direct_consumption_kwh=hourly_results[direct_consumption_column].to_numpy(
-                dtype=float
-            ),
+            direct_consumption_kwh=hourly_results[direct_consumption_column].to_numpy(dtype=float),
             charged_kwh=hourly_results[charged_column].to_numpy(dtype=float),
             surplus_kwh=hourly_results[surplus_column].to_numpy(dtype=float),
             tolerance=tolerance,
@@ -146,11 +144,17 @@ def validate_dppa_revenue(
     if not dppa_enabled:
         return []
 
-    total_revenue = float(lifetime_results[revenue_column].sum())
+    total_revenue = 0.0
+    for raw in lifetime_results[revenue_column].tolist():
+        try:
+            numeric = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if math.isnan(numeric):
+            continue
+        total_revenue += numeric
     if total_revenue == 0:
-        return [
-            "DPPA is enabled but total DPPA revenue is $0. Check DPPA inputs and toggles."
-        ]
+        return ["DPPA is enabled but total DPPA revenue is $0. Check DPPA inputs and toggles."]
 
     return []
 
@@ -178,7 +182,7 @@ def validate_degradation_coverage(
             "project_years must be positive.", field="project_years", value=project_years
         )
 
-    years = set(int(year) for year in degradation_table["year"].tolist())
+    years = {int(year) for year in degradation_table["year"].tolist()}
     missing_years = [year for year in range(1, project_years + 1) if year not in years]
     if missing_years:
         return [
@@ -235,6 +239,63 @@ def validate_augmentation_funding(
     return warnings
 
 
+def validate_financial_solver_freshness(
+    excel_path: str,
+    max_allowed_residual_usd: float = 50000.0,
+) -> list[str]:
+    """
+    Validate Financial-sheet solve freshness using cached workbook values.
+
+    Args:
+        excel_path: Path to source Excel workbook.
+        max_allowed_residual_usd: Absolute residual threshold for G170.
+
+    Returns:
+        List of warning strings. Empty if freshness check passes.
+
+    Raises:
+        InputValidationError: If threshold is invalid.
+    """
+    if max_allowed_residual_usd <= 0:
+        raise InputValidationError(
+            "max_allowed_residual_usd must be positive.",
+            field="max_allowed_residual_usd",
+            value=max_allowed_residual_usd,
+        )
+
+    wb = load_workbook(excel_path, data_only=True, read_only=False)
+    try:
+        if "Financial" not in wb.sheetnames:
+            return []
+
+        ws = wb["Financial"]
+        g170_raw = ws["G170"].value
+        h1_raw = ws["H1"].value
+
+        warnings: list[str] = []
+        residual: float | None
+        try:
+            residual = abs(float(g170_raw)) if g170_raw is not None else None
+        except (TypeError, ValueError):
+            residual = None
+
+        if residual is not None and residual > max_allowed_residual_usd:
+            warnings.append(
+                "Financial solver freshness warning: "
+                f"|Financial!G170|={residual:,.2f} exceeds "
+                f"threshold {max_allowed_residual_usd:,.2f}."
+            )
+
+        if isinstance(h1_raw, str) and "STALE" in h1_raw.upper():
+            warnings.append(
+                "Financial solver freshness warning: Financial!H1 indicates stale solve state."
+            )
+
+        return warnings
+    finally:
+        wb.close()
+
+
 def validate_full_model(
     hourly_results: HourlyTimeSeries,
     monthly_results: MonthlyTimeSeries,
@@ -266,9 +327,7 @@ def validate_full_model(
             hourly_results, max_capacity_kwh=assumptions.usable_bess_capacity_kwh
         )
     )
-    warnings.extend(
-        validate_dppa_revenue(lifetime_results, dppa_enabled=assumptions.dppa_enabled)
-    )
+    warnings.extend(validate_dppa_revenue(lifetime_results, dppa_enabled=assumptions.dppa_enabled))
     if degradation_table is not None:
         warnings.extend(
             validate_degradation_coverage(degradation_table, project_years=project_years)

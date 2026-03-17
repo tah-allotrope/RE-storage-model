@@ -7,8 +7,11 @@ violations and raises InputValidationError when required data is missing.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
+from openpyxl import Workbook
 
 from re_storage.core.exceptions import InputValidationError
 from re_storage.inputs.schemas import SystemAssumptions
@@ -17,6 +20,7 @@ from re_storage.validation.checks import (
     validate_degradation_coverage,
     validate_dppa_revenue,
     validate_energy_balance_series,
+    validate_financial_solver_freshness,
     validate_full_model,
     validate_soc_bounds_series,
 )
@@ -88,6 +92,20 @@ def _lifetime_results(
     ).set_index("year", drop=False)
 
 
+def _write_financial_workbook(path: Path, g170_value: float, h1_value: str | None = None) -> Path:
+    wb = Workbook()
+    ws = wb.create_sheet("Financial")
+    if wb.active is not None:
+        wb.remove(wb.active)
+    ws.title = "Financial"
+    ws["G170"] = g170_value
+    if h1_value is not None:
+        ws["H1"] = h1_value
+    wb.save(path)
+    wb.close()
+    return path
+
+
 class TestValidateEnergyBalanceSeries:
     def test_returns_warning_on_imbalance(self) -> None:
         warnings = validate_energy_balance_series(_hourly_results(imbalanced=True))
@@ -110,9 +128,7 @@ class TestValidateSocBoundsSeries:
 
 class TestValidateDppaRevenue:
     def test_warns_when_enabled_but_zero(self) -> None:
-        warnings = validate_dppa_revenue(
-            _lifetime_results(dppa_revenue_usd=0.0), dppa_enabled=True
-        )
+        warnings = validate_dppa_revenue(_lifetime_results(dppa_revenue_usd=0.0), dppa_enabled=True)
         assert len(warnings) == 1
         assert "DPPA is enabled" in warnings[0]
 
@@ -164,3 +180,34 @@ class TestValidateFullModel:
         assert any("DPPA is enabled" in warning for warning in warnings)
         assert any("Degradation table" in warning for warning in warnings)
         assert any("augmentation" in warning.lower() for warning in warnings)
+
+
+class TestValidateFinancialSolverFreshness:
+    def test_stale_solver_residual_warns(self, tmp_path: Path) -> None:
+        workbook = _write_financial_workbook(tmp_path / "stale.xlsx", g170_value=-8373198.66)
+
+        warnings = validate_financial_solver_freshness(str(workbook))
+
+        assert any("G170" in msg for msg in warnings)
+
+    def test_h1_stale_status_warns(self, tmp_path: Path) -> None:
+        workbook = _write_financial_workbook(
+            tmp_path / "stale_h1.xlsx",
+            g170_value=100.0,
+            h1_value="STALE - Re-run Solver",
+        )
+
+        warnings = validate_financial_solver_freshness(str(workbook))
+
+        assert any("H1" in msg for msg in warnings)
+
+    def test_fresh_solver_has_no_warning(self, tmp_path: Path) -> None:
+        workbook = _write_financial_workbook(
+            tmp_path / "fresh.xlsx",
+            g170_value=0.0,
+            h1_value="FRESH",
+        )
+
+        warnings = validate_financial_solver_freshness(str(workbook))
+
+        assert warnings == []

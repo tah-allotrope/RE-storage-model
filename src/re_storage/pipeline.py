@@ -30,7 +30,7 @@ from re_storage.core.types import (
     StrategyMode,
     TimePeriod,
 )
-from re_storage.financial.debt import calculate_amortization_schedule, size_debt_for_dscr
+from re_storage.financial.debt import size_debt_for_dscr
 from re_storage.financial.metrics import (
     calculate_dscr_series,
     calculate_equity_irr,
@@ -38,18 +38,20 @@ from re_storage.financial.metrics import (
     calculate_project_irr,
 )
 from re_storage.financial.waterfall import build_cash_flow_waterfall
-from re_storage.inputs.loaders import (
-    load_assumptions_from_cells,
-    load_degradation_table,
-    load_hourly_data,
-    load_tariff_schedule,
-)
 from re_storage.inputs.json_loader import (
     load_assumptions_from_json,
     load_degradation_from_json,
     load_financial_params_from_json,
     load_hourly_data_from_csv,
     load_tariff_rates_from_json,
+)
+from re_storage.inputs.loaders import (
+    load_assumptions_from_cells,
+    load_degradation_table,
+    load_financial_params_from_cells,
+    load_hourly_data,
+    load_tariff_rates_from_cells,
+    load_tariff_schedule,
 )
 from re_storage.inputs.schemas import SystemAssumptions
 from re_storage.physics.battery import BatteryConfig, dispatch_single_timestep
@@ -64,6 +66,7 @@ from re_storage.settlement.grid import (
     calculate_grid_savings,
     calculate_re_expense,
 )
+from re_storage.validation.checks import validate_financial_solver_freshness
 
 logger = logging.getLogger(__name__)
 
@@ -548,10 +551,27 @@ def run_full_model(
     excel_path = Path(excel_path)
     logger.info("Running full model on %s", excel_path.name)
 
+    financial_params = load_financial_params_from_cells(excel_path)
+    project_years_effective = int(financial_params["project_years"])
+    interest_rate_effective = float(financial_params["interest_rate_pct"])
+    tenor_years_effective = int(financial_params["tenor_years"])
+    target_dscr_effective = float(financial_params["target_dscr"])
+    initial_capex_effective = float(financial_params["initial_capex_usd"])
+    discount_rate_effective = float(financial_params["discount_rate_pct"])
+    cod_date_effective = str(financial_params["cod_date"])
+
+    # --- Workbook-level diagnostics ---
+    freshness_warnings = validate_financial_solver_freshness(str(excel_path))
+    for warning in freshness_warnings:
+        logger.warning("%s", warning)
+
     # --- Load inputs ---
     assumptions = load_assumptions_from_cells(excel_path)
     hourly_data = load_hourly_data(excel_path)
-    degradation_table = load_degradation_table(excel_path, project_years=project_years)
+    degradation_table = load_degradation_table(
+        excel_path,
+        project_years=project_years_effective,
+    )
 
     try:
         schedule = load_tariff_schedule(excel_path)
@@ -564,11 +584,7 @@ def run_full_model(
         }
 
     if tariff_rates is None:
-        tariff_rates = {
-            TimePeriod.OFF_PEAK: 0.05,
-            TimePeriod.STANDARD: 0.10,
-            TimePeriod.PEAK: 0.20,
-        }
+        tariff_rates = load_tariff_rates_from_cells(excel_path)
 
     # --- Stage A: Physics ---
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
@@ -582,19 +598,19 @@ def run_full_model(
         settlement_result,  # dppa columns are already in the same DF
         assumptions,
         degradation_table,
-        project_years=project_years,
+        project_years=project_years_effective,
     )
 
     # --- Stage D: Financial ---
     financial_kpis = _run_financial(
         lifetime=agg["lifetime"],
-        project_years=project_years,
-        interest_rate_pct=interest_rate_pct,
-        tenor_years=tenor_years,
-        target_dscr=target_dscr,
-        initial_capex_usd=initial_capex_usd,
-        discount_rate_pct=discount_rate_pct,
-        cod_date=cod_date,
+        project_years=project_years_effective,
+        interest_rate_pct=interest_rate_effective,
+        tenor_years=tenor_years_effective,
+        target_dscr=target_dscr_effective,
+        initial_capex_usd=initial_capex_effective,
+        discount_rate_pct=discount_rate_effective,
+        cod_date=cod_date_effective,
     )
 
     # --- Assemble KPI dict ---

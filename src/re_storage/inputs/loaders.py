@@ -8,6 +8,7 @@ passing data to the physics engine.
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +48,22 @@ REQUIRED_DEGRADATION_COLUMNS = {
     "battery_factor_with_replacement",
 }
 
+_DATA_INPUT_HEADER_MARKERS = {
+    "datetime",
+    "simulationprofile_kw",
+    "irradiation_w/m2",
+    "load_kw",
+    "fmp",
+    "cfmp",
+}
+
+_LOSS_HEADER_MARKERS = {
+    "year",
+    "bess cumulative retention",
+    "pv cumulative retention",
+    "bess w/ replacement",
+}
+
 
 def load_assumptions(path: Path) -> SystemAssumptions:
     """
@@ -64,15 +81,11 @@ def load_assumptions(path: Path) -> SystemAssumptions:
     df = _read_sheet(path, ASSUMPTIONS_SHEET)
 
     if len(df) != 1:
-        raise InputValidationError(
-            f"Expected exactly 1 row in {ASSUMPTIONS_SHEET}, got {len(df)}."
-        )
+        raise InputValidationError(f"Expected exactly 1 row in {ASSUMPTIONS_SHEET}, got {len(df)}.")
 
     missing = _missing_columns(df, SystemAssumptions.model_fields.keys())
     if missing:
-        raise InputValidationError(
-            f"Missing required assumptions columns: {sorted(missing)}."
-        )
+        raise InputValidationError(f"Missing required assumptions columns: {sorted(missing)}.")
 
     data = df.iloc[0].to_dict()
 
@@ -107,15 +120,11 @@ def load_assumptions_from_cells(path: Path) -> SystemAssumptions:
     try:
         wb = load_workbook(str(path), data_only=True, read_only=False)
     except (FileNotFoundError, OSError) as exc:
-        raise InputValidationError(
-            f"Failed to open Excel file {path}: {exc}"
-        ) from exc
+        raise InputValidationError(f"Failed to open Excel file {path}: {exc}") from exc
 
     if ASSUMPTIONS_SHEET not in wb.sheetnames:
         wb.close()
-        raise InputValidationError(
-            f"Sheet '{ASSUMPTIONS_SHEET}' not found in {path}."
-        )
+        raise InputValidationError(f"Sheet '{ASSUMPTIONS_SHEET}' not found in {path}.")
 
     ws = wb[ASSUMPTIONS_SHEET]
 
@@ -254,9 +263,7 @@ def load_assumptions_from_cells(path: Path) -> SystemAssumptions:
             dppa_enabled=dppa_enabled,
         )
     except ValidationError as exc:
-        raise InputValidationError(
-            f"Assumptions validation failed: {exc}"
-        ) from exc
+        raise InputValidationError(f"Assumptions validation failed: {exc}") from exc
 
 
 def _build_label_map(
@@ -292,6 +299,113 @@ def _build_label_map(
     return result
 
 
+def load_tariff_rates_from_cells(path: Path) -> dict[TimePeriod, float]:
+    """Load tariff rates from Assumption!O/Q labels."""
+    try:
+        wb = load_workbook(str(path), data_only=True, read_only=False)
+    except (FileNotFoundError, OSError) as exc:
+        raise InputValidationError(f"Failed to open Excel file {path}: {exc}") from exc
+
+    if ASSUMPTIONS_SHEET not in wb.sheetnames:
+        wb.close()
+        raise InputValidationError(f"Sheet '{ASSUMPTIONS_SHEET}' not found in {path}.")
+
+    ws = wb[ASSUMPTIONS_SHEET]
+    oq_map = _build_label_map(ws, label_col="O", value_col="Q")
+    wb.close()
+
+    def _find_value(label_substring: str) -> float:
+        key = label_substring.lower()
+        for label, raw_value in oq_map.items():
+            if key in label.strip().lower():
+                try:
+                    value = float(raw_value)
+                except (TypeError, ValueError) as exc:
+                    raise InputValidationError(
+                        f"Tariff label '{label}' has non-numeric value {raw_value!r}."
+                    ) from exc
+                if value < 0:
+                    raise InputValidationError(
+                        f"Tariff label '{label}' has negative value {value}."
+                    )
+                return value
+        raise InputValidationError(f"Missing tariff label containing '{label_substring}'.")
+
+    def _normalize(value: float) -> float:
+        return value / 1000.0 if value > 2.0 else value
+
+    return {
+        TimePeriod.OFF_PEAK: _normalize(_find_value("off-peak")),
+        TimePeriod.STANDARD: _normalize(_find_value("standard")),
+        TimePeriod.PEAK: _normalize(_find_value("peak")),
+    }
+
+
+def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]:
+    """Load key financial parameters from Assumption!I/K labels."""
+    try:
+        wb = load_workbook(str(path), data_only=True, read_only=False)
+    except (FileNotFoundError, OSError) as exc:
+        raise InputValidationError(f"Failed to open Excel file {path}: {exc}") from exc
+
+    if ASSUMPTIONS_SHEET not in wb.sheetnames:
+        wb.close()
+        raise InputValidationError(f"Sheet '{ASSUMPTIONS_SHEET}' not found in {path}.")
+
+    ws = wb[ASSUMPTIONS_SHEET]
+    ik_map = _build_label_map(ws, label_col="I", value_col="K")
+    wb.close()
+
+    def _find_float(label_substring: str, default: float | None = None) -> float:
+        key = label_substring.lower()
+        for label, raw_value in ik_map.items():
+            if key in label.strip().lower():
+                try:
+                    return float(raw_value)
+                except (TypeError, ValueError) as exc:
+                    raise InputValidationError(
+                        f"Financial label '{label}' has non-numeric value {raw_value!r}."
+                    ) from exc
+        if default is not None:
+            return default
+        raise InputValidationError(f"Missing financial label containing '{label_substring}'.")
+
+    def _find_date_iso(label_substring: str, default_iso: str) -> str:
+        key = label_substring.lower()
+        for label, raw_value in ik_map.items():
+            if key in label.strip().lower():
+                if isinstance(raw_value, datetime):
+                    return str(raw_value.date())
+                if isinstance(raw_value, date):
+                    return str(raw_value)
+                if isinstance(raw_value, str) and raw_value.strip():
+                    return raw_value.strip()
+        return default_iso
+
+    project_years = int(_find_float("project lifetime", default=25.0))
+    base_rate = _find_float("base rate", default=0.06)
+    debt_margin = _find_float("debt margin", default=0.0)
+    tenor_years = int(_find_float("maximum debt tenor", default=15.0))
+    target_dscr = _find_float("target dscr", default=1.3)
+    min_equity_irr_ratio = _find_float("target minimum equity irr", default=0.10)
+
+    solar_capex = _find_float("solar", default=0.0)
+    bess_capex = _find_float("bess", default=0.0)
+    bop_capex = _find_float("bop", default=0.0)
+    land_capex = _find_float("land acquisition", default=0.0)
+    initial_capex_usd = max(solar_capex + bess_capex + bop_capex + land_capex, 0.0)
+
+    return {
+        "project_years": project_years,
+        "interest_rate_pct": (base_rate + debt_margin) * 100.0,
+        "tenor_years": tenor_years,
+        "target_dscr": target_dscr,
+        "initial_capex_usd": initial_capex_usd,
+        "discount_rate_pct": min_equity_irr_ratio * 100.0,
+        "cod_date": _find_date_iso("commercial operation date", default_iso="2027-01-01"),
+    }
+
+
 def load_hourly_data(path: Path) -> HourlyTimeSeries:
     """
     Load and validate the hourly time series data.
@@ -305,15 +419,14 @@ def load_hourly_data(path: Path) -> HourlyTimeSeries:
     Raises:
         InputValidationError: If row count or required columns are invalid.
     """
-    df = _read_sheet(path, DATA_INPUT_SHEET)
+    df = _read_data_input_sheet(path)
 
     # Try column rename for real Excel layout before validation
     df = _normalize_hourly_columns(df)
 
     if len(df) not in (HOURS_PER_YEAR, HOURS_PER_LEAP_YEAR):
         raise InputValidationError(
-            f"Expected 8760 or 8784 rows, got {len(df)}. "
-            "Check for leap year or incomplete data."
+            f"Expected 8760 or 8784 rows, got {len(df)}. Check for leap year or incomplete data."
         )
 
     missing = _missing_columns(df, REQUIRED_HOURLY_COLUMNS)
@@ -322,11 +435,72 @@ def load_hourly_data(path: Path) -> HourlyTimeSeries:
 
     for column in ("simulation_profile_kw", "irradiation_wh_m2", "load_kw"):
         if (df[column] < 0).any():
-            raise InputValidationError(
-                f"Hourly column '{column}' contains negative values."
-            )
+            raise InputValidationError(f"Hourly column '{column}' contains negative values.")
 
     return df
+
+
+def _normalize_header_cell(value: object) -> str:
+    """Normalize header values for robust row detection."""
+    if value is None:
+        return ""
+    return str(value).strip().lower()
+
+
+def _find_header_row(
+    ws: Any,
+    markers: set[str],
+    search_rows: int = 40,
+    search_cols: int = 20,
+) -> int | None:
+    """Find the first row containing all marker labels."""
+    for row in range(1, min((ws.max_row or 1), search_rows) + 1):
+        cells = {
+            _normalize_header_cell(ws.cell(row=row, column=col).value)
+            for col in range(1, search_cols + 1)
+        }
+        if markers.issubset(cells):
+            return row
+    return None
+
+
+def _read_data_input_sheet(path: Path) -> pd.DataFrame:
+    """
+    Read Data Input with dynamic header-row detection.
+
+    Why: Newer workbooks include metadata rows above the actual hourly header,
+    so fixed-header pandas reads produce extra non-hourly rows.
+    """
+    try:
+        wb = load_workbook(str(path), data_only=True, read_only=False)
+    except (FileNotFoundError, OSError) as exc:
+        raise InputValidationError(f"Failed to open Excel file {path}: {exc}") from exc
+
+    if DATA_INPUT_SHEET not in wb.sheetnames:
+        wb.close()
+        raise InputValidationError(f"Sheet '{DATA_INPUT_SHEET}' not found in {path}.")
+
+    ws = wb[DATA_INPUT_SHEET]
+    header_row = _find_header_row(ws, _DATA_INPUT_HEADER_MARKERS)
+    wb.close()
+
+    if header_row is None:
+        # Fall back to legacy behavior for older fixtures.
+        return _read_sheet(path, DATA_INPUT_SHEET)
+
+    try:
+        df = pd.read_excel(path, sheet_name=DATA_INPUT_SHEET, header=header_row - 1)
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        raise InputValidationError(
+            f"Failed to read sheet '{DATA_INPUT_SHEET}' from {path}: {exc}"
+        ) from exc
+
+    # Keep only rows that look like real hourly timesteps.
+    if "DateTime" in df.columns:
+        datetime_series = pd.to_datetime(df["DateTime"], errors="coerce")
+        df = df.loc[datetime_series.notna()].copy()
+
+    return df.reset_index(drop=True)
 
 
 # Map from real Excel column names (case-insensitive) to internal names.
@@ -395,9 +569,7 @@ def load_degradation_table(path: Path, project_years: int = 25) -> pd.DataFrame:
 
     missing = _missing_columns(df, REQUIRED_DEGRADATION_COLUMNS)
     if missing:
-        raise InputValidationError(
-            f"Missing required degradation columns: {sorted(missing)}."
-        )
+        raise InputValidationError(f"Missing required degradation columns: {sorted(missing)}.")
 
     invalid_mask = (
         (df["pv_factor"] <= 0)
@@ -426,8 +598,11 @@ def load_degradation_table(path: Path, project_years: int = 25) -> pd.DataFrame:
 _LOSS_COLUMN_ALIASES: dict[str, str] = {
     "year": "year",
     "pv": "pv_factor",
+    "pv cumulative retention": "pv_factor",
     "battery": "battery_factor_no_replacement",
+    "bess cumulative retention": "battery_factor_no_replacement",
     "battery wt replacement": "battery_factor_with_replacement",
+    "bess w/ replacement": "battery_factor_with_replacement",
 }
 
 
@@ -460,13 +635,26 @@ def _read_loss_sheet(path: Path) -> pd.DataFrame:
     # column looks like a header row.
     first_col = str(df.columns[0]).strip().lower()
     if "loss" in first_col or "unnamed" in first_col:
-        # The real header is in the first data row; re-read with header=1
         try:
-            df = pd.read_excel(path, sheet_name=LOSS_SHEET, header=1)
+            wb = load_workbook(str(path), data_only=True, read_only=False)
+        except (FileNotFoundError, OSError) as exc:
+            raise InputValidationError(f"Failed to open Excel file {path}: {exc}") from exc
+
+        if LOSS_SHEET not in wb.sheetnames:
+            wb.close()
+            raise InputValidationError(f"Sheet '{LOSS_SHEET}' not found in {path}.")
+
+        ws = wb[LOSS_SHEET]
+        header_row = _find_header_row(ws, _LOSS_HEADER_MARKERS)
+        wb.close()
+
+        if header_row is None:
+            header_row = 2
+
+        try:
+            df = pd.read_excel(path, sheet_name=LOSS_SHEET, header=header_row - 1)
         except (FileNotFoundError, OSError, ValueError) as exc:
-            raise InputValidationError(
-                f"Failed to re-read Loss sheet from {path}: {exc}"
-            ) from exc
+            raise InputValidationError(f"Failed to re-read Loss sheet from {path}: {exc}") from exc
 
     # Normalize column names
     rename_map: dict[str, str] = {}
@@ -483,8 +671,9 @@ def _read_loss_sheet(path: Path) -> pd.DataFrame:
 
     # Drop rows where year is NaN (possible trailing empty rows)
     if "year" in df.columns:
-        df = df.dropna(subset=["year"])
-        df["year"] = df["year"].astype(int)
+        year_numeric = pd.to_numeric(df["year"], errors="coerce")
+        df = df.loc[year_numeric.notna()].copy()
+        df["year"] = year_numeric.loc[df.index].astype(int)
 
     return df
 

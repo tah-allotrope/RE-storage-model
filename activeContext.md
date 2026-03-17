@@ -1,64 +1,166 @@
-# Active Context - ISSUE-1 Emivest Test and Report
+# Active Context - ISSUE-1 Emivest and ISSUE-2 Excel Version Alignment
 
-**Last Updated:** 2026-03-10
+**Last Updated:** 2026-03-17
 
-## Objective
+## ISSUE-1 Objective (Historical)
 
-Implement JSON+CSV support for Emivest (Saigon18), execute the existing simulation pipeline without Excel loaders, compare KPIs against reference JSON, and generate a self-contained HTML report. Additionally, include a 20-year annual figures table with specific metrics.
+Implement JSON+CSV support for Emivest (Saigon18), execute the existing simulation pipeline without Excel loaders, compare KPIs against reference JSON, and generate a self-contained HTML report including a 20-year annual figures table.
 
-## Implemented
+## ISSUE-1 Implemented (Historical)
 
 - Added `matplotlib>=3.7.0` dependency in `pyproject.toml`.
 - Created `src/re_storage/inputs/json_loader.py` with:
   - `load_assumptions_from_json()`
-  - `load_hourly_data_from_csv()` (handles BOM, drops trailing Unnamed column, normalizes columns)
+  - `load_hourly_data_from_csv()`
   - `load_degradation_from_json()`
   - `load_tariff_rates_from_json()`
   - `load_financial_params_from_json()`
   - `_excel_serial_to_date()`
 - Updated `src/re_storage/inputs/__init__.py` exports for JSON loader functions.
-- Added `run_model_from_json()` to `src/re_storage/pipeline.py`:
-  - Discovers exactly one `.json` and one `.csv` in project directory
-  - Reuses `_run_physics()`, `_run_settlement()`, `_run_aggregation()`, `_run_financial()`
-  - Returns standard KPI dict plus `"_hourly_df"` and `"_lifetime_df"`
-  - Uses default tariff schedule (OFF_PEAK 0-6, STANDARD 7-16, PEAK 17-23)
-  - Converts hourly FMP/CFMP to USD path using exchange rate from JSON financial params
-- Created reporting package:
-  - `src/re_storage/reporting/__init__.py`
-  - `src/re_storage/reporting/html_report.py` with:
-    - `generate_report()`
-    - `_render_project_summary()`
-    - `_render_kpi_dashboard()`
-    - `_render_comparison_table()`
-    - `_render_annual_figures_table()` (adds 20-year table of Solar Generation, BESS to Load, Total Load, PV/Solar Saving Revenue, and BESS Saving Revenue)
-    - `_render_lifetime_charts()` (inline base64 PNG charts)
-    - `_render_hourly_profile()`
-    - `_format_number()`
-    - `_comparison_status()`
-  - Includes inline CSS and print-friendly rules.
-- Created CLI script `scripts/run_emivest.py`:
-  - `--project-dir` (default `tests/data/projects/emivest`)
-  - `--reference` (optional)
-  - `--output` (default `reports/emivest_report.html`)
-- Created placeholder reference file `tests/data/references/emivest.json` with null KPIs.
-- Added unit tests `tests/unit/test_json_loader.py` for loader behavior and edge cases.
-- Added regression tests `tests/regression/test_emivest.py` for JSON pipeline execution and KPI checks.
+- Added `run_model_from_json()` to `src/re_storage/pipeline.py`.
+- Created reporting package and HTML report builder in `src/re_storage/reporting/`.
+- Created CLI script `scripts/run_emivest.py`.
+- Added placeholder reference file `tests/data/references/emivest.json`.
+- Added tests `tests/unit/test_json_loader.py` and `tests/regression/test_emivest.py`.
 
-## Verification Status
+## ISSUE-1 Verification Status (Historical)
 
-- `pip install -e ".[dev]"` completed successfully.
-- `pytest tests/unit/test_json_loader.py -v` -> **9 passed**.
-- `pytest tests/regression/test_emivest.py -v` -> **5 passed, 1 skipped** (reference placeholder).
-- `python scripts/run_emivest.py` generated `reports/emivest_report.html` with the new 20-year annual figures table successfully incorporated.
-- `pytest -v` -> **189 passed, 1 skipped** (skip is expected: placeholder Emivest reference values).
+- `pytest tests/unit/test_json_loader.py -v` -> passed.
+- `pytest tests/regression/test_emivest.py -v` -> passed with expected reference skip.
+- `python scripts/run_emivest.py` generated `reports/emivest_report.html`.
 
-## Notes / Known Behavior
-
-- Emivest run emits repeated battery strategy overlap warnings from existing battery logic (`when_needed` + `peak`); this behavior is inherited from current dispatch rules and was not changed in this issue.
-- The reference comparison test for Emivest intentionally skips until external KPI values are populated in `tests/data/references/emivest.json`.
-
-## Remaining Next Actions
+## ISSUE-1 Outstanding (Historical)
 
 - Fill `tests/data/references/emivest.json` with external reference KPI values.
-- Re-run `pytest tests/regression/test_emivest.py -v` to activate full KPI tolerance comparison.
-- Optionally refine battery-dispatch warning volume if desired (separate issue).
+- Re-run `pytest tests/regression/test_emivest.py -v` with real reference values.
+
+---
+
+## ISSUE-2 Objective
+
+Align existing Excel pipeline with latest workbook structure and logic signals, without creating a new model branch:
+
+1. Support shifted/preamble-heavy workbook layouts.
+2. Add workbook solver freshness diagnostics.
+3. Add tariff and financial assumption extraction from new Assumption sheet label blocks.
+4. Keep extending existing codebase (no greenfield model fork).
+
+## ISSUE-2 Implemented This Session
+
+### 1) Excel version logic comparison report workflow
+
+- Added `scripts/compare_excel_versions.py`.
+- Generates standalone report at `reports/excel_logic_comparison.html`.
+- Includes:
+  - workbook auto-discovery or explicit file args
+  - structural diff (added/removed sheets, dimension deltas)
+  - KPI deltas with significance tags
+  - grouped formula diff patterns (noise suppression)
+  - defined-name retargeting summary
+  - material findings with exact evidence cells
+  - reproducibility footer (command, timestamp, hashes)
+
+### 2) Loader hardening for new workbook layout
+
+Updated `src/re_storage/inputs/loaders.py`:
+
+- `load_hourly_data()` now uses dynamic `Data Input` header detection via `_read_data_input_sheet()`.
+- Handles preamble rows and filters to true hourly rows by parseable DateTime values.
+- `_read_loss_sheet()` now detects dynamic Loss header row and supports new labels/preamble blocks.
+- Expanded Loss column alias mapping for:
+  - `PV Cumulative Retention` -> `pv_factor`
+  - `BESS Cumulative Retention` -> `battery_factor_no_replacement`
+  - `BESS w/ Replacement` -> `battery_factor_with_replacement`
+
+### 3) New tariff and financial parameter extraction from Assumption labels
+
+Added in `src/re_storage/inputs/loaders.py`:
+
+- `load_tariff_rates_from_cells(path)`
+  - reads `Standard`, `Peak`, `Off-Peak` from Assumption `O:Q`
+  - normalizes likely USD/MWh values to USD/kWh
+- `load_financial_params_from_cells(path)`
+  - reads key inputs from Assumption `I:K`:
+    - `project_years`
+    - `interest_rate_pct` (base + margin)
+    - `tenor_years`
+    - `target_dscr`
+    - `initial_capex_usd` (Solar + BESS + BOP + Land)
+    - `discount_rate_pct` (from minimum equity IRR label)
+    - `cod_date`
+
+### 4) Pipeline wiring to use workbook-driven defaults
+
+Updated `src/re_storage/pipeline.py` (`run_full_model`):
+
+- Loads financial params from cells and uses them as effective defaults.
+- Uses tariff rates from cells when no explicit `tariff_rates` override is provided.
+- Uses effective project years for degradation and aggregation horizon.
+- Keeps existing API signature unchanged.
+
+### 5) Solver freshness diagnostic
+
+Updated `src/re_storage/validation/checks.py`:
+
+- Added `validate_financial_solver_freshness(excel_path, max_allowed_residual_usd=50000.0)`.
+- Warns on:
+  - high `Financial!G170` residual magnitude
+  - stale-like status in `Financial!H1`
+
+Updated `src/re_storage/pipeline.py`:
+
+- `run_full_model` now calls solver freshness validation and logs warnings.
+
+### 6) Tests added/updated
+
+- Added `tests/unit/test_compare_excel_versions.py` for comparison script helpers.
+- Extended `tests/unit/test_inputs_loaders.py` with:
+  - preamble-shifted Data Input coverage
+  - preamble-shifted Loss coverage
+  - tariff-from-cells extraction
+  - financial-params-from-cells extraction
+- Extended `tests/unit/test_validation_checks.py` with solver freshness tests.
+
+## ISSUE-2 Verification Status
+
+- `pytest tests/unit/test_compare_excel_versions.py` -> passed.
+- `pytest tests/unit/test_inputs_loaders.py` -> passed.
+- `pytest tests/unit/test_validation_checks.py` -> passed.
+- `pytest tests/integration/test_full_pipeline.py` -> passed.
+- Combined run:
+  - `pytest tests/unit/test_inputs_loaders.py tests/unit/test_validation_checks.py tests/integration/test_full_pipeline.py`
+  - Result: **32 passed**.
+- `ruff check` on touched files -> passed.
+- `mypy --strict --follow-imports=skip --disable-error-code import-untyped` on touched files -> passed.
+- `python scripts/compare_excel_versions.py` -> generated `reports/excel_logic_comparison.html`.
+
+## ISSUE-2 Current Behavior / Notes
+
+- Latest workbook now loads through hardened `Data Input` and `Loss` parsing paths.
+- Tariff and financial defaults now come from workbook labels instead of hardcoded pipeline defaults.
+- Solver freshness signals are surfaced through validation warnings.
+- Full pipeline on latest workbook still yields `nan` IRR/NPV in current state due to financial cashflow sign/EBITDA path, not loader failures.
+
+## ISSUE-2 Outstanding for Next Session
+
+1. Financial parity work (highest priority):
+   - Align `_run_financial()` and waterfall assumptions to workbook logic so latest workbook no longer collapses to `nan` IRR/NPV.
+   - Investigate negative/insufficient EBITDA path and debt sizing fallout in latest scenario.
+
+2. Tariff schedule handling (optional refinement):
+   - Consider fallback hierarchy: explicit override -> `Tariff Schedule` sheet -> Assumption O/Q labels -> hardcoded emergency defaults.
+   - Current path already uses Assumption labels when no override is provided.
+
+3. Regression anchoring:
+   - Add latest workbook fixture/reference in `tests/data/projects` and `tests/data/references`.
+   - Re-run regression suite for KPI tolerance-based tracking.
+
+4. Warning noise cleanup (optional):
+   - Battery dispatch logs emit repeated overlap warnings (`when_needed` + `peak`).
+   - Keep as separate issue unless it blocks analysis.
+
+## Recommended Next Start Command Set
+
+1. `python scripts/compare_excel_versions.py`
+2. `python -c "from pathlib import Path; from re_storage.pipeline import run_full_model; print(run_full_model(Path(r'data/llm 20260129 SOLAR BESS MODEL - Editing - for processing test.xlsx')) )"`
+3. `pytest tests/unit/test_inputs_loaders.py tests/unit/test_validation_checks.py tests/integration/test_full_pipeline.py`
