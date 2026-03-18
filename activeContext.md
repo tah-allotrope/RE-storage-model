@@ -1,6 +1,6 @@
 # Active Context - ISSUE-1 Emivest and ISSUE-2 Excel Version Alignment
 
-**Last Updated:** 2026-03-17
+**Last Updated:** 2026-03-18
 
 ## ISSUE-1 Objective (Historical)
 
@@ -121,6 +121,39 @@ Updated `src/re_storage/pipeline.py`:
   - financial-params-from-cells extraction
 - Extended `tests/unit/test_validation_checks.py` with solver freshness tests.
 
+### 7) Financial parity debugging pass (this session)
+
+Updated `src/re_storage/pipeline.py`:
+
+- Added `_normalize_hourly_price_columns_to_usd()` to normalize VND-scale `FMP/CFMP` to USD/kWh for workbook paths.
+- Added `_build_dppa_net_generation()` and switched DPPA input from surplus-only to workbook-aligned net generation (`solar - pv_charge + discharge`, clipped at 0).
+- `run_full_model()` now uses workbook `exchange_rate_usd_vnd` for hourly market-price normalization before settlement.
+- `_run_financial()` now accepts `max_leverage_ratio` and caps debt amount by leverage before equity cashflow construction.
+
+Updated `src/re_storage/settlement/dppa.py`:
+
+- Corrected delivered-RE formula to workbook-aligned form: divide by `k_factor * kpp` (instead of multiply).
+
+Updated `src/re_storage/inputs/loaders.py`:
+
+- `load_tariff_rates_from_cells()` now supports both legacy labels (`Standard/Peak/Off-Peak`) and new labels (`Ca_normal/Ca_peak/Ca_offpeak`).
+- Tariff normalization now uses `USD/VND` when CA-style labels are detected and falls back to the prior `>2 => /1000` rule for legacy fixtures.
+- `load_financial_params_from_cells()` now also returns:
+  - `max_leverage_ratio`
+  - `exchange_rate_usd_vnd`
+- CAPEX extraction is now section-aware (from `Total Cost` block) to avoid picking `Installed Capacity` rows with duplicate labels.
+
+Added tests:
+
+- New file: `tests/unit/test_pipeline_helpers.py`
+  - DPPA net-generation helper behavior
+  - hourly price normalization behavior (convert vs no-op)
+- Updated `tests/unit/test_settlement_dppa.py`
+  - delivered-RE expectation now matches division-based workbook formula
+- Extended `tests/unit/test_inputs_loaders.py`
+  - CA-label tariff extraction coverage
+  - financial params include leverage + exchange rate
+
 ## ISSUE-2 Verification Status
 
 - `pytest tests/unit/test_compare_excel_versions.py` -> passed.
@@ -134,18 +167,34 @@ Updated `src/re_storage/pipeline.py`:
 - `mypy --strict --follow-imports=skip --disable-error-code import-untyped` on touched files -> passed.
 - `python scripts/compare_excel_versions.py` -> generated `reports/excel_logic_comparison.html`.
 
+Additional verification this session:
+
+- `pytest tests/unit/test_settlement_dppa.py tests/unit/test_pipeline_helpers.py tests/unit/test_inputs_loaders.py -q`
+  - Result: **32 passed**.
+- `pytest tests/regression/test_excel_comparison.py -k financial_kpis -q`
+  - Result: **fails** with finite-but-high financial KPIs (no longer `nan`):
+    - `project_irr`: actual `1.1823` vs expected `0.0507`
+    - `equity_irr`: actual `3.6129` vs expected `0.0464`
+    - `unlevered_irr`: actual `1.1823` vs expected `0.0883`
+    - `npv_usd`: actual `60,731,116.55` vs expected `-2,653,309.37`
+
 ## ISSUE-2 Current Behavior / Notes
 
 - Latest workbook now loads through hardened `Data Input` and `Loss` parsing paths.
 - Tariff and financial defaults now come from workbook labels instead of hardcoded pipeline defaults.
 - Solver freshness signals are surfaced through validation warnings.
-- Full pipeline on latest workbook still yields `nan` IRR/NPV in current state due to financial cashflow sign/EBITDA path, not loader failures.
+- `nan` collapse has been removed on workbook paths by aligning units and DPPA handoff signals.
+- Remaining mismatch is now financial parity quality (values too high vs Excel), not loader failure/sign failure.
+- Current quick snapshot (`run_full_model`) on workbook paths is finite but overstated:
+  - regression workbook: `project_irr ~ 1.1823`, `equity_irr ~ 3.6129`, `npv_usd ~ 60.7M`
+  - latest workbook: `project_irr ~ 1.4101`, `equity_irr ~ 4.3744`, `npv_usd ~ 73.7M`
 
 ## ISSUE-2 Outstanding for Next Session
 
 1. Financial parity work (highest priority):
-   - Align `_run_financial()` and waterfall assumptions to workbook logic so latest workbook no longer collapses to `nan` IRR/NPV.
-   - Investigate negative/insufficient EBITDA path and debt sizing fallout in latest scenario.
+   - Align `_run_financial()` and waterfall assumptions to workbook Financial sheet logic (now finite, but materially over-optimistic vs Excel).
+   - Add workbook-driven opex/tax/reserve lines (and any missing financial deductions) so IRR/NPV magnitude matches reference direction and scale.
+   - Validate debt sizing conventions against workbook solver behavior beyond DSCR/leverage cap.
 
 2. Tariff schedule handling (optional refinement):
    - Consider fallback hierarchy: explicit override -> `Tariff Schedule` sheet -> Assumption O/Q labels -> hardcoded emergency defaults.
@@ -163,4 +212,5 @@ Updated `src/re_storage/pipeline.py`:
 
 1. `python scripts/compare_excel_versions.py`
 2. `python -c "from pathlib import Path; from re_storage.pipeline import run_full_model; print(run_full_model(Path(r'data/llm 20260129 SOLAR BESS MODEL - Editing - for processing test.xlsx')) )"`
-3. `pytest tests/unit/test_inputs_loaders.py tests/unit/test_validation_checks.py tests/integration/test_full_pipeline.py`
+3. `pytest tests/unit/test_settlement_dppa.py tests/unit/test_pipeline_helpers.py tests/unit/test_inputs_loaders.py -q`
+4. `pytest tests/regression/test_excel_comparison.py -k financial_kpis -q`

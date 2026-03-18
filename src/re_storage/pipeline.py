@@ -30,7 +30,7 @@ from re_storage.core.types import (
     StrategyMode,
     TimePeriod,
 )
-from re_storage.financial.debt import size_debt_for_dscr
+from re_storage.financial.debt import calculate_amortization_schedule, size_debt_for_dscr
 from re_storage.financial.metrics import (
     calculate_dscr_series,
     calculate_equity_irr,
@@ -122,6 +122,42 @@ def _build_battery_config(assumptions: SystemAssumptions) -> BatteryConfig:
         grid_charge_mode=GridChargeMode.DISABLED,
         grid_charge_capacity_kw=0.0,
     )
+
+
+def _normalize_hourly_price_columns_to_usd(
+    hourly_data: pd.DataFrame,
+    exchange_rate_usd_vnd: float,
+) -> pd.DataFrame:
+    """
+    Convert workbook hourly market prices from VND to USD when needed.
+
+    Why: Real Excel workbooks store FMP/CFMP in VND-scale values (e.g. 1377),
+    while settlement logic expects USD/kWh like the strike-price assumption.
+    """
+    if exchange_rate_usd_vnd <= 0:
+        raise ValueError("exchange_rate_usd_vnd must be positive")
+
+    result = hourly_data.copy()
+    for column in ("fmp_usd_per_kwh", "cfmp_usd_per_kwh"):
+        if column not in result.columns:
+            continue
+        series = pd.to_numeric(result[column], errors="coerce")
+        if series.notna().any() and float(series.abs().max()) > 10.0:
+            result[column] = series / exchange_rate_usd_vnd
+    return result
+
+
+def _build_dppa_net_generation(hourly_data: pd.DataFrame) -> pd.Series:
+    """
+    Build the Calc!AB-equivalent DPPA generation signal.
+
+    Why: The workbook feeds DPPA from net generation after battery charging,
+    then adds battery discharge back in; using surplus-only understates revenue.
+    """
+    net_generation = (
+        hourly_data["solar_gen_kw"] - hourly_data["pv_charged_kw"] + hourly_data["discharged_kw"]
+    )
+    return net_generation.clip(lower=0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -224,8 +260,8 @@ def _run_physics(
     )
     result["grid_load_after_re_kw"] = grid_load_after_re_kw
 
-    # Net generation available for DPPA = surplus after direct + BESS charging
-    result["net_gen_for_dppa_kwh"] = surplus_kw
+    # Net generation available for DPPA follows the workbook's Calc!AB logic.
+    result["net_gen_for_dppa_kwh"] = _build_dppa_net_generation(result)
 
     # Load in kWh (for hourly step = 1h, kW == kWh)
     result["load_kwh"] = load_kw_arr
@@ -354,6 +390,7 @@ def _run_financial(
     initial_capex_usd: float = 0.0,
     discount_rate_pct: float = 8.0,
     cod_date: str = "2027-01-01",
+    max_leverage_ratio: float = 1.0,
 ) -> dict[str, float]:
     """
     Run financial waterfall and calculate return metrics.
@@ -402,6 +439,16 @@ def _run_financial(
             target_dscr=target_dscr,
             initial_guess_usd=initial_capex_usd * 0.7 if initial_capex_usd > 0 else 1e6,
         )
+        if initial_capex_usd > 0:
+            debt_cap_usd = max(initial_capex_usd * max_leverage_ratio, 0.0)
+            if debt_amount_usd > debt_cap_usd:
+                debt_amount_usd = debt_cap_usd
+                if debt_amount_usd > 0:
+                    debt_schedule = calculate_amortization_schedule(
+                        debt_amount_usd=debt_amount_usd,
+                        interest_rate_pct=interest_rate_pct,
+                        tenor_years=tenor_years,
+                    )
     except Exception as exc:
         logger.warning("Debt sizing failed: %s — using zero debt", exc)
         debt_amount_usd = 0.0
@@ -559,6 +606,8 @@ def run_full_model(
     initial_capex_effective = float(financial_params["initial_capex_usd"])
     discount_rate_effective = float(financial_params["discount_rate_pct"])
     cod_date_effective = str(financial_params["cod_date"])
+    exchange_rate_effective = float(financial_params["exchange_rate_usd_vnd"])
+    max_leverage_effective = float(financial_params["max_leverage_ratio"])
 
     # --- Workbook-level diagnostics ---
     freshness_warnings = validate_financial_solver_freshness(str(excel_path))
@@ -567,7 +616,10 @@ def run_full_model(
 
     # --- Load inputs ---
     assumptions = load_assumptions_from_cells(excel_path)
-    hourly_data = load_hourly_data(excel_path)
+    hourly_data = _normalize_hourly_price_columns_to_usd(
+        load_hourly_data(excel_path),
+        exchange_rate_effective,
+    )
     degradation_table = load_degradation_table(
         excel_path,
         project_years=project_years_effective,
@@ -611,6 +663,7 @@ def run_full_model(
         initial_capex_usd=initial_capex_effective,
         discount_rate_pct=discount_rate_effective,
         cod_date=cod_date_effective,
+        max_leverage_ratio=max_leverage_effective,
     )
 
     # --- Assemble KPI dict ---
@@ -688,9 +741,7 @@ def run_model_from_json(
     if exchange_rate_usd_vnd <= 0:
         raise ValueError("exchange_rate_usd_vnd must be positive")
 
-    hourly_data = hourly_data.copy()
-    hourly_data["fmp_usd_per_kwh"] = hourly_data["fmp_usd_per_kwh"] / exchange_rate_usd_vnd
-    hourly_data["cfmp_usd_per_kwh"] = hourly_data["cfmp_usd_per_kwh"] / exchange_rate_usd_vnd
+    hourly_data = _normalize_hourly_price_columns_to_usd(hourly_data, exchange_rate_usd_vnd)
 
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
     settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates)
@@ -711,6 +762,7 @@ def run_model_from_json(
         initial_capex_usd=float(financial_params["initial_capex_usd"]),
         discount_rate_pct=float(financial_params["discount_rate_pct"]),
         cod_date=str(financial_params["cod_date"]),
+        max_leverage_ratio=float(financial_params.get("max_leverage_ratio", 1.0)),
     )
 
     results: dict[str, Any] = {}

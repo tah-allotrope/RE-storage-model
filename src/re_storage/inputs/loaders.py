@@ -312,12 +312,29 @@ def load_tariff_rates_from_cells(path: Path) -> dict[TimePeriod, float]:
 
     ws = wb[ASSUMPTIONS_SHEET]
     oq_map = _build_label_map(ws, label_col="O", value_col="Q")
+    ik_map = _build_label_map(ws, label_col="I", value_col="K")
     wb.close()
 
-    def _find_value(label_substring: str) -> float:
-        key = label_substring.lower()
+    def _find_exchange_rate() -> float | None:
+        for label, raw_value in ik_map.items():
+            if "usd/vnd" in label.strip().lower():
+                try:
+                    value = float(raw_value)
+                except (TypeError, ValueError) as exc:
+                    raise InputValidationError(
+                        f"Financial label '{label}' has non-numeric value {raw_value!r}."
+                    ) from exc
+                if value > 0:
+                    return value
+        return None
+
+    exchange_rate = _find_exchange_rate()
+
+    def _find_value(*label_options: str) -> float:
+        normalized_options = tuple(option.strip().lower() for option in label_options)
         for label, raw_value in oq_map.items():
-            if key in label.strip().lower():
+            normalized_label = label.strip().lower()
+            if any(option in normalized_label for option in normalized_options):
                 try:
                     value = float(raw_value)
                 except (TypeError, ValueError) as exc:
@@ -328,16 +345,22 @@ def load_tariff_rates_from_cells(path: Path) -> dict[TimePeriod, float]:
                     raise InputValidationError(
                         f"Tariff label '{label}' has negative value {value}."
                     )
-                return value
-        raise InputValidationError(f"Missing tariff label containing '{label_substring}'.")
+                return value, normalized_label
+        raise InputValidationError(f"Missing tariff label containing one of {label_options!r}.")
 
-    def _normalize(value: float) -> float:
+    def _normalize(value: float, normalized_label: str) -> float:
+        if exchange_rate is not None and value >= 100.0 and "ca_" in normalized_label:
+            return value / exchange_rate
         return value / 1000.0 if value > 2.0 else value
 
+    off_peak_value, off_peak_label = _find_value("off-peak", "ca_offpeak")
+    standard_value, standard_label = _find_value("standard", "ca_normal")
+    peak_value, peak_label = _find_value("peak", "ca_peak")
+
     return {
-        TimePeriod.OFF_PEAK: _normalize(_find_value("off-peak")),
-        TimePeriod.STANDARD: _normalize(_find_value("standard")),
-        TimePeriod.PEAK: _normalize(_find_value("peak")),
+        TimePeriod.OFF_PEAK: _normalize(off_peak_value, off_peak_label),
+        TimePeriod.STANDARD: _normalize(standard_value, standard_label),
+        TimePeriod.PEAK: _normalize(peak_value, peak_label),
     }
 
 
@@ -354,6 +377,12 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
 
     ws = wb[ASSUMPTIONS_SHEET]
     ik_map = _build_label_map(ws, label_col="I", value_col="K")
+    ik_rows: list[tuple[int, str, Any]] = []
+    for row in range(1, (ws.max_row or 1) + 1):
+        label = ws[f"I{row}"].value
+        value = ws[f"K{row}"].value
+        if isinstance(label, str) and label.strip():
+            ik_rows.append((row, label.strip(), value))
     wb.close()
 
     def _find_float(label_substring: str, default: float | None = None) -> float:
@@ -382,17 +411,64 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
                     return raw_value.strip()
         return default_iso
 
+    def _find_row(label_substring: str) -> int | None:
+        key = label_substring.lower()
+        for row, label, _value in ik_rows:
+            if key in label.lower():
+                return row
+        return None
+
+    def _find_float_between_rows(
+        target_label: str,
+        start_row: int,
+        end_row: int | None,
+        default: float | None = None,
+    ) -> float:
+        key = target_label.lower()
+        for row, label, raw_value in ik_rows:
+            if row <= start_row:
+                continue
+            if end_row is not None and row >= end_row:
+                continue
+            if key in label.lower():
+                try:
+                    return float(raw_value)
+                except (TypeError, ValueError) as exc:
+                    raise InputValidationError(
+                        f"Financial label '{label}' has non-numeric value {raw_value!r}."
+                    ) from exc
+        if default is not None:
+            return default
+        raise InputValidationError(f"Missing financial label containing '{target_label}'.")
+
     project_years = int(_find_float("project lifetime", default=25.0))
     base_rate = _find_float("base rate", default=0.06)
     debt_margin = _find_float("debt margin", default=0.0)
     tenor_years = int(_find_float("maximum debt tenor", default=15.0))
     target_dscr = _find_float("target dscr", default=1.3)
     min_equity_irr_ratio = _find_float("target minimum equity irr", default=0.10)
+    max_leverage_ratio = _find_float("maximum leverage", default=1.0)
+    exchange_rate_usd_vnd = _find_float("usd/vnd", default=26000.0)
 
-    solar_capex = _find_float("solar", default=0.0)
-    bess_capex = _find_float("bess", default=0.0)
-    bop_capex = _find_float("bop", default=0.0)
-    land_capex = _find_float("land acquisition", default=0.0)
+    total_cost_row = _find_row("total cost")
+    depreciation_row = _find_row("depreciation tenor")
+    if total_cost_row is None:
+        solar_capex = _find_float("solar", default=0.0)
+        bess_capex = _find_float("bess", default=0.0)
+        bop_capex = _find_float("bop", default=0.0)
+        land_capex = _find_float("land acquisition", default=0.0)
+    else:
+        solar_capex = _find_float_between_rows(
+            "solar", total_cost_row, depreciation_row, default=0.0
+        )
+        bess_capex = _find_float_between_rows("bess", total_cost_row, depreciation_row, default=0.0)
+        bop_capex = _find_float_between_rows("bop", total_cost_row, depreciation_row, default=0.0)
+        land_capex = _find_float_between_rows(
+            "land acquisition",
+            total_cost_row,
+            depreciation_row,
+            default=0.0,
+        )
     initial_capex_usd = max(solar_capex + bess_capex + bop_capex + land_capex, 0.0)
 
     return {
@@ -403,6 +479,8 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         "initial_capex_usd": initial_capex_usd,
         "discount_rate_pct": min_equity_irr_ratio * 100.0,
         "cod_date": _find_date_iso("commercial operation date", default_iso="2027-01-01"),
+        "max_leverage_ratio": max_leverage_ratio,
+        "exchange_rate_usd_vnd": exchange_rate_usd_vnd,
     }
 
 

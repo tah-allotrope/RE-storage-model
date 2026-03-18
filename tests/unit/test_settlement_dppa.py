@@ -57,7 +57,7 @@ class TestDppaFormulas:
     def test_calculate_delivered_re(self) -> None:
         """Delivered RE should apply k-factor, kpp, and delta."""
         result = calculate_delivered_re(net_gen_kwh=100.0, k_factor=0.98, kpp=1.05, delta=1.0)
-        assert result == pytest.approx(102.9)
+        assert result == pytest.approx(100.0 / (0.98 * 1.05))
 
     def test_calculate_consumed_re(self) -> None:
         """Consumed RE should be capped by load."""

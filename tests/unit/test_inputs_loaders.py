@@ -10,6 +10,7 @@ Tests cover:
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -148,7 +149,11 @@ def _write_assumption_label_workbook(path: Path) -> Path:
     ws["I11"] = "Land acquisition"
     ws["K11"] = 1200000
     ws["I12"] = "Commercial Operation Date"
-    ws["K12"] = pd.Timestamp("2026-01-01")
+    ws["K12"] = datetime(2026, 1, 1)
+    ws["I13"] = "Maximum Leverage"
+    ws["K13"] = 0.7
+    ws["I14"] = "USD/VND"
+    ws["K14"] = 26000
 
     ws["O2"] = "Standard"
     ws["Q2"] = 70
@@ -335,3 +340,31 @@ class TestLoadTariffAndFinancialFromCells:
         assert params["initial_capex_usd"] == pytest.approx(6993200.0)
         assert params["discount_rate_pct"] == pytest.approx(10.0)
         assert params["cod_date"] == "2026-01-01"
+        assert params["max_leverage_ratio"] == pytest.approx(0.7)
+        assert params["exchange_rate_usd_vnd"] == pytest.approx(26000.0)
+
+    def test_load_tariff_rates_from_cells_supports_ca_labels(self, tmp_path: Path) -> None:
+        from openpyxl import Workbook
+
+        path = tmp_path / "ca_labels.xlsx"
+        wb = Workbook()
+        ws = wb.active
+        if ws is None:
+            raise RuntimeError("Workbook active sheet unavailable")
+        ws.title = "Assumption"
+        ws["I2"] = "USD/VND"
+        ws["K2"] = 26000
+        ws["O2"] = "Ca_normal"
+        ws["Q2"] = 1811
+        ws["O3"] = "Ca_peak"
+        ws["Q3"] = 3266
+        ws["O4"] = "Ca_offpeak"
+        ws["Q4"] = 1146
+        wb.save(path)
+        wb.close()
+
+        rates = load_tariff_rates_from_cells(path)
+
+        assert rates[TimePeriod.STANDARD] == pytest.approx(1811 / 26000)
+        assert rates[TimePeriod.PEAK] == pytest.approx(3266 / 26000)
+        assert rates[TimePeriod.OFF_PEAK] == pytest.approx(1146 / 26000)
