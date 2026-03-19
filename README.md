@@ -80,3 +80,33 @@ black --check src/ tests/
 ## License
 
 MIT
+
+## Web Tool (Firebase + React)
+
+This repository now includes a Firebase-hosted web interface under `web/`:
+
+- `web/functions` - Python Cloud Functions endpoints (`/api/run-excel`, `/api/run-json`)
+- `web/frontend` - Vite + React + TypeScript SPA
+
+### Local development
+
+Backend (functions framework):
+
+```bash
+cd web/functions
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+functions-framework --target runExcel --port 8081
+```
+
+Frontend:
+
+```bash
+cd web/frontend
+npm install
+npm run dev
+```
+
+The frontend dev server proxies `/api/*` to `http://localhost:8080` by default; update
+`web/frontend/vite.config.ts` if you run function targets on different ports.

@@ -1,0 +1,15 @@
+{
+  "hosting": {
+    "public": "web/frontend/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "/api/run-excel", "function": "runExcel" },
+      { "source": "/api/run-json", "function": "runJson" },
+      { "source": "**", "destination": "/index.html" }
+    ]
+  },
+  "functions": {
+    "source": "web/functions",
+    "runtime": "python311"
+  }
+}
