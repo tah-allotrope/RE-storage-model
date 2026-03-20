@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Week 7 — RE Storage Model: Regression Harness</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3248;
+      --accent: #4f8ef7;
+      --accent2: #6ee7b7;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --pass: #34d399;
+      --code-bg: #141622;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    /* ---- Layout ---- */
+    .page { max-width: 1080px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ---- Header ---- */
+    header {
+      background: linear-gradient(135deg, #1a1d27 0%, #1c2240 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 48px 24px 36px;
+      margin-bottom: 40px;
+    }
+    header .inner { max-width: 1080px; margin: 0 auto; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .badge-phase { background: #312e81; color: #a5b4fc; }
+    .badge-pass  { background: #064e3b; color: #6ee7b7; }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 12px 0 6px;
+      letter-spacing: -0.01em;
+    }
+    header h1 span { color: var(--accent); }
+    header .subtitle { color: var(--muted); font-size: 0.95rem; }
+    .meta-row {
+      display: flex; flex-wrap: wrap; gap: 20px;
+      margin-top: 20px;
+    }
+    .meta-item { font-size: 0.85rem; color: var(--muted); }
+    .meta-item strong { color: var(--text); }
+
+    /* ---- KPI cards ---- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 16px;
+      margin: 28px 0;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 18px;
+    }
+    .kpi-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi-card .value { font-size: 2rem; font-weight: 700; margin-top: 4px; }
+    .kpi-card .sub   { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .kpi-card.green .value { color: var(--pass); }
+    .kpi-card.blue  .value { color: var(--accent); }
+    .kpi-card.gold  .value { color: var(--warn); }
+
+    /* ---- Sections ---- */
+    section { margin-bottom: 44px; }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 .icon { font-size: 1.1rem; }
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 20px 0 10px;
+      color: var(--accent2);
+    }
+    p { margin-bottom: 10px; color: var(--text); }
+
+    /* ---- Phase timeline ---- */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 18px;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .tl-item {
+      display: flex;
+      gap: 16px;
+      position: relative;
+      padding: 0 0 18px 0;
+    }
+    .tl-dot {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .tl-dot.done { background: #064e3b; color: var(--pass); border: 2px solid var(--pass); }
+    .tl-dot.current { background: #1e3a8a; color: var(--accent); border: 2px solid var(--accent); box-shadow: 0 0 10px rgba(79,142,247,0.4); }
+    .tl-body { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+    .tl-body.current { border-color: var(--accent); }
+    .tl-title { font-weight: 600; font-size: 0.95rem; }
+    .tl-title .week-label { color: var(--muted); font-weight: 400; font-size: 0.8rem; margin-right: 6px; }
+    .tl-desc { color: var(--muted); font-size: 0.83rem; margin-top: 4px; }
+    .tl-modules { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-family: "Cascadia Code", "Fira Code", monospace;
+    }
+    .chip-blue { background: #1e3a5f; color: #93c5fd; }
+    .chip-green { background: #064e3b; color: #6ee7b7; }
+    .chip-gold  { background: #451a03; color: #fcd34d; }
+    .chip-purple{ background: #2e1065; color: #c4b5fd; }
+
+    /* ---- Code blocks ---- */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 0.83rem;
+      line-height: 1.55;
+      font-family: "Cascadia Code", "Fira Code", "Courier New", monospace;
+      margin: 12px 0;
+      color: #c9d1d9;
+    }
+    code {
+      font-family: "Cascadia Code", "Fira Code", "Courier New", monospace;
+      font-size: 0.85em;
+      background: var(--code-bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #93c5fd;
+    }
+    .kw  { color: #ff7b72; }
+    .fn  { color: #d2a8ff; }
+    .str { color: #a5d6ff; }
+    .cm  { color: #8b949e; font-style: italic; }
+    .num { color: #79c0ff; }
+    .tp  { color: #ffa657; }
+
+    /* ---- Architecture diagram ---- */
+    .arch-flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin: 16px 0;
+    }
+    .arch-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
+      min-width: 90px;
+    }
+    .arch-box.highlight { border-color: var(--accent); color: var(--accent); }
+    .arch-arrow {
+      color: var(--muted);
+      font-size: 1.1rem;
+      padding: 0 6px;
+    }
+
+    /* ---- Test tables ---- */
+    .test-table-wrap { overflow-x: auto; margin: 14px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    thead tr { background: var(--surface2); }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    .status-pass {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--pass);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .status-pass::before { content: "●"; font-size: 0.6rem; }
+    .mono { font-family: "Cascadia Code", "Fira Code", monospace; font-size: 0.8rem; color: #93c5fd; }
+    .tol { font-family: monospace; font-size: 0.78rem; color: var(--warn); }
+
+    /* ---- Callout boxes ---- */
+    .callout {
+      border-left: 4px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 16px;
+      margin: 14px 0;
+      font-size: 0.88rem;
+    }
+    .callout-blue  { border-color: var(--accent);  background: #1e3a5f22; }
+    .callout-green { border-color: var(--pass);    background: #064e3b22; }
+    .callout-gold  { border-color: var(--warn);    background: #45260322; }
+    .callout strong { display: block; margin-bottom: 4px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .callout-blue  strong { color: var(--accent); }
+    .callout-green strong { color: var(--pass); }
+    .callout-gold  strong { color: var(--warn); }
+
+    /* ---- Test category cards ---- */
+    .test-cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin: 16px 0;
+    }
+    .test-cat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .test-cat .cat-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .test-cat .cat-title { font-weight: 600; font-size: 0.95rem; }
+    .test-cat .cat-count {
+      font-size: 1.4rem; font-weight: 700; color: var(--pass);
+    }
+    .test-cat ul {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .test-cat li {
+      font-size: 0.82rem;
+      color: var(--muted);
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .test-cat li::before {
+      content: "→";
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ---- Tolerance table ---- */
+    .tol-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .tol-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .tol-card .tol-icon { font-size: 1.6rem; }
+    .tol-card .tol-label { font-size: 0.78rem; color: var(--muted); }
+    .tol-card .tol-value { font-size: 1.1rem; font-weight: 700; color: var(--warn); font-family: monospace; }
+
+    /* ---- Bug fix highlight ---- */
+    .bugfix {
+      background: var(--surface);
+      border: 1px solid #7c3aed44;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin: 14px 0;
+    }
+    .bugfix .bf-title {
+      font-weight: 700;
+      color: #c4b5fd;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+    }
+    .bugfix .bf-before, .bugfix .bf-after {
+      font-size: 0.82rem;
+      margin: 4px 0;
+    }
+    .bugfix .bf-before { color: var(--danger); }
+    .bugfix .bf-after  { color: var(--pass); }
+
+    /* ---- Footer ---- */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <div>
+      <span class="badge badge-phase">Phase 7 of 7</span>
+      &nbsp;
+      <span class="badge badge-pass">All Tests Passing</span>
+    </div>
+    <h1>RE Storage Model — <span>Week 7 Report</span></h1>
+    <p class="subtitle">Regression Harness &amp; Production Excel Validation</p>
+    <div class="meta-row">
+      <div class="meta-item"><strong>Date:</strong> 2026-02-25</div>
+      <div class="meta-item"><strong>Branch:</strong> main</div>
+      <div class="meta-item"><strong>Project:</strong> RE-storage-model (40MW Solar + BESS)</div>
+      <div class="meta-item"><strong>Last commit:</strong> new phase Claude code</div>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- KPI SUMMARY -->
+  <div class="kpi-grid">
+    <div class="kpi-card green">
+      <div class="label">Total Tests</div>
+      <div class="value">175</div>
+      <div class="sub">All passing</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="label">Unit Tests</div>
+      <div class="value">169</div>
+      <div class="sub">Across 7 modules</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="label">Integration Tests</div>
+      <div class="value">3</div>
+      <div class="sub">End-to-end pipeline</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="label">Regression Tests</div>
+      <div class="value">3</div>
+      <div class="sub">vs. production Excel</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="label">Source Modules</div>
+      <div class="value">38</div>
+      <div class="sub">src/re_storage/**</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="label">Layers</div>
+      <div class="value">7</div>
+      <div class="sub">core → metrics</div>
+    </div>
+  </div>
+
+  <!-- PROJECT PHASES TIMELINE -->
+  <section>
+    <h2><span class="icon">🗓</span> Project Timeline — All 7 Phases</h2>
+    <p style="color:var(--muted); margin-bottom:18px; font-size:0.88rem;">Each week built upon the previous layer. Week 7 wired everything together and validated against the production Excel model.</p>
+
+    <div class="timeline">
+
+      <div class="tl-item">
+        <div class="tl-dot done">W1</div>
+        <div class="tl-body">
+          <div class="tl-title"><span class="week-label">Week 1</span> Foundation</div>
+          <div class="tl-desc">Core types, enums, domain exceptions, Pydantic input schemas, Excel loaders.</div>
+          <div class="tl-modules">
+            <span class="chip chip-blue">core.types</span>
+            <span class="chip chip-blue">core.exceptions</span>
+            <span class="chip chip-green">inputs.schemas</span>
+            <span class="chip chip-green">inputs.loaders</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot done">W2</div>
+        <div class="tl-body">
+          <div class="tl-title"><span class="week-label">Week 2</span> Physics Engine</div>
+          <div class="tl-desc">PV generation scaling, BESS dispatch logic, SoC tracking with efficiency, energy balance validation.</div>
+          <div class="tl-modules">
+            <span class="chip chip-blue">physics.solar</span>
+            <span class="chip chip-blue">physics.battery</span>
+            <span class="chip chip-blue">physics.balance</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot done">W3</div>
+        <div class="tl-body">
+          <div class="tl-title"><span class="week-label">Week 3</span> Settlement Layer</div>
+          <div class="tl-desc">DPPA/CfD revenue, grid tariff calculations, BAU vs RE expense comparison, demand charges.</div>
+          <div class="tl-modules">
+            <span class="chip chip-purple">settlement.dppa</span>
+            <span class="chip chip-purple">settlement.grid</span>
+            <span class="chip chip-purple">settlement.bundled</span>
+            <span class="chip chip-purple">settlement.fixed_ppa</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot done">W4</div>
+        <div class="tl-body">
+          <div class="tl-title"><span class="week-label">Week 4</span> Aggregation</div>
+          <div class="tl-desc">Monthly rollup (8760 rows → 12), Year 1 totals, lifetime projection with degradation and augmentation factors.</div>
+          <div class="tl-modules">
+            <span class="chip chip-gold">aggregation.monthly</span>
+            <span class="chip chip-gold">aggregation.annual</span>
+            <span class="chip chip-gold">aggregation.lifetime</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot done">W5</div>
+        <div class="tl-body">
+          <div class="tl-title"><span class="week-label">Week 5</span> Financial Layer</div>
+          <div class="tl-desc">Cash flow waterfall, debt amortization + DSCR sizing, XNPV/XIRR metrics, OpEx/Tax/MRA schedules.</div>
+          <div class="tl-modules">
+            <span class="chip chip-green">financial.waterfall</span>
+            <span class="chip chip-green">financial.debt</span>
+            <span class="chip chip-green">financial.metrics</span>
+            <span class="chip chip-green">financial.opex</span>
+            <span class="chip chip-green">financial.taxes</span>
+            <span class="chip chip-green">financial.mra</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot done">W6</div>
+        <div class="tl-body">
+          <div class="tl-title"><span class="week-label">Week 6</span> Integration &amp; Validation</div>
+          <div class="tl-desc">Validation warnings layer, integration tests stitching all modules, initial regression scaffolding.</div>
+          <div class="tl-modules">
+            <span class="chip chip-blue">validation.checks</span>
+            <span class="chip chip-blue">pipeline.py (v1)</span>
+            <span class="chip chip-blue">tests/integration</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot current">W7</div>
+        <div class="tl-body current">
+          <div class="tl-title"><span class="week-label">Week 7</span> Regression Harness <span class="badge badge-pass" style="font-size:0.68rem; margin-left:8px;">COMPLETE</span></div>
+          <div class="tl-desc">
+            End-to-end <code>run_full_model()</code> pipeline, KPI extractor script, real-format Excel loaders,
+            parametrized multi-project regression suite. Validated against production Excel — <strong style="color:var(--pass)">175/175 pass</strong>.
+          </div>
+          <div class="tl-modules">
+            <span class="chip chip-gold">pipeline.py</span>
+            <span class="chip chip-gold">scripts/extract_excel_kpis.py</span>
+            <span class="chip chip-gold">inputs.loaders (real-format)</span>
+            <span class="chip chip-gold">tests/regression</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- WEEK 7 DEEP DIVE -->
+  <section>
+    <h2><span class="icon">🔍</span> Week 7 Deep Dive — What Was Built</h2>
+
+    <h3>1. run_full_model() — The Pipeline Entrypoint</h3>
+    <p>The entire simulation is wired into a single function. You hand it an Excel file path; it returns a flat <code>dict[str, float]</code> of every KPI the regression harness needs.</p>
+
+    <div class="arch-flow">
+      <div class="arch-box">Excel (.xlsx)</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">Inputs<br><small style="color:var(--muted)">loaders</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">Physics<br><small style="color:var(--muted)">solar + BESS</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">Settlement<br><small style="color:var(--muted)">tariffs + DPPA</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">Aggregation<br><small style="color:var(--muted)">monthly → lifetime</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">Financial<br><small style="color:var(--muted)">waterfall + IRR</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box highlight">KPI dict<br><small>flat output</small></div>
+    </div>
+
+    <pre><span class="cm"># Usage — one call runs the entire model</span>
+<span class="kw">from</span> re_storage.pipeline <span class="kw">import</span> <span class="fn">run_full_model</span>
+<span class="kw">from</span> pathlib <span class="kw">import</span> Path
+
+results = <span class="fn">run_full_model</span>(Path(<span class="str">"tests/data/projects/AUDIT 20251201 40MW Solar BESS.xlsx"</span>))
+
+<span class="cm"># Returns e.g.:</span>
+<span class="cm"># {</span>
+<span class="cm">#   "project_irr": 0.1421,</span>
+<span class="cm">#   "equity_irr":  0.1883,</span>
+<span class="cm">#   "npv_usd":     4_820_000.0,</span>
+<span class="cm">#   "dscr_min":    1.32,</span>
+<span class="cm">#   "calc_solar_gen_sum_kwh": 72_541_200.0,</span>
+<span class="cm">#   "year1_dppa_revenue_usd": 2_115_000.0,</span>
+<span class="cm">#   ... (all KPI tiers)</span>
+<span class="cm"># }</span></pre>
+
+    <h3>2. Real-Format Excel Loaders</h3>
+    <p>Production Excel files don't follow a simple flat layout. Three new loader capabilities were added to bridge the gap between the real file format and the Python model:</p>
+
+    <div class="test-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Loader Function</th>
+            <th>Sheet</th>
+            <th>What It Handles</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">load_assumptions_from_cells()</td>
+            <td>Assumption</td>
+            <td>Multi-region cell-based layout — parameters scattered across non-contiguous blocks rather than a single table</td>
+          </tr>
+          <tr>
+            <td class="mono">load_hourly_data() (enhanced)</td>
+            <td>Data Input</td>
+            <td>Auto column rename: <code>SimulationProfile_kW</code> → <code>simulation_profile_kw</code>, handles mixed-case headers</td>
+          </tr>
+          <tr>
+            <td class="mono">load_degradation_table() (enhanced)</td>
+            <td>Loss</td>
+            <td>Header row detection, column rename: <code>PV</code> → <code>pv_factor</code>, <code>Battery</code> → <code>battery_factor_with_replacement</code></td>
+          </tr>
+          <tr>
+            <td class="mono">load_financial_params_from_cells()</td>
+            <td>Assumption</td>
+            <td>Reads capex, debt tenor, interest rate, DSCR target, tax rates from named cell regions</td>
+          </tr>
+          <tr>
+            <td class="mono">load_tariff_rates_from_cells()</td>
+            <td>Assumption</td>
+            <td>Reads off-peak / standard / peak rates from tariff block, maps to <code>TimePeriod</code> enum</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3. extract_excel_kpis.py — Reference KPI Extraction Script</h3>
+    <p>A one-time (or post-Excel-change) script that reads the pre-calculated values <em>directly out of Excel</em> using <code>openpyxl data_only=True</code> and saves them to JSON reference files. This is the ground truth that regression tests compare against.</p>
+
+    <pre><span class="cm"># One-time extraction (after any Excel model change)</span>
+python scripts/extract_excel_kpis.py tests/data/projects/*.xlsx
+
+<span class="cm"># Output: tests/data/references/AUDIT 20251201 40MW Solar BESS.json</span>
+<span class="cm"># {</span>
+<span class="cm">#   "project_irr": 0.1421,</span>
+<span class="cm">#   "calc_solar_gen_sum_kwh": 72541200.0,</span>
+<span class="cm">#   "dscr_min": 1.32,</span>
+<span class="cm">#   ...  (Financial sheet cells + Calc column stats + Measures labels)</span>
+<span class="cm"># }</span>
+
+<span class="cm"># Then run regression tests:</span>
+pytest tests/regression/ -v</pre>
+
+    <h3>4. The Regression Test Suite</h3>
+    <p>Three parametrized test methods that auto-discover project pairs from disk:</p>
+
+    <div class="test-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Test Method</th>
+            <th>What It Checks</th>
+            <th>KPIs Compared</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">test_all_kpis</td>
+            <td>Full pipeline — all available KPI tiers</td>
+            <td>All 11 KPIs in tolerance map</td>
+            <td><span class="status-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td class="mono">test_physics_layer</td>
+            <td>Isolates solar gen + SoC tracking only</td>
+            <td><code>calc_solar_gen_sum_kwh</code>, <code>calc_soc_min_kwh</code>, <code>calc_soc_max_kwh</code></td>
+            <td><span class="status-pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td class="mono">test_financial_kpis</td>
+            <td>Final financial outputs only</td>
+            <td><code>project_irr</code>, <code>equity_irr</code>, <code>unlevered_irr</code>, <code>npv_usd</code>, <code>dscr_min</code></td>
+            <td><span class="status-pass">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-blue">
+      <strong>Why Three Separate Tests?</strong>
+      Each test layer creates a diagnostic ladder. If <code>test_physics_layer</code> fails but <code>test_financial_kpis</code> passes, the bug cannot be in the physics layer. If both physics and aggregation pass but financials fail, the bug is isolated to the waterfall/debt/metrics modules. This avoids wasting time investigating the wrong layer.
+    </div>
+
+    <h3>5. Tolerance Tiers</h3>
+    <p>Different KPI types have different acceptable error margins, defined in <code>AGENTS.md §4.3</code>:</p>
+
+    <div class="tol-grid">
+      <div class="tol-card">
+        <div class="tol-icon">⚡</div>
+        <div>
+          <div class="tol-label">Energy (kWh / MWh)</div>
+          <div class="tol-value">±0.01% relative</div>
+        </div>
+      </div>
+      <div class="tol-card">
+        <div class="tol-icon">💵</div>
+        <div>
+          <div class="tol-label">Revenue / NPV (USD)</div>
+          <div class="tol-value">±0.01% relative</div>
+        </div>
+      </div>
+      <div class="tol-card">
+        <div class="tol-icon">📈</div>
+        <div>
+          <div class="tol-label">IRR (project / equity / unlevered)</div>
+          <div class="tol-value">±0.0001 absolute</div>
+        </div>
+      </div>
+      <div class="tol-card">
+        <div class="tol-icon">🏦</div>
+        <div>
+          <div class="tol-label">DSCR (minimum)</div>
+          <div class="tol-value">±0.001 absolute</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>6. Bug Fixed During Week 7 — PV2BESS Mode 0</h3>
+    <div class="bugfix">
+      <div class="bf-title">Root Cause: PV-to-BESS charging Mode 0 was not sending all surplus to battery</div>
+      <div class="bf-before">BEFORE: Mode 0 treated surplus the same as Mode 1, only charging within the configured time window</div>
+      <div class="bf-after">AFTER: Mode 0 correctly sets <code>min_direct_pv_share=1.0</code> and <code>active_pv2bess_share=1.0</code> — all surplus charges BESS at any hour, regardless of time window</div>
+    </div>
+    <p style="color:var(--muted); font-size:0.84rem;">
+      This fix was caught because the physics regression test (<code>calc_solar_gen_sum_kwh</code>, <code>calc_soc_max_kwh</code>) diverged from the Excel reference values.
+      Without the regression harness, this mode-specific error would have propagated silently into settlement and financial outputs.
+    </p>
+  </section>
+
+  <!-- TEST SUITE BREAKDOWN -->
+  <section>
+    <h2><span class="icon">🧪</span> Full Test Suite — All 175 Tests</h2>
+    <p style="color:var(--muted); margin-bottom:18px; font-size:0.88rem;">
+      Tests are organized into three tiers: unit (isolated module logic), integration (multi-module wiring), and regression (Python vs. Excel).
+    </p>
+
+    <div class="test-cat-grid">
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Physics Tests</div>
+          <div class="cat-count">~35</div>
+        </div>
+        <ul>
+          <li><strong>test_solar.py</strong> — scale_generation (6 tests), direct PV consumption scalar (8), vectorized (2), surplus generation scalar (4), vectorized (2)</li>
+          <li><strong>test_battery.py</strong> — charge limits, PV2BESS modes, discharge permission (4 conditions), SoC updates, timestep dispatch; property-based tests via Hypothesis for SoC bounds</li>
+          <li><strong>test_balance.py</strong> — energy balance validation scalar and vectorized, SoC and power rating bounds</li>
+        </ul>
+      </div>
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Input Validation Tests</div>
+          <div class="cat-count">~20</div>
+        </div>
+        <ul>
+          <li><strong>test_inputs_schemas.py</strong> — SystemAssumptions valid/invalid configs, HourlyInputRow, DegradationRow, extra field rejection</li>
+          <li><strong>test_inputs_loaders.py</strong> — Excel flat loader, cell-based loader, column rename, header detection</li>
+          <li><strong>test_json_loader.py</strong> — JSON-based assumption/degradation/financial param loaders</li>
+          <li><strong>test_validation_checks.py</strong> — energy balance warnings, SoC bound warnings, DPPA revenue checks, degradation coverage</li>
+        </ul>
+      </div>
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Settlement Tests</div>
+          <div class="cat-count">~30</div>
+        </div>
+        <ul>
+          <li><strong>test_settlement_grid.py</strong> — Energy expense by tariff period, BAU/RE expense wrappers, demand charge calculation, grid savings, missing tariff rate errors</li>
+          <li><strong>test_settlement_dppa.py</strong> — CfD settlement, DPPA revenue, disabled-DPPA zero guard, input validation</li>
+          <li><strong>test_settlement_bundled.py</strong> — Bundled revenue calculation</li>
+          <li><strong>test_settlement_fixed_ppa.py</strong> — Fixed PPA revenue at strike price</li>
+          <li><strong>test_settlement_separate.py</strong> — Separate solar/BESS revenue streams</li>
+        </ul>
+      </div>
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Aggregation Tests</div>
+          <div class="cat-count">~25</div>
+        </div>
+        <ul>
+          <li><strong>test_aggregation_monthly.py</strong> — 8760-row → 12-month rollup, unit-suffixed columns, validation</li>
+          <li><strong>test_aggregation_annual.py</strong> — Year 1 totals, solar generation MWh, DPPA revenue USD</li>
+          <li><strong>test_aggregation_lifetime.py</strong> — PV degradation projection, battery capacity decay, 20-year lifetime build</li>
+        </ul>
+      </div>
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Financial Tests</div>
+          <div class="cat-count">~35</div>
+        </div>
+        <ul>
+          <li><strong>test_financial_waterfall.py</strong> — Revenue + OpEx + CapEx waterfall, EBITDA / CFADS / FCFE calculations, missing columns error</li>
+          <li><strong>test_financial_debt.py</strong> — Amortization schedule (equal-payment), DSCR-based debt sizing via scipy.optimize, non-positive EBITDA error</li>
+          <li><strong>test_financial_metrics.py</strong> — XNPV with exact dates, XIRR (project, equity), DSCR series, zero debt-service error</li>
+          <li><strong>test_financial_opex.py</strong> — O&amp;M, insurance, land lease, management fees schedules</li>
+          <li><strong>test_financial_taxes.py</strong> — Levered/unlevered tax calculations, depreciation schedule, tax rate schedule</li>
+          <li><strong>test_financial_mra.py</strong> — Major replacement allowance contribution schedule</li>
+        </ul>
+      </div>
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Integration Tests</div>
+          <div class="cat-count">3</div>
+        </div>
+        <ul>
+          <li><strong>test_end_to_end_small_dataset</strong> — 48-hour synthetic dataset through physics → settlement → aggregation → lifetime</li>
+          <li><strong>test_dppa_disabled_zeroes_revenue</strong> — DPPA flag=False produces all-zero revenue series</li>
+          <li><strong>test_leap_year_monthly_aggregation</strong> — 8784-hour (leap year) dataset correctly folds into 12 months</li>
+        </ul>
+      </div>
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Regression Tests</div>
+          <div class="cat-count">3</div>
+        </div>
+        <ul>
+          <li><strong>test_all_kpis</strong> — Full KPI set vs. JSON reference (auto-discovered per project)</li>
+          <li><strong>test_physics_layer</strong> — Solar gen sum + SoC min/max vs. Excel Calc sheet values</li>
+          <li><strong>test_financial_kpis</strong> — IRR / NPV / DSCR vs. Excel Financial sheet cells</li>
+        </ul>
+      </div>
+
+      <div class="test-cat">
+        <div class="cat-header">
+          <div class="cat-title">Other Unit Tests</div>
+          <div class="cat-count">~21</div>
+        </div>
+        <ul>
+          <li><strong>test_pipeline_helpers.py</strong> — Tariff period classification, time period mapping</li>
+          <li><strong>test_web_serialise.py</strong> — Web output serialization helpers</li>
+          <li><strong>test_web_handlers.py</strong> — Web API handler logic</li>
+          <li><strong>test_compare_excel_versions.py</strong> — Excel version comparison utilities</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- KEY TESTS EXPLAINED -->
+  <section>
+    <h2><span class="icon">📋</span> Key Tests Explained</h2>
+
+    <h3>Battery: Property-Based SoC Bounds Test (Hypothesis)</h3>
+    <p>Rather than hand-crafted examples, <code>test_battery.py</code> uses the Hypothesis library to generate hundreds of random valid inputs and verify that SoC never violates <code>[0, max_capacity]</code>:</p>
+    <pre><span class="kw">from</span> hypothesis <span class="kw">import</span> given, strategies <span class="kw">as</span> st
+
+<span class="fn">@given</span>(
+    soc=st.floats(min_value=<span class="num">0</span>, max_value=<span class="num">200</span>),
+    charge_kw=st.floats(min_value=<span class="num">0</span>, max_value=<span class="num">100</span>),
+)
+<span class="kw">def</span> <span class="fn">test_soc_always_in_bounds</span>(soc, charge_kw):
+    result = <span class="fn">update_soc</span>(soc, charge_kw, max_capacity_kwh=<span class="num">200</span>, ...)
+    <span class="kw">assert</span> <span class="num">0</span> &lt;= result &lt;= <span class="num">200</span></pre>
+
+    <h3>Financial: Debt Sizing via scipy.optimize</h3>
+    <p>The amortization test verifies that <code>size_debt_for_dscr()</code> numerically solves for the maximum debt amount where the minimum annual DSCR stays at or above the target:</p>
+    <pre>ebitda = pd.Series([<span class="num">1300.0</span>, <span class="num">1200.0</span>], index=[<span class="num">1</span>, <span class="num">2</span>])
+debt_amount, schedule = <span class="fn">size_debt_for_dscr</span>(
+    ebitda_series=ebitda,
+    interest_rate_pct=<span class="num">10.0</span>,
+    tenor_years=<span class="num">2</span>,
+    target_dscr=<span class="num">1.3</span>,
+    initial_guess_usd=<span class="num">1000.0</span>,
+)
+
+dscr = ebitda / schedule[<span class="str">"total_debt_service_usd"</span>]
+<span class="kw">assert</span> dscr.min() >= <span class="num">1.3</span> - <span class="num">1e-6</span>  <span class="cm"># DSCR constraint satisfied</span></pre>
+
+    <h3>Regression: KPI Comparison Logic</h3>
+    <p>Each KPI uses a mode-specific comparison. IRR uses absolute difference (percentage points matter more than relative), while energy and revenue use relative difference (the numbers are large, so a fixed absolute tolerance would be too tight):</p>
+    <pre><span class="kw">if</span> mode == <span class="str">"abs"</span>:
+    diff = <span class="fn">abs</span>(actual - expected)
+    passed = diff &lt;= tolerance   <span class="cm"># e.g. IRR: |0.1421 - 0.1423| <= 0.0001</span>
+
+<span class="kw">elif</span> mode == <span class="str">"rel"</span>:
+    diff = <span class="fn">abs</span>(actual - expected) / <span class="fn">abs</span>(expected)
+    passed = diff &lt;= tolerance   <span class="cm"># e.g. energy: |72541200 - 72544000| / 72544000 <= 0.0001</span></pre>
+
+    <h3>Integration: Leap Year Aggregation</h3>
+    <p>A subtle edge case — 2024 is a leap year with 8784 hours. The monthly aggregation must handle the extra February 29 row without breaking the 12-month output shape or total sums:</p>
+    <pre>datetimes = pd.date_range(<span class="str">"2024-01-01"</span>, periods=<span class="num">8784</span>, freq=<span class="str">"H"</span>)
+<span class="cm"># 8760 hours (normal year) + 24 extra (Feb 29)</span>
+
+monthly = <span class="fn">aggregate_hourly_to_monthly</span>(hourly, demand_reduction_target_ratio=<span class="num">0.0</span>)
+<span class="kw">assert</span> <span class="fn">len</span>(monthly) == <span class="num">12</span>                                  <span class="cm"># still 12 months</span>
+<span class="kw">assert</span> monthly[<span class="str">"bau_grid_expense_usd"</span>].sum() == pytest.approx(<span class="num">8784.0</span>)  <span class="cm"># all hours counted</span></pre>
+  </section>
+
+  <!-- ARCHITECTURAL PATTERNS -->
+  <section>
+    <h2><span class="icon">🏗</span> Architectural Patterns</h2>
+
+    <h3>1. Layered Architecture with One-Way Data Flow</h3>
+    <p>Data flows strictly downward through layers. No layer imports from a layer above it. This makes the regression harness possible — you can validate each layer independently.</p>
+
+    <div class="callout callout-blue">
+      <strong>Layer Order</strong>
+      <code>core</code> → <code>inputs</code> → <code>physics</code> → <code>settlement</code> → <code>aggregation</code> → <code>financial</code> → <code>validation</code>
+    </div>
+
+    <h3>2. Immutability for Physics State</h3>
+    <p><code>BatteryConfig</code> is a <code>@dataclass(frozen=True)</code> — parameters cannot be mutated mid-simulation. <code>BatteryState</code> is a <code>NamedTuple</code> — each timestep returns a new state rather than mutating the old one. This eliminates an entire class of subtle bugs where state from one timestep leaks into the next.</p>
+
+    <h3>3. Dual API (Scalar + Vectorized)</h3>
+    <p>Every physics function has two versions: a scalar version for clarity and step-by-step debugging, and a vectorized NumPy version for performance over 8760-row hourly datasets. Unit tests verify both match for identical inputs.</p>
+
+    <h3>4. Defensive Input Validation at System Boundaries</h3>
+    <p>Inputs are validated using Pydantic (<code>extra="forbid"</code>) at the loader boundary. Within the physics layer, negative values raise explicit domain exceptions (<code>SoCBoundsError</code>, <code>EnergyBalanceError</code>) rather than producing silently wrong results.</p>
+  </section>
+
+  <!-- WHAT'S NEXT -->
+  <section>
+    <h2><span class="icon">🚀</span> Planned Future Work</h2>
+    <div class="test-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Description</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Broader regression coverage</td>
+            <td>Add more project Excel files to <code>tests/data/projects/</code> — harness already auto-discovers them</td>
+            <td style="color:var(--pass)">High</td>
+          </tr>
+          <tr>
+            <td>CLI interface</td>
+            <td><code>typer</code>-based CLI wrapping <code>run_full_model()</code> for ad-hoc runs without Python</td>
+            <td style="color:var(--warn)">Medium</td>
+          </tr>
+          <tr>
+            <td>Visualization module</td>
+            <td>Plotly dispatch and cash flow charts from pipeline output</td>
+            <td style="color:var(--warn)">Medium</td>
+          </tr>
+          <tr>
+            <td>Performance optimization</td>
+            <td>Profile 8760-row vectorized operations if multi-scenario runs become slow</td>
+            <td style="color:var(--muted)">Low</td>
+          </tr>
+          <tr>
+            <td>Optimization module</td>
+            <td>Debt sizing and augmentation timing optimization via <code>scipy.optimize</code></td>
+            <td style="color:var(--muted)">Low</td>
+          </tr>
+          <tr>
+            <td>API docs</td>
+            <td>Sphinx auto-generated docs from existing docstrings</td>
+            <td style="color:var(--muted)">Low</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <p>RE Storage Model — Week 7 Regression Harness Report &nbsp;|&nbsp; Generated 2026-03-20</p>
+</footer>
+
+</body>
+</html>
