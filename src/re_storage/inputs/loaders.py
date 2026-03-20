@@ -83,7 +83,22 @@ def load_assumptions(path: Path) -> SystemAssumptions:
     if len(df) != 1:
         raise InputValidationError(f"Expected exactly 1 row in {ASSUMPTIONS_SHEET}, got {len(df)}.")
 
-    missing = _missing_columns(df, SystemAssumptions.model_fields.keys())
+    # Only require fields that have no default value in the schema
+    required_fields = {
+        name
+        for name, field in SystemAssumptions.model_fields.items()
+        if field.default is None and field.default_factory is None  # type: ignore[misc]
+        and not field.is_required() is False
+    }
+    # Simpler: fields are required when FieldInfo.default is PydanticUndefined
+    from pydantic_core import PydanticUndefinedType
+    required_fields = {
+        name
+        for name, field in SystemAssumptions.model_fields.items()
+        if isinstance(field.default, PydanticUndefinedType)
+        and field.default_factory is None  # type: ignore[misc]
+    }
+    missing = _missing_columns(df, required_fields)
     if missing:
         raise InputValidationError(f"Missing required assumptions columns: {sorted(missing)}.")
 
@@ -365,7 +380,7 @@ def load_tariff_rates_from_cells(path: Path) -> dict[TimePeriod, float]:
 
 
 def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]:
-    """Load key financial parameters from Assumption!I/K labels."""
+    """Load key financial parameters from Assumption!I/K, O/Q, and C/E labels."""
     try:
         wb = load_workbook(str(path), data_only=True, read_only=False)
     except (FileNotFoundError, OSError) as exc:
@@ -377,6 +392,9 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
 
     ws = wb[ASSUMPTIONS_SHEET]
     ik_map = _build_label_map(ws, label_col="I", value_col="K")
+    ij_map = _build_label_map(ws, label_col="I", value_col="J")
+    oq_map = _build_label_map(ws, label_col="O", value_col="Q")
+    ce_map = _build_label_map(ws, label_col="C", value_col="E")
     ik_rows: list[tuple[int, str, Any]] = []
     for row in range(1, (ws.max_row or 1) + 1):
         label = ws[f"I{row}"].value
@@ -471,6 +489,127 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         )
     initial_capex_usd = max(solar_capex + bess_capex + bop_capex + land_capex, 0.0)
 
+    # --- CAPEX breakdown (unit rates for OPEX computation) ---
+    # K41 = solar $/MWp, K42 = BESS $/MWh — used to back out installed capacity
+    solar_usd_per_mwp = _find_float("solar capex", default=0.0)
+    if solar_usd_per_mwp <= 0:
+        solar_usd_per_mwp = _find_float_between_rows(
+            "solar", total_cost_row or 0, depreciation_row, default=750_000.0
+        )
+    bess_usd_per_mwh = _find_float("bess capex", default=0.0)
+    if bess_usd_per_mwh <= 0:
+        bess_usd_per_mwh = _find_float_between_rows(
+            "bess", total_cost_row or 0, depreciation_row, default=200_000.0
+        )
+
+    # Derive installed capacity from per-unit rate (fallback to C/E direct read)
+    def _ce_float(key: str, default: float = 0.0) -> float:
+        key_lower = key.lower()
+        for k, v in ce_map.items():
+            if key_lower in k.lower():
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    pass
+        return default
+
+    installed_pv_kwp = _ce_float("actual installation capacity", default=0.0)
+    installed_pv_mwp = installed_pv_kwp / 1000.0 if installed_pv_kwp > 0 else (
+        solar_capex / solar_usd_per_mwp if solar_usd_per_mwp > 0 else 0.0
+    )
+    total_bess_kwh = _ce_float("Total BESS Storage Capacity", default=0.0)
+    bess_mwh = total_bess_kwh / 1000.0 if total_bess_kwh > 0 else (
+        bess_capex / bess_usd_per_mwh if bess_usd_per_mwh > 0 else 0.0
+    )
+
+    # --- OPEX parameters (Assumption!K26–K34) ---
+    om_solar_usd_per_mwp = _find_float("o&m", default=6_000.0)
+    if om_solar_usd_per_mwp <= 0:
+        om_solar_usd_per_mwp = 6_000.0
+    om_bess_usd_per_mwh = _find_float("o&m bess", default=2_000.0)
+    if om_bess_usd_per_mwh <= 0:
+        om_bess_usd_per_mwh = 2_000.0
+    insurance_solar_pct = _find_float("insurance", default=0.0025)
+    if insurance_solar_pct > 1.0:
+        insurance_solar_pct /= 100.0
+    insurance_bess_pct = _find_float("insurance bess", default=0.0025)
+    if insurance_bess_pct > 1.0:
+        insurance_bess_pct /= 100.0
+    other_opex_usd_per_mwp = _find_float("other opex", default=1_000.0)
+    asset_mgmt_usd_per_mwp = _find_float("asset management", default=3_000.0)
+    land_lease_pct_revenue = _find_float("land lease", default=0.0)
+    if land_lease_pct_revenue > 1.0:
+        land_lease_pct_revenue /= 100.0
+    opex_escalation_pct = _find_float("opex escalation", default=0.04)
+    if opex_escalation_pct > 1.0:
+        opex_escalation_pct /= 100.0
+
+    # --- Tax parameters (Assumption!K44, K62–K65) ---
+    depreciation_tenor_years = int(_find_float("depreciation tenor", default=20.0))
+    tax_rate = _find_float("corporate tax rate", default=0.20)
+    if tax_rate > 1.0:
+        tax_rate /= 100.0
+    tax_holiday_years = int(_find_float("tax holiday", default=5.0))
+
+    # First/second discount periods stored across I/J/K columns
+    def _ij_float(key: str, default: float = 0.0) -> float:
+        key_lower = key.lower()
+        for k, v in ij_map.items():
+            if key_lower in k.lower():
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    pass
+        return default
+
+    first_discount_years = int(_ij_float("first discount", default=8.0))
+    first_discount_rate = _find_float("first discount rate", default=0.05)
+    if first_discount_rate > 1.0:
+        first_discount_rate /= 100.0
+    second_discount_years = int(_ij_float("second discount", default=2.0))
+    second_discount_rate = _find_float("second discount rate", default=0.10)
+    if second_discount_rate > 1.0:
+        second_discount_rate /= 100.0
+
+    # --- MRA parameters (Assumption!K46–K47) ---
+    bess_mra_pct = _find_float("bess mra", default=0.60)
+    if bess_mra_pct > 1.0:
+        bess_mra_pct /= 100.0
+    pv_mra_pct = _find_float("pv mra", default=0.10)
+    if pv_mra_pct > 1.0:
+        pv_mra_pct /= 100.0
+
+    # --- PPA / revenue scenario parameters (Assumption!O/Q) ---
+    def _oq_float(key: str, default: float = 0.0) -> float:
+        key_lower = key.lower()
+        for k, v in oq_map.items():
+            if key_lower in k.lower():
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    pass
+        return default
+
+    ppa_option = int(_oq_float("ppa option", default=3.0))
+    if ppa_option not in (1, 2, 3, 4):
+        ppa_option = 3
+    bundled_discount_pct = _oq_float("bundled discount", default=0.15)
+    if bundled_discount_pct > 1.0:
+        bundled_discount_pct /= 100.0
+    pv_discount_pct = _oq_float("pv discount", default=0.05)
+    if pv_discount_pct > 1.0:
+        pv_discount_pct /= 100.0
+    bess_discount_pct = _oq_float("bess discount", default=0.05)
+    if bess_discount_pct > 1.0:
+        bess_discount_pct /= 100.0
+    fixed_ppa_price_usd_per_mwh = _oq_float("fixed ppa price", default=70.0)
+    revenue_escalation_pct = _oq_float("price escalation", default=0.05)
+    if revenue_escalation_pct > 1.0:
+        revenue_escalation_pct /= 100.0
+    fmp_descent_pct = _oq_float("market price descent", default=-0.05)
+    if fmp_descent_pct < -1.0:
+        fmp_descent_pct /= 100.0
+
     return {
         "project_years": project_years,
         "interest_rate_pct": (base_rate + debt_margin) * 100.0,
@@ -481,6 +620,41 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         "cod_date": _find_date_iso("commercial operation date", default_iso="2027-01-01"),
         "max_leverage_ratio": max_leverage_ratio,
         "exchange_rate_usd_vnd": exchange_rate_usd_vnd,
+        # CAPEX breakdown
+        "solar_capex_usd": solar_capex,
+        "bess_capex_usd": bess_capex,
+        "bop_capex_usd": bop_capex,
+        "land_capex_usd": land_capex,
+        "installed_pv_mwp": installed_pv_mwp,
+        "bess_mwh": bess_mwh,
+        # OPEX parameters
+        "om_solar_usd_per_mwp": om_solar_usd_per_mwp,
+        "om_bess_usd_per_mwh": om_bess_usd_per_mwh,
+        "insurance_solar_pct_capex": insurance_solar_pct,
+        "insurance_bess_pct_capex": insurance_bess_pct,
+        "other_opex_usd_per_mwp": other_opex_usd_per_mwp,
+        "asset_management_usd_per_mwp": asset_mgmt_usd_per_mwp,
+        "land_lease_pct_revenue": land_lease_pct_revenue,
+        "opex_escalation_pct": opex_escalation_pct,
+        # Tax parameters
+        "depreciation_tenor_years": depreciation_tenor_years,
+        "tax_rate": tax_rate,
+        "tax_holiday_years": tax_holiday_years,
+        "first_discount_years": first_discount_years,
+        "first_discount_rate": first_discount_rate,
+        "second_discount_years": second_discount_years,
+        "second_discount_rate": second_discount_rate,
+        # MRA parameters
+        "bess_mra_pct": bess_mra_pct,
+        "pv_mra_pct": pv_mra_pct,
+        # PPA / scenario parameters
+        "ppa_option": ppa_option,
+        "bundled_discount_pct": bundled_discount_pct,
+        "pv_discount_pct": pv_discount_pct,
+        "bess_discount_pct": bess_discount_pct,
+        "fixed_ppa_price_usd_per_mwh": fixed_ppa_price_usd_per_mwh,
+        "revenue_escalation_pct": revenue_escalation_pct,
+        "fmp_descent_pct": fmp_descent_pct,
     }
 
 

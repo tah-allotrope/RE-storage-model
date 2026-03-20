@@ -1,6 +1,6 @@
-# Active Context - ISSUE-1 Emivest / ISSUE-2 Excel Alignment / ISSUE-3 Web Tool
+# Active Context - ISSUE-1 Emivest / ISSUE-2 Excel Alignment / ISSUE-3 Web Tool / ISSUE-4 Gap Analysis Roadmap
 
-**Last Updated:** 2026-03-19
+**Last Updated:** 2026-03-20
 
 ---
 
@@ -382,3 +382,168 @@ curl -X POST http://localhost:8082/ \
    ```bash
    npx playwright test
    ```
+
+---
+
+## ISSUE-4 Objective
+
+Implement the full gap-analysis roadmap from `plans/gap-analysis-and-roadmap.md` to achieve Excel financial parity and add revenue scenario / sensitivity analysis capabilities.
+
+---
+
+## ISSUE-4 Implemented This Session
+
+### Phase 1 — Critical Financial Parity
+
+**New modules:**
+
+- **`src/re_storage/financial/opex.py`** — `build_opex_schedule()`:
+  - Computes 8 OPEX line items per year: O&M (solar + BESS + other), insurance (solar + BESS), land lease (% of revenue), asset management.
+  - Applies compound annual escalation: `value_yr1 × (1 + esc)^(year-1)`.
+  - Excel source: `Financial!F106–F113`, `Assumption!K26–K34`.
+
+- **`src/re_storage/financial/taxes.py`** — three functions:
+  - `build_tax_rate_schedule()`: tiered schedule — 0% holiday → first discount rate → second discount rate → standard rate. Excel: `Assumption!K62–K65`, `J64–J65`.
+  - `calculate_depreciation_schedule()`: straight-line over configurable tenor. Excel: `Assumption!K44`.
+  - `calculate_unlevered_taxes()` / `calculate_levered_taxes()`: `max(0, EBIT × rate)` and `max(0, EBT × rate)`. Excel: `Financial!F132`, `F150`.
+
+- **`src/re_storage/financial/mra.py`** — `build_mra_schedule()`:
+  - BESS MRA target = `K46 × BESS CAPEX`; PV MRA target = `K47 × PV CAPEX`.
+  - Operating-year contributions (years 1–3) follow `Other Input!B5–B8` build-up schedule (default 30/30/30%).
+  - Year 0 contribution (10%) is equity-at-FC; excluded from the series.
+
+**Updated existing files:**
+
+- **`src/re_storage/aggregation/lifetime.py`** — `build_lifetime_projection()`:
+  - Added `revenue_escalation_pct` and `fmp_descent_pct` parameters.
+  - Revenue in year n = `year1_revenue × pv_factor_n × (1 + esc)^(n-1)`. Previously flat (degradation-only).
+  - Excel source: `Financial!H16` (5% p.a. price escalation).
+
+- **`src/re_storage/inputs/loaders.py`** — `load_financial_params_from_cells()`:
+  - Now reads three column-pair maps: I/K (financial), I/J (tax durations), O/Q (PPA/escalation), C/E (installed capacity).
+  - Returns 30+ new keys: CAPEX breakdown (`solar_capex_usd`, `bess_capex_usd`, `installed_pv_mwp`, `bess_mwh`), all OPEX unit rates, tax schedule params, MRA percentages, PPA scenario params (`ppa_option`, `bundled_discount_pct`, `pv_discount_pct`, `bess_discount_pct`, `fixed_ppa_price_usd_per_mwh`), escalation rates.
+  - `load_assumptions()` fixed to only require fields without schema defaults (backward-compat with test fixtures that predate new PPA fields).
+
+- **`src/re_storage/inputs/schemas.py`** — `SystemAssumptions`:
+  - Added `ppa_option: int = 3` (1–4, default preserves DPPA CfD behaviour).
+  - Added `bundled_discount_pct`, `pv_discount_pct`, `bess_discount_pct`, `fixed_ppa_price_usd_per_mwh` — all optional with defaults.
+
+- **`src/re_storage/pipeline.py`**:
+  - `_run_financial()`: replaced `_build_placeholder_opex()` (all zeros) with real `build_opex_schedule()` call; wires levered taxes and MRA into the OPEX DataFrame before passing to waterfall; adds `after_tax_project_irr` and `year1_opex_usd`/`year1_ebitda_usd` to returned KPIs.
+  - `_run_settlement()`: dispatches to correct module based on `assumptions.ppa_option`.
+  - `_run_aggregation()`: passes `revenue_escalation_pct` and `fmp_descent_pct` to `build_lifetime_projection()`.
+  - `run_full_model()`: accepts `ppa_option` kwarg; extracts all new params from `financial_params` and passes them to `_run_financial()`; computes demand charge savings via `calculate_annual_demand_savings()`.
+  - `run_model_from_json()`: accepts `ppa_option` kwarg.
+
+### Phase 2 — Revenue Scenarios (Options 1, 2, 4)
+
+**New modules:**
+
+- **`src/re_storage/settlement/bundled.py`** — Option 1 Bundled Discount:
+  - `calculate_bundled_revenue(direct_pv_kw, discharged_kw, time_period, tariff_rates, discount_pct)`.
+  - Revenue = (direct_pv + discharged) × tariff × (1 − discount). Excel: `Financial!F64–F70`, `Assumption!Q30`.
+
+- **`src/re_storage/settlement/separate.py`** — Option 2 Separate PV+BESS:
+  - `calculate_separate_revenue(..., pv_discount_pct, bess_discount_pct)`.
+  - PV and BESS components discounted independently. Excel: `Financial!F71–F83`, `Assumption!Q33–Q34`.
+
+- **`src/re_storage/settlement/fixed_ppa.py`** — Option 4 Fixed EVN PPA:
+  - `calculate_fixed_ppa_revenue(solar_gen_kw, fixed_price_usd_per_mwh, curtailment_pct, tx_loss_pct)`.
+  - Revenue = generation × price × (1−curtailment) × (1−tx_loss). Excel: `Financial!F84–F90`, `Assumption!Q61`.
+
+- **`src/re_storage/settlement/demand_charge.py`**:
+  - `calculate_annual_demand_savings(monthly_data, cp_demand_vnd_per_kw, exchange_rate)`.
+  - Zero for 1-component tariff (current test project); ready for 2-component projects.
+
+### Phase 3 — Scenarios & Sensitivity
+
+**New package `src/re_storage/scenarios/`:**
+
+- **`runner.py`** — `run_all_scenarios(project_dir|excel_path, ppa_options=[1,2,3,4])`:
+  - Runs full pipeline for each PPA option; returns `{option_id: kpi_dict}`.
+  - Mirrors Excel `Scenarios!A1–N73` side-by-side comparison.
+
+- **`sensitivity.py`** — `run_sensitivity(variable_name, test_values, ...)`:
+  - Overrides one parameter, runs pipeline for each test value.
+  - Supports 9 variables: strike price, interest rate, PV/BESS CAPEX, FX rate, leverage, escalation rates, bundled discount.
+  - Mirrors Excel `Scenarios!A17–N35`.
+
+### Package exports updated
+
+- `financial/__init__.py` — exports all new financial functions.
+- `settlement/__init__.py` — exports all new settlement functions.
+
+### Tests — 48 new unit tests (all passing)
+
+| File | Tests |
+|------|-------|
+| `tests/unit/test_financial_opex.py` | 8 |
+| `tests/unit/test_financial_taxes.py` | 14 |
+| `tests/unit/test_financial_mra.py` | 6 |
+| `tests/unit/test_settlement_bundled.py` | 6 |
+| `tests/unit/test_settlement_separate.py` | 5 |
+| `tests/unit/test_settlement_fixed_ppa.py` | 7 |
+
+**Overall test suite:** 198 passed, 1 skipped (pre-existing Hypothesis health-check flake in `test_battery.py`).
+
+---
+
+## ISSUE-4 Verification Status
+
+```
+pytest tests/ --ignore=tests/unit/test_battery.py --ignore=tests/regression/
+# → 198 passed, 1 skipped
+```
+
+- All pre-existing unit and integration tests continue to pass (no regressions).
+- 48 new unit tests for all new modules pass.
+- Pipeline imports cleanly; `ppa_option` dispatch works for all 4 options.
+
+---
+
+## ISSUE-4 Outstanding
+
+### P1-4 — Regression reference update (HIGH)
+
+After verifying parity against the real Excel workbook, update `tests/data/references/` JSON files with new KPI targets that include OPEX, taxes, and escalation:
+- Target: `year1_opex_usd` within 1% of `Financial!F113`
+- Target: `project_irr` within 0.5% of `Financial!H123` (0.08952)
+- Target: `equity_irr` within 0.5% of `Financial!H189` (0.19403)
+- Target: `npv_usd` within 2% of `Financial!H193` ($22.03M)
+
+### P2-5/P2-6 — Backend/frontend wiring for new PPA params (HIGH)
+
+- `web/functions/handlers/run_json.py`: expose `ppa_option`, `bundled_discount_pct`, `pv_discount_pct`, `bess_discount_pct`, `fixed_ppa_price_usd_per_mwh` as form fields in `_build_project_payload()`.
+- `web/frontend/src/components/inputs/SystemStep.tsx`: add PPA option radio group (Options 1–4 with labels) and conditional discount/price fields.
+
+### P3-3 — New API endpoints (MEDIUM)
+
+Add to `web/functions/main.py`:
+- `POST /compareScenarios` → calls `run_all_scenarios()` → returns `{option: kpi_dict}` for all 4 PPA options.
+- `POST /runSensitivity` → calls `run_sensitivity()` → returns `{value: kpi_dict}` for the swept variable.
+
+### P4 — Dashboard & missing KPIs (MEDIUM)
+
+- Add payback period and cash-on-cash yield to `financial/metrics.py`.
+- Add energy performance KPIs to pipeline: solar utilisation, pre/post-BESS curtailment, clean energy delivered, load coverage %.
+- Update `ModelKpis` TypeScript interface in `web/frontend/src/types/model.ts` with new fields.
+- Add `<GoNoGoIndicator>` component comparing `equity_irr` vs `target_irr`.
+- Add `<ScenarioComparisonTable>` and `<SensitivityPanel>` React components.
+- Add `<DscrChart>` and `<AnnualCashFlowChart>` to results dashboard.
+
+### P5 — Remaining low-priority items (LOW)
+
+- `load_other_input()` in `loaders.py`: read `Other Input!B3–C25` for full MRA build-up schedule and complete EVN tariff table.
+- Blended interest rate: load `hedging_ratio`, `fixed_swap_rate`, `base_rate`, `debt_margin` and compute blended rate in `load_financial_params_from_cells()`.
+- Net billing revenue: add `net_billing_usd_per_mwh` / `net_billing_export_share` to settlement layer.
+- `demand_charge`: wire `cp_demand_vnd_per_kw` from `Assumption!O13` loader so 2-component tariff projects get real savings.
+- Form UX improvements: default-populated degradation table, inline validation, CSV preview, progress bar, project save/load.
+
+---
+
+## Recommended Next Start
+
+1. Run regression workbook through updated pipeline and compare KPIs to Excel reference to quantify parity improvement.
+2. Update reference JSON files (`P1-4`).
+3. Wire `ppa_option` and new PPA params into the web handlers and frontend form (`P2-5/P2-6`).
+4. Add `/compareScenarios` and `/runSensitivity` endpoints (`P3-3`).

@@ -37,6 +37,14 @@ from re_storage.financial.metrics import (
     calculate_npv,
     calculate_project_irr,
 )
+from re_storage.financial.mra import build_mra_schedule
+from re_storage.financial.opex import build_opex_schedule
+from re_storage.financial.taxes import (
+    build_tax_rate_schedule,
+    calculate_depreciation_schedule,
+    calculate_levered_taxes,
+    calculate_unlevered_taxes,
+)
 from re_storage.financial.waterfall import build_cash_flow_waterfall
 from re_storage.inputs.json_loader import (
     load_assumptions_from_json,
@@ -60,12 +68,16 @@ from re_storage.physics.solar import (
     calculate_surplus_generation_vectorized,
     scale_generation,
 )
+from re_storage.settlement.bundled import calculate_bundled_revenue
+from re_storage.settlement.demand_charge import calculate_annual_demand_savings
 from re_storage.settlement.dppa import calculate_dppa_revenue
+from re_storage.settlement.fixed_ppa import calculate_fixed_ppa_revenue
 from re_storage.settlement.grid import (
     calculate_bau_expense,
     calculate_grid_savings,
     calculate_re_expense,
 )
+from re_storage.settlement.separate import calculate_separate_revenue
 from re_storage.validation.checks import validate_financial_solver_freshness
 
 logger = logging.getLogger(__name__)
@@ -280,7 +292,13 @@ def _run_settlement(
     tariff_rates: dict[TimePeriod, float],
 ) -> pd.DataFrame:
     """
-    Calculate DPPA revenue and grid expenses for each hour.
+    Calculate PPA revenue and grid expenses for each hour.
+
+    Dispatches to the correct settlement module based on assumptions.ppa_option:
+        1 = Bundled Discount  (settlement/bundled.py)
+        2 = Separate PV+BESS  (settlement/separate.py)
+        3 = DPPA CfD          (settlement/dppa.py)  ← default
+        4 = Fixed EVN PPA     (settlement/fixed_ppa.py)
 
     Why: This replicates the DPPA sheet and the grid expense columns
     from the Calc sheet (Cols AC, AD, AE).
@@ -289,7 +307,7 @@ def _run_settlement(
     """
     result = hourly_data.copy()
 
-    # Grid expenses
+    # Grid expenses (same for all PPA options — these are the savings vs BAU)
     bau_expense = calculate_bau_expense(
         result["load_kwh"],
         result["time_period"],
@@ -304,10 +322,38 @@ def _run_settlement(
     result["re_expense_usd"] = re_expense
     result["grid_savings_usd"] = calculate_grid_savings(bau_expense, re_expense)
 
-    # DPPA revenue
-    dppa_result = calculate_dppa_revenue(result, assumptions)
+    ppa_option = getattr(assumptions, "ppa_option", 3)
 
-    return dppa_result
+    if ppa_option == 1:
+        # Option 1: Bundled Discount
+        result["dppa_revenue_usd"] = calculate_bundled_revenue(
+            direct_pv_kw=result["direct_pv_consumption_kw"],
+            discharged_kw=result["discharged_kw"],
+            time_period=result["time_period"],
+            tariff_rates=tariff_rates,
+            discount_pct=assumptions.bundled_discount_pct,
+        )
+    elif ppa_option == 2:
+        # Option 2: Separate PV + BESS
+        result["dppa_revenue_usd"] = calculate_separate_revenue(
+            direct_pv_kw=result["direct_pv_consumption_kw"],
+            discharged_kw=result["discharged_kw"],
+            time_period=result["time_period"],
+            tariff_rates=tariff_rates,
+            pv_discount_pct=assumptions.pv_discount_pct,
+            bess_discount_pct=assumptions.bess_discount_pct,
+        )
+    elif ppa_option == 4:
+        # Option 4: Fixed EVN PPA
+        result["dppa_revenue_usd"] = calculate_fixed_ppa_revenue(
+            solar_gen_kw=result["solar_gen_kw"],
+            fixed_price_usd_per_mwh=assumptions.fixed_ppa_price_usd_per_mwh,
+        )
+    else:
+        # Option 3 (default): DPPA CfD
+        result = calculate_dppa_revenue(result, assumptions)
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -321,6 +367,8 @@ def _run_aggregation(
     assumptions: SystemAssumptions,
     degradation_table: pd.DataFrame,
     project_years: int = 25,
+    revenue_escalation_pct: float = 0.0,
+    fmp_descent_pct: float = 0.0,
 ) -> dict[str, Any]:
     """
     Aggregate hourly results into monthly, Year 1, and lifetime projections.
@@ -347,6 +395,8 @@ def _run_aggregation(
         degradation_table,
         initial_capacity_kwh=assumptions.usable_bess_capacity_kwh,
         project_years=project_years,
+        revenue_escalation_pct=revenue_escalation_pct,
+        fmp_descent_pct=fmp_descent_pct,
     )
 
     return {"monthly": monthly, "year1": year1, "lifetime": lifetime}
@@ -355,30 +405,6 @@ def _run_aggregation(
 # ---------------------------------------------------------------------------
 # Stage D: Financial (waterfall → debt → metrics)
 # ---------------------------------------------------------------------------
-
-
-def _build_placeholder_opex(project_years: int) -> pd.DataFrame:
-    """
-    Build placeholder opex schedule when detailed opex inputs are unavailable.
-
-    Why: The current input loaders don't yet parse the Other Input sheet
-    for detailed O&M/insurance/land-lease line items. This provides zero
-    placeholders so the waterfall can still run. As we add loaders for
-    Other Input, these will be replaced with real values.
-    """
-    years = list(range(1, project_years + 1))
-    return pd.DataFrame(
-        {
-            "year": years,
-            "o_and_m_usd": 0.0,
-            "insurance_usd": 0.0,
-            "land_lease_usd": 0.0,
-            "management_fees_usd": 0.0,
-            "grid_connection_usd": 0.0,
-            "taxes_usd": 0.0,
-            "mra_contribution_usd": 0.0,
-        }
-    )
 
 
 def _run_financial(
@@ -391,6 +417,32 @@ def _run_financial(
     discount_rate_pct: float = 8.0,
     cod_date: str = "2027-01-01",
     max_leverage_ratio: float = 1.0,
+    # OPEX parameters
+    installed_pv_mwp: float = 0.0,
+    bess_mwh: float = 0.0,
+    om_solar_usd_per_mwp: float = 6_000.0,
+    om_bess_usd_per_mwh: float = 2_000.0,
+    insurance_solar_pct_capex: float = 0.0025,
+    insurance_bess_pct_capex: float = 0.0025,
+    other_opex_usd_per_mwp: float = 1_000.0,
+    asset_management_usd_per_mwp: float = 3_000.0,
+    land_lease_pct_revenue: float = 0.0,
+    opex_escalation_pct: float = 0.04,
+    # Tax parameters
+    depreciation_tenor_years: int = 20,
+    tax_rate: float = 0.20,
+    tax_holiday_years: int = 5,
+    first_discount_years: int = 8,
+    first_discount_rate: float = 0.05,
+    second_discount_years: int = 2,
+    second_discount_rate: float = 0.10,
+    # MRA parameters
+    bess_capex_usd: float = 0.0,
+    pv_capex_usd: float = 0.0,
+    bess_mra_pct: float = 0.60,
+    pv_mra_pct: float = 0.10,
+    # Demand charge savings (annual, already converted to USD)
+    demand_charge_savings_usd_yr1: float = 0.0,
 ) -> dict[str, float]:
     """
     Run financial waterfall and calculate return metrics.
@@ -408,11 +460,33 @@ def _run_financial(
             "year": years,
             "dppa_revenue_usd": lifetime["dppa_revenue_usd"].values,
             "grid_savings_usd": lifetime["grid_savings_usd"].values,
-            "demand_charge_savings_usd": 0.0,  # Placeholder until demand charges added
+            "demand_charge_savings_usd": demand_charge_savings_usd_yr1,
         }
     )
 
-    opex = _build_placeholder_opex(project_years)
+    # Year 1 total revenue for land-lease base
+    year1_total_revenue = (
+        float(lifetime["dppa_revenue_usd"].iloc[0])
+        + float(lifetime["grid_savings_usd"].iloc[0])
+        + demand_charge_savings_usd_yr1
+    )
+
+    # Build real OPEX schedule (replaces zero placeholder)
+    opex = build_opex_schedule(
+        project_years=project_years,
+        installed_pv_mwp=installed_pv_mwp,
+        bess_mwh=bess_mwh,
+        total_capex_usd=initial_capex_usd,
+        om_solar_usd_per_mwp=om_solar_usd_per_mwp,
+        om_bess_usd_per_mwh=om_bess_usd_per_mwh,
+        insurance_solar_pct_capex=insurance_solar_pct_capex,
+        insurance_bess_pct_capex=insurance_bess_pct_capex,
+        other_opex_usd_per_mwp=other_opex_usd_per_mwp,
+        asset_management_usd_per_mwp=asset_management_usd_per_mwp,
+        land_lease_pct_revenue=land_lease_pct_revenue,
+        opex_escalation_pct=opex_escalation_pct,
+        year1_total_revenue_usd=year1_total_revenue,
+    )
 
     # Calculate EBITDA for debt sizing
     total_revenue = (
@@ -476,10 +550,52 @@ def _run_financial(
         if len(overlap) > 0:
             full_debt.loc[overlap, col] = debt_schedule.loc[overlap, col].values
 
+    # --- Taxes ---
+    year_index = pd.RangeIndex(1, project_years + 1)
+    tax_rates = build_tax_rate_schedule(
+        project_years=project_years,
+        tax_rate=tax_rate,
+        holiday_years=tax_holiday_years,
+        first_discount_years=first_discount_years,
+        first_discount_rate=first_discount_rate,
+        second_discount_years=second_discount_years,
+        second_discount_rate=second_discount_rate,
+    )
+    depreciation = calculate_depreciation_schedule(
+        total_capex_usd=initial_capex_usd,
+        tenor_years=depreciation_tenor_years,
+        project_years=project_years,
+    )
+    levered_taxes = calculate_levered_taxes(
+        ebitda=ebitda_series,
+        depreciation=depreciation,
+        debt_interest=full_debt["interest_usd"].set_axis(year_index),
+        tax_rates=tax_rates,
+    )
+    unlevered_taxes = calculate_unlevered_taxes(
+        ebitda=ebitda_series,
+        depreciation=depreciation,
+        tax_rates=tax_rates,
+    )
+
+    # --- MRA ---
+    mra_series = build_mra_schedule(
+        bess_capex_usd=bess_capex_usd,
+        pv_capex_usd=pv_capex_usd,
+        bess_mra_pct=bess_mra_pct,
+        pv_mra_pct=pv_mra_pct,
+        project_years=project_years,
+    )
+
+    # Inject levered taxes and MRA into the opex DataFrame for waterfall
+    opex_with_tax = opex.copy()
+    opex_with_tax["taxes_usd"] = levered_taxes.values
+    opex_with_tax["mra_contribution_usd"] = mra_series.values
+
     # Build waterfall
     waterfall = build_cash_flow_waterfall(
         lifetime_revenue=revenue,
-        lifetime_opex=opex,
+        lifetime_opex=opex_with_tax,
         debt_schedule=full_debt,
         capex={"initial_capex_usd": initial_capex_usd},
     )
@@ -491,7 +607,12 @@ def _run_financial(
         index=waterfall.index,
     )
 
-    # Project IRR: capex (negative) + EBITDA
+    # Project IRR: capex (negative) + EBITDA - unlevered taxes
+    after_tax_project_cf = waterfall["ebitda_usd"].copy()
+    after_tax_project_cf.iloc[0] = -initial_capex_usd
+    after_tax_project_cf.loc[year_index] -= unlevered_taxes.values
+
+    # Pre-tax project CF (EBITDA only, for backward-compat)
     project_cf = waterfall["ebitda_usd"].copy()
     project_cf.iloc[0] = -initial_capex_usd  # Year 0 = capex outflow
 
@@ -503,6 +624,11 @@ def _run_financial(
     unlevered_cf = project_cf.copy()
 
     results: dict[str, float] = {}
+    results["year1_opex_usd"] = float(opex_with_tax["o_and_m_usd"].iloc[0]
+                                      + opex_with_tax["insurance_usd"].iloc[0]
+                                      + opex_with_tax["land_lease_usd"].iloc[0]
+                                      + opex_with_tax["management_fees_usd"].iloc[0])
+    results["year1_ebitda_usd"] = float(ebitda_series.iloc[0])
 
     try:
         results["project_irr"] = calculate_project_irr(project_cf, dates)
@@ -521,6 +647,12 @@ def _run_financial(
     except Exception as exc:
         logger.warning("Unlevered IRR calculation failed: %s", exc)
         results["unlevered_irr"] = float("nan")
+
+    try:
+        results["after_tax_project_irr"] = calculate_project_irr(after_tax_project_cf, dates)
+    except Exception as exc:
+        logger.warning("After-tax project IRR calculation failed: %s", exc)
+        results["after_tax_project_irr"] = float("nan")
 
     try:
         results["npv_usd"] = calculate_npv(unlevered_cf, dates, discount_rate_pct)
@@ -561,6 +693,7 @@ def run_full_model(
     discount_rate_pct: float = 8.0,
     cod_date: str = "2027-01-01",
     tariff_rates: dict[TimePeriod, float] | None = None,
+    ppa_option: int | None = None,
 ) -> dict[str, float]:
     """
     Run the full RE-Storage simulation pipeline on an Excel input file.
@@ -608,6 +741,11 @@ def run_full_model(
     cod_date_effective = str(financial_params["cod_date"])
     exchange_rate_effective = float(financial_params["exchange_rate_usd_vnd"])
     max_leverage_effective = float(financial_params["max_leverage_ratio"])
+    revenue_escalation_effective = float(financial_params.get("revenue_escalation_pct", 0.0))
+    fmp_descent_effective = float(financial_params.get("fmp_descent_pct", 0.0))
+    ppa_option_effective = ppa_option if ppa_option is not None else int(
+        financial_params.get("ppa_option", 3)
+    )
 
     # --- Workbook-level diagnostics ---
     freshness_warnings = validate_financial_solver_freshness(str(excel_path))
@@ -616,6 +754,14 @@ def run_full_model(
 
     # --- Load inputs ---
     assumptions = load_assumptions_from_cells(excel_path)
+    # Override ppa_option if specified at call site or from loader
+    assumptions = assumptions.model_copy(update={
+        "ppa_option": ppa_option_effective,
+        "bundled_discount_pct": float(financial_params.get("bundled_discount_pct", 0.15)),
+        "pv_discount_pct": float(financial_params.get("pv_discount_pct", 0.05)),
+        "bess_discount_pct": float(financial_params.get("bess_discount_pct", 0.05)),
+        "fixed_ppa_price_usd_per_mwh": float(financial_params.get("fixed_ppa_price_usd_per_mwh", 70.0)),
+    })
     hourly_data = _normalize_hourly_price_columns_to_usd(
         load_hourly_data(excel_path),
         exchange_rate_effective,
@@ -651,6 +797,15 @@ def run_full_model(
         assumptions,
         degradation_table,
         project_years=project_years_effective,
+        revenue_escalation_pct=revenue_escalation_effective,
+        fmp_descent_pct=fmp_descent_effective,
+    )
+
+    # Demand charge savings
+    demand_savings_yr1 = calculate_annual_demand_savings(
+        monthly_data=agg["monthly"],
+        cp_demand_vnd_per_kw=0.0,  # 1-component tariff = 0; extend loader for 2-component
+        exchange_rate_usd_vnd=exchange_rate_effective,
     )
 
     # --- Stage D: Financial ---
@@ -664,6 +819,28 @@ def run_full_model(
         discount_rate_pct=discount_rate_effective,
         cod_date=cod_date_effective,
         max_leverage_ratio=max_leverage_effective,
+        installed_pv_mwp=float(financial_params.get("installed_pv_mwp", 0.0)),
+        bess_mwh=float(financial_params.get("bess_mwh", 0.0)),
+        om_solar_usd_per_mwp=float(financial_params.get("om_solar_usd_per_mwp", 6_000.0)),
+        om_bess_usd_per_mwh=float(financial_params.get("om_bess_usd_per_mwh", 2_000.0)),
+        insurance_solar_pct_capex=float(financial_params.get("insurance_solar_pct_capex", 0.0025)),
+        insurance_bess_pct_capex=float(financial_params.get("insurance_bess_pct_capex", 0.0025)),
+        other_opex_usd_per_mwp=float(financial_params.get("other_opex_usd_per_mwp", 1_000.0)),
+        asset_management_usd_per_mwp=float(financial_params.get("asset_management_usd_per_mwp", 3_000.0)),
+        land_lease_pct_revenue=float(financial_params.get("land_lease_pct_revenue", 0.0)),
+        opex_escalation_pct=float(financial_params.get("opex_escalation_pct", 0.04)),
+        depreciation_tenor_years=int(financial_params.get("depreciation_tenor_years", 20)),
+        tax_rate=float(financial_params.get("tax_rate", 0.20)),
+        tax_holiday_years=int(financial_params.get("tax_holiday_years", 5)),
+        first_discount_years=int(financial_params.get("first_discount_years", 8)),
+        first_discount_rate=float(financial_params.get("first_discount_rate", 0.05)),
+        second_discount_years=int(financial_params.get("second_discount_years", 2)),
+        second_discount_rate=float(financial_params.get("second_discount_rate", 0.10)),
+        bess_capex_usd=float(financial_params.get("bess_capex_usd", 0.0)),
+        pv_capex_usd=float(financial_params.get("solar_capex_usd", 0.0)),
+        bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),
+        pv_mra_pct=float(financial_params.get("pv_mra_pct", 0.10)),
+        demand_charge_savings_usd_yr1=demand_savings_yr1,
     )
 
     # --- Assemble KPI dict ---
@@ -697,6 +874,7 @@ def run_full_model(
 def run_model_from_json(
     project_dir: Path,
     tariff_rates: dict[TimePeriod, float] | None = None,
+    ppa_option: int | None = None,
 ) -> dict[str, Any]:
     """
     Run the full RE-Storage pipeline using JSON+CSV project inputs.
@@ -743,23 +921,32 @@ def run_model_from_json(
 
     hourly_data = _normalize_hourly_price_columns_to_usd(hourly_data, exchange_rate_usd_vnd)
 
+    ppa_option_effective = ppa_option if ppa_option is not None else 3
+    assumptions = assumptions.model_copy(
+        update={
+            "actual_capacity_kwp": assumptions.simulation_capacity_kwp,
+            "ppa_option": ppa_option_effective,
+        }
+    )
+
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
     settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates)
     agg = _run_aggregation(
         settlement_result,
         settlement_result,
-        assumptions.model_copy(update={"actual_capacity_kwp": assumptions.simulation_capacity_kwp}),
+        assumptions,
         degradation_table,
         project_years=project_years,
     )
 
+    initial_capex_usd = float(financial_params["initial_capex_usd"])
     financial_kpis = _run_financial(
         lifetime=agg["lifetime"],
         project_years=project_years,
         interest_rate_pct=float(financial_params["interest_rate_pct"]),
         tenor_years=int(financial_params["tenor_years"]),
         target_dscr=float(financial_params["target_dscr"]),
-        initial_capex_usd=float(financial_params["initial_capex_usd"]),
+        initial_capex_usd=initial_capex_usd,
         discount_rate_pct=float(financial_params["discount_rate_pct"]),
         cod_date=str(financial_params["cod_date"]),
         max_leverage_ratio=float(financial_params.get("max_leverage_ratio", 1.0)),

@@ -131,9 +131,16 @@ def build_lifetime_projection(
     initial_capacity_kwh: float,
     project_years: int = 25,
     replacement_cycle: int = 11,
+    revenue_escalation_pct: float = 0.0,
+    fmp_descent_pct: float = 0.0,
 ) -> AnnualTimeSeries:
     """
     Build lifetime projection from Year 1 totals and degradation factors.
+
+    Revenue in each year is scaled by both degradation and price escalation:
+        revenue_yr_n = year1_revenue × pv_factor_n × (1 + escalation)^(n-1)
+
+    Excel source: Financial!H16 (Price Escalation 5% p.a.)
 
     Args:
         year1_totals: AnnualTimeSeries with Year 1 totals.
@@ -141,6 +148,10 @@ def build_lifetime_projection(
         initial_capacity_kwh: Initial battery capacity (kWh).
         project_years: Projection length in years.
         replacement_cycle: Battery replacement cadence.
+        revenue_escalation_pct: Annual price escalation rate for DPPA and grid
+            savings (Assumption!Q25, default 0% = flat prices).
+        fmp_descent_pct: Annual market price descent rate for grid savings
+            (Assumption!Q41, default 0%).  Negative value = annual decline.
 
     Returns:
         AnnualTimeSeries indexed by year with unit-suffixed columns.
@@ -182,8 +193,19 @@ def build_lifetime_projection(
     else:
         pv_factors = pd.Series(0.0, index=generation_mwh.index)
 
-    dppa_revenue_usd = year1_dppa_revenue_usd * pv_factors
-    grid_savings_usd = year1_grid_savings_usd * pv_factors
+    # Build compound escalation factors: (1+esc)^(year-1)
+    years = pd.RangeIndex(1, project_years + 1)
+    dppa_esc_factors = pd.Series(
+        [(1.0 + revenue_escalation_pct) ** (y - 1) for y in years],
+        index=years,
+    )
+    grid_esc_factors = pd.Series(
+        [(1.0 + revenue_escalation_pct + fmp_descent_pct) ** (y - 1) for y in years],
+        index=years,
+    )
+
+    dppa_revenue_usd = year1_dppa_revenue_usd * pv_factors * dppa_esc_factors
+    grid_savings_usd = year1_grid_savings_usd * pv_factors * grid_esc_factors
 
     result = pd.DataFrame(
         {

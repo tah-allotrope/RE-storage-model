@@ -55,6 +55,20 @@ class SystemAssumptions(BaseModel):
     bess_enabled: bool
     dppa_enabled: bool
 
+    # PPA scenario selection (1=Bundled Discount, 2=Separate PV+BESS,
+    # 3=DPPA CfD, 4=Fixed EVN PPA). Default 3 preserves existing behaviour.
+    ppa_option: int = Field(ge=1, le=4, default=3)
+
+    # Option 1: Bundled discount applied to delivered energy × EVN tariff
+    bundled_discount_pct: float = Field(ge=0.0, le=1.0, default=0.15)
+
+    # Option 2: Separate discount rates for PV and BESS components
+    pv_discount_pct: float = Field(ge=0.0, le=1.0, default=0.05)
+    bess_discount_pct: float = Field(ge=0.0, le=1.0, default=0.05)
+
+    # Option 4: Fixed PPA price with EVN (USD/MWh)
+    fixed_ppa_price_usd_per_mwh: float = Field(ge=0.0, default=70.0)
+
     @property
     def scale_factor(self) -> float:
         """Output scale factor to convert simulation to actual capacity."""
