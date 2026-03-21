@@ -84,6 +84,164 @@ from re_storage.validation.checks import validate_financial_solver_freshness
 logger = logging.getLogger(__name__)
 
 
+_ASSUMPTION_OVERRIDE_KEYS = set(SystemAssumptions.model_fields)
+_FINANCIAL_OVERRIDE_KEYS = {
+    "asset_management_usd",
+    "asset_management_usd_per_mwp",
+    "base_rate_floating",
+    "bess_capex_usd",
+    "bess_capex_usd_per_mwh",
+    "bess_capacity_mwh",
+    "bess_depreciation_tenor_years",
+    "bess_discount_pct",
+    "bess_mra_pct",
+    "bess_mwh",
+    "bop_capex_usd",
+    "bundled_discount_pct",
+    "cod_date",
+    "cpi",
+    "debt_margin_pct",
+    "discount_rate_pct",
+    "exchange_rate_usd_vnd",
+    "first_discount_rate",
+    "first_discount_years",
+    "fixed_ppa_price_usd_per_mwh",
+    "fmp_change_rate",
+    "fmp_descent_pct",
+    "initial_capex_usd",
+    "installed_pv_mwp",
+    "insurance_bess_pct_capex",
+    "insurance_pct_capex",
+    "insurance_solar_pct_capex",
+    "interest_rate_pct",
+    "land_capex_usd",
+    "land_lease_pct_revenue",
+    "land_lease_usd",
+    "land_lease_usd_per_mwp",
+    "max_leverage_ratio",
+    "om_bess_usd_per_mwh",
+    "om_solar_usd_per_mwp",
+    "opex_escalation_pct",
+    "other_opex_usd_per_mwp",
+    "ppa_option",
+    "project_years",
+    "pv_capex_usd_per_mwp",
+    "pv_depreciation_tenor_years",
+    "pv_discount_pct",
+    "pv_mra_pct",
+    "revenue_escalation_pct",
+    "second_discount_rate",
+    "second_discount_years",
+    "solar_capex_usd",
+    "solar_capacity_mwp",
+    "strike_price_vnd",
+    "target_dscr",
+    "tax_holiday_years",
+    "tax_rate",
+    "tenor_years",
+}
+
+
+def _coerce_project_percent_to_ratio(value: Any) -> float:
+    """Convert percentage-like overrides to a 0-1 ratio when needed."""
+    numeric_value = float(value)
+    if abs(numeric_value) > 1.0:
+        return numeric_value / 100.0
+    return numeric_value
+
+
+def _normalize_base_params(
+    base_params: dict[str, Any] | None,
+    fallback_financial_params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Map scenario override keys onto the pipeline's internal parameter names."""
+    if not base_params:
+        return {}
+
+    params = dict(base_params)
+    fallback = fallback_financial_params or {}
+
+    exchange_rate_usd_vnd = params.get(
+        "exchange_rate_usd_vnd", fallback.get("exchange_rate_usd_vnd")
+    )
+    if "strike_price_vnd" in params and exchange_rate_usd_vnd is not None:
+        params["strike_price_usd_per_kwh"] = float(params["strike_price_vnd"]) / float(
+            exchange_rate_usd_vnd
+        )
+
+    installed_pv_mwp = params.get(
+        "installed_pv_mwp",
+        params.get(
+            "solar_capacity_mwp",
+            fallback.get("installed_pv_mwp", fallback.get("solar_capacity_mwp")),
+        ),
+    )
+    if "installed_pv_mwp" in params or "solar_capacity_mwp" in params:
+        if installed_pv_mwp is not None:
+            installed_pv_mwp_value = float(installed_pv_mwp)
+            params["installed_pv_mwp"] = installed_pv_mwp_value
+            params.setdefault("solar_capacity_mwp", installed_pv_mwp_value)
+            params["actual_capacity_kwp"] = installed_pv_mwp_value * 1000.0
+
+    bess_mwh = params.get(
+        "bess_mwh",
+        params.get(
+            "bess_capacity_mwh",
+            fallback.get("bess_mwh", fallback.get("bess_capacity_mwh")),
+        ),
+    )
+    if "bess_mwh" in params or "bess_capacity_mwh" in params:
+        if bess_mwh is not None:
+            bess_mwh_value = float(bess_mwh)
+            params["bess_mwh"] = bess_mwh_value
+            params.setdefault("bess_capacity_mwh", bess_mwh_value)
+            params["usable_bess_capacity_kwh"] = bess_mwh_value * 1000.0
+
+    solar_unit_capex = params.get("pv_capex_usd_per_mwp")
+    if solar_unit_capex is not None and installed_pv_mwp is not None:
+        params["solar_capex_usd"] = float(solar_unit_capex) * float(installed_pv_mwp)
+
+    bess_unit_capex = params.get("bess_capex_usd_per_mwh")
+    if bess_unit_capex is not None and bess_mwh is not None:
+        params["bess_capex_usd"] = float(bess_unit_capex) * float(bess_mwh)
+
+    for key in (
+        "bundled_discount_pct",
+        "pv_discount_pct",
+        "bess_discount_pct",
+        "opex_escalation_pct",
+        "revenue_escalation_pct",
+        "fmp_descent_pct",
+        "tax_rate",
+        "first_discount_rate",
+        "second_discount_rate",
+        "max_leverage_ratio",
+        "bess_mra_pct",
+        "pv_mra_pct",
+    ):
+        if key in params:
+            params[key] = _coerce_project_percent_to_ratio(params[key])
+
+    return params
+
+
+def _split_pipeline_overrides(
+    base_params: dict[str, Any] | None,
+    fallback_financial_params: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Split caller overrides into assumption fields and financial fields."""
+    normalized = _normalize_base_params(base_params, fallback_financial_params)
+    assumption_updates = {
+        key: value for key, value in normalized.items() if key in _ASSUMPTION_OVERRIDE_KEYS
+    }
+    financial_updates = {
+        key: value
+        for key, value in normalized.items()
+        if key in _FINANCIAL_OVERRIDE_KEYS or key in _ASSUMPTION_OVERRIDE_KEYS
+    }
+    return assumption_updates, financial_updates
+
+
 # ---------------------------------------------------------------------------
 # Helper: classify hours into tariff periods using schedule
 # ---------------------------------------------------------------------------
@@ -154,9 +312,11 @@ def _normalize_hourly_price_columns_to_usd(
     for column in ("fmp_usd_per_kwh", "cfmp_usd_per_kwh"):
         if column not in result.columns:
             continue
-        series = pd.to_numeric(result[column], errors="coerce")
-        if series.notna().any() and float(series.abs().max()) > 10.0:
-            result[column] = series / exchange_rate_usd_vnd
+        numeric_series = pd.Series(
+            pd.to_numeric(result[column], errors="coerce"), index=result.index
+        )
+        if bool(numeric_series.notna().any()) and float(numeric_series.abs().max()) > 10.0:
+            result[column] = numeric_series / exchange_rate_usd_vnd
     return result
 
 
@@ -617,10 +777,12 @@ def _run_financial(
     unlevered_cf = project_cf.copy()
 
     results: dict[str, float] = {}
-    results["year1_opex_usd"] = float(opex_with_tax["o_and_m_usd"].iloc[0]
-                                      + opex_with_tax["insurance_usd"].iloc[0]
-                                      + opex_with_tax["land_lease_usd"].iloc[0]
-                                      + opex_with_tax["management_fees_usd"].iloc[0])
+    results["year1_opex_usd"] = float(
+        opex_with_tax["o_and_m_usd"].iloc[0]
+        + opex_with_tax["insurance_usd"].iloc[0]
+        + opex_with_tax["land_lease_usd"].iloc[0]
+        + opex_with_tax["management_fees_usd"].iloc[0]
+    )
     results["year1_ebitda_usd"] = float(ebitda_series.iloc[0])
 
     try:
@@ -693,6 +855,7 @@ def run_full_model(
     cod_date: str = "2027-01-01",
     tariff_rates: dict[TimePeriod, float] | None = None,
     ppa_option: int | None = None,
+    base_params: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """
     Run the full RE-Storage simulation pipeline on an Excel input file.
@@ -731,6 +894,8 @@ def run_full_model(
     logger.info("Running full model on %s", excel_path.name)
 
     financial_params = load_financial_params_from_cells(excel_path)
+    assumption_updates, financial_updates = _split_pipeline_overrides(base_params, financial_params)
+    financial_params.update(financial_updates)
     project_years_effective = int(financial_params["project_years"])
     interest_rate_effective = float(financial_params["interest_rate_pct"])
     tenor_years_effective = int(financial_params["tenor_years"])
@@ -741,14 +906,16 @@ def run_full_model(
     exchange_rate_effective = float(financial_params["exchange_rate_usd_vnd"])
     max_leverage_effective = float(financial_params["max_leverage_ratio"])
     # Default 5% DPPA escalation, -5% FMP descent (Financial!H16, H18)
-    revenue_escalation_effective = float(financial_params.get(
-        "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
-    ))
-    fmp_descent_effective = float(financial_params.get(
-        "fmp_descent_pct", financial_params.get("fmp_change_rate", -0.05)
-    ))
-    ppa_option_effective = ppa_option if ppa_option is not None else int(
-        financial_params.get("ppa_option", 3)
+    revenue_escalation_effective = float(
+        financial_params.get(
+            "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
+        )
+    )
+    fmp_descent_effective = float(
+        financial_params.get("fmp_descent_pct", financial_params.get("fmp_change_rate", -0.05))
+    )
+    ppa_option_effective = (
+        ppa_option if ppa_option is not None else int(financial_params.get("ppa_option", 3))
     )
 
     # --- Workbook-level diagnostics ---
@@ -759,13 +926,18 @@ def run_full_model(
     # --- Load inputs ---
     assumptions = load_assumptions_from_cells(excel_path)
     # Override ppa_option if specified at call site or from loader
-    assumptions = assumptions.model_copy(update={
-        "ppa_option": ppa_option_effective,
-        "bundled_discount_pct": float(financial_params.get("bundled_discount_pct", 0.15)),
-        "pv_discount_pct": float(financial_params.get("pv_discount_pct", 0.05)),
-        "bess_discount_pct": float(financial_params.get("bess_discount_pct", 0.05)),
-        "fixed_ppa_price_usd_per_mwh": float(financial_params.get("fixed_ppa_price_usd_per_mwh", 70.0)),
-    })
+    assumptions = assumptions.model_copy(
+        update={
+            "ppa_option": ppa_option_effective,
+            "bundled_discount_pct": float(financial_params.get("bundled_discount_pct", 0.15)),
+            "pv_discount_pct": float(financial_params.get("pv_discount_pct", 0.05)),
+            "bess_discount_pct": float(financial_params.get("bess_discount_pct", 0.05)),
+            "fixed_ppa_price_usd_per_mwh": float(
+                financial_params.get("fixed_ppa_price_usd_per_mwh", 70.0)
+            ),
+            **assumption_updates,
+        }
+    )
     hourly_data = _normalize_hourly_price_columns_to_usd(
         load_hourly_data(excel_path),
         exchange_rate_effective,
@@ -823,15 +995,23 @@ def run_full_model(
         discount_rate_pct=discount_rate_effective,
         cod_date=cod_date_effective,
         max_leverage_ratio=max_leverage_effective,
-        solar_capacity_mwp=float(financial_params.get("solar_capacity_mwp",
-                                  financial_params.get("installed_pv_mwp", 0.0))),
-        bess_capacity_mwh=float(financial_params.get("bess_capacity_mwh",
-                                  financial_params.get("bess_mwh", 0.0))),
+        solar_capacity_mwp=float(
+            financial_params.get(
+                "solar_capacity_mwp", financial_params.get("installed_pv_mwp", 0.0)
+            )
+        ),
+        bess_capacity_mwh=float(
+            financial_params.get("bess_capacity_mwh", financial_params.get("bess_mwh", 0.0))
+        ),
         om_solar_usd_per_mwp=float(financial_params.get("om_solar_usd_per_mwp", 8_000.0)),
         om_bess_usd_per_mwh=float(financial_params.get("om_bess_usd_per_mwh", 5_000.0)),
-        insurance_pct_capex=float(financial_params.get("insurance_pct_capex",
-                                   financial_params.get("insurance_solar_pct_capex", 0.0025)
-                                   + financial_params.get("insurance_bess_pct_capex", 0.0025))),
+        insurance_pct_capex=float(
+            financial_params.get(
+                "insurance_pct_capex",
+                financial_params.get("insurance_solar_pct_capex", 0.0025)
+                + financial_params.get("insurance_bess_pct_capex", 0.0025),
+            )
+        ),
         asset_management_usd=float(financial_params.get("asset_management_usd", 15_000.0)),
         land_lease_usd=float(financial_params.get("land_lease_usd", 20_000.0)),
         cpi=float(financial_params.get("cpi", financial_params.get("opex_escalation_pct", 0.04))),
@@ -842,7 +1022,9 @@ def run_full_model(
         second_discount_years=int(financial_params.get("second_discount_years", 0)),
         second_discount_rate=float(financial_params.get("second_discount_rate", 0.0)),
         pv_depreciation_tenor_years=int(financial_params.get("pv_depreciation_tenor_years", 20)),
-        bess_depreciation_tenor_years=int(financial_params.get("bess_depreciation_tenor_years", 10)),
+        bess_depreciation_tenor_years=int(
+            financial_params.get("bess_depreciation_tenor_years", 10)
+        ),
         bess_capex_usd=float(financial_params.get("bess_capex_usd", 0.0)),
         pv_capex_usd=float(financial_params.get("solar_capex_usd", 0.0)),
         bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),
@@ -882,6 +1064,7 @@ def run_model_from_json(
     project_dir: Path,
     tariff_rates: dict[TimePeriod, float] | None = None,
     ppa_option: int | None = None,
+    base_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Run the full RE-Storage pipeline using JSON+CSV project inputs.
@@ -910,6 +1093,8 @@ def run_model_from_json(
     assumptions = load_assumptions_from_json(json_path)
     hourly_data = load_hourly_data_from_csv(csv_path)
     financial_params = load_financial_params_from_json(json_path)
+    assumption_updates, financial_updates = _split_pipeline_overrides(base_params, financial_params)
+    financial_params.update(financial_updates)
     project_years = int(financial_params["project_years"])
     degradation_table = load_degradation_from_json(json_path, project_years=project_years)
 
@@ -931,19 +1116,36 @@ def run_model_from_json(
     ppa_option_effective = ppa_option if ppa_option is not None else 3
     assumptions = assumptions.model_copy(
         update={
-            "actual_capacity_kwp": assumptions.simulation_capacity_kwp,
+            "actual_capacity_kwp": assumption_updates.get(
+                "actual_capacity_kwp",
+                float(
+                    financial_params.get(
+                        "installed_pv_mwp", assumptions.actual_capacity_kwp / 1000.0
+                    )
+                )
+                * 1000.0,
+            ),
             "ppa_option": ppa_option_effective,
+            "bundled_discount_pct": float(financial_params.get("bundled_discount_pct", 0.15)),
+            "pv_discount_pct": float(financial_params.get("pv_discount_pct", 0.05)),
+            "bess_discount_pct": float(financial_params.get("bess_discount_pct", 0.05)),
+            "fixed_ppa_price_usd_per_mwh": float(
+                financial_params.get("fixed_ppa_price_usd_per_mwh", 70.0)
+            ),
+            **assumption_updates,
         }
     )
 
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
     settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates)
-    rev_esc = float(financial_params.get(
-        "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
-    ))
-    fmp_desc = float(financial_params.get(
-        "fmp_descent_pct", financial_params.get("fmp_change_rate", -0.05)
-    ))
+    rev_esc = float(
+        financial_params.get(
+            "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
+        )
+    )
+    fmp_desc = float(
+        financial_params.get("fmp_descent_pct", financial_params.get("fmp_change_rate", -0.05))
+    )
     agg = _run_aggregation(
         settlement_result,
         settlement_result,
@@ -965,6 +1167,40 @@ def run_model_from_json(
         discount_rate_pct=float(financial_params["discount_rate_pct"]),
         cod_date=str(financial_params["cod_date"]),
         max_leverage_ratio=float(financial_params.get("max_leverage_ratio", 1.0)),
+        solar_capacity_mwp=float(
+            financial_params.get(
+                "solar_capacity_mwp", financial_params.get("installed_pv_mwp", 0.0)
+            )
+        ),
+        bess_capacity_mwh=float(
+            financial_params.get("bess_capacity_mwh", financial_params.get("bess_mwh", 0.0))
+        ),
+        om_solar_usd_per_mwp=float(financial_params.get("om_solar_usd_per_mwp", 8_000.0)),
+        om_bess_usd_per_mwh=float(financial_params.get("om_bess_usd_per_mwh", 5_000.0)),
+        insurance_pct_capex=float(
+            financial_params.get(
+                "insurance_pct_capex",
+                float(financial_params.get("insurance_solar_pct_capex", 0.0025))
+                + float(financial_params.get("insurance_bess_pct_capex", 0.0025)),
+            )
+        ),
+        asset_management_usd=float(financial_params.get("asset_management_usd", 15_000.0)),
+        land_lease_usd=float(financial_params.get("land_lease_usd", 20_000.0)),
+        cpi=float(financial_params.get("cpi", financial_params.get("opex_escalation_pct", 0.04))),
+        tax_rate=float(financial_params.get("tax_rate", 0.20)),
+        tax_holiday_years=int(financial_params.get("tax_holiday_years", 4)),
+        first_discount_years=int(financial_params.get("first_discount_years", 5)),
+        first_discount_rate=float(financial_params.get("first_discount_rate", 0.10)),
+        second_discount_years=int(financial_params.get("second_discount_years", 0)),
+        second_discount_rate=float(financial_params.get("second_discount_rate", 0.0)),
+        pv_depreciation_tenor_years=int(financial_params.get("pv_depreciation_tenor_years", 20)),
+        bess_depreciation_tenor_years=int(
+            financial_params.get("bess_depreciation_tenor_years", 10)
+        ),
+        bess_capex_usd=float(financial_params.get("bess_capex_usd", 0.0)),
+        pv_capex_usd=float(financial_params.get("solar_capex_usd", 0.0)),
+        bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),
+        pv_mra_pct=float(financial_params.get("pv_mra_pct", 0.10)),
     )
 
     results: dict[str, Any] = {}

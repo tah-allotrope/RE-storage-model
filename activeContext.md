@@ -1,6 +1,6 @@
 # Active Context - ISSUE-1 Emivest / ISSUE-2 Excel Alignment / ISSUE-3 Web Tool / ISSUE-4 Gap Analysis Roadmap
 
-**Last Updated:** 2026-03-20
+**Last Updated:** 2026-03-21
 
 ---
 
@@ -176,6 +176,53 @@ Build a Firebase-hosted web tool that lets users run the `re_storage` Python mod
 - Excel upload path → `/api/run-excel` → Cloud Function → `run_full_model()`
 - Structured form + CSV upload path → `/api/run-json` → Cloud Function → `run_model_from_json()`
 - React SPA with results dashboard (KPI cards, lifetime charts, download buttons)
+
+---
+
+## ISSUE-4 Current Session Progress (2026-03-21)
+
+### Sensitivity / Scenario Fixes Completed
+
+- Fixed scenario override propagation so sensitivity sweeps no longer rely on unsupported `**kwargs` into `run_full_model()`.
+- Added explicit `base_params` override plumbing to:
+  - `src/re_storage/pipeline.py::run_full_model()`
+  - `src/re_storage/pipeline.py::run_model_from_json()`
+- Updated callers to use that override channel:
+  - `src/re_storage/scenarios/sensitivity.py`
+  - `src/re_storage/scenarios/runner.py`
+- Added normalization logic in `src/re_storage/pipeline.py` for common sensitivity keys so scenario overrides map onto the model's internal inputs, including:
+  - `strike_price_vnd` -> `strike_price_usd_per_kwh`
+  - `installed_pv_mwp` / `solar_capacity_mwp` -> `actual_capacity_kwp`
+  - `bess_mwh` / `bess_capacity_mwh` -> `usable_bess_capacity_kwh`
+  - unit CAPEX overrides -> total CAPEX fields when enough context is available
+- Fixed tornado-chart handling for precomputed range metrics (`irr_range`, `npv_range`, `dscr_min_range`) so bars no longer collapse to zero width.
+- Forced headless Matplotlib backend in tornado chart generation to avoid Tk backend failures in CI / local test environments.
+
+### Tests Added / Updated
+
+- Extended `tests/unit/test_scenarios_sensitivity.py` with regressions for:
+  - Excel sensitivity override propagation
+  - JSON sensitivity override propagation
+  - backward-compatible JSON `run_sensitivity_for_values()` override propagation
+  - tornado chart rendering for `irr_range`
+
+### Verification Run This Session
+
+- `pytest tests/unit/test_scenarios_sensitivity.py` -> **38 passed**
+- `pytest tests/unit/test_web_handlers.py` -> **skipped** (environment/module skip, unchanged)
+
+### Outstanding / Blockers For Next Session
+
+- `pytest tests/regression/test_emivest.py` currently fails in `_run_financial()` with:
+  - `ValueError: Length of values (21) does not match length of index (20)`
+  - failing line currently in `src/re_storage/pipeline.py` around EBITDA series construction
+- This failure appears tied to the broader in-progress financial changes already present in the worktree (`MRA`, `taxes`, and combined depreciation / reserve wiring), not the sensitivity override fix itself.
+- Next session should inspect the lifetime/revenue/opex year alignment around:
+  - `src/re_storage/pipeline.py::_run_financial()`
+  - `src/re_storage/financial/mra.py`
+  - `src/re_storage/financial/taxes.py`
+  - `tests/regression/test_emivest.py`
+- The sensitivity fix itself is in good shape and verified by its dedicated unit suite.
 
 ## ISSUE-3 Implemented This Session
 

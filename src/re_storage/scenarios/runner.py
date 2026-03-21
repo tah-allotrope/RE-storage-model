@@ -69,12 +69,13 @@ def run_all_scenarios(
                 kpis = run_full_model(
                     Path(excel_path),
                     ppa_option=option,
-                    **(base_params or {}),
+                    base_params=base_params,
                 )
             else:
                 kpis = run_model_from_json(
                     Path(project_dir),
                     ppa_option=option,
+                    base_params=base_params,
                 )
             kpis = dict(kpis)
             kpis["ppa_option"] = option
