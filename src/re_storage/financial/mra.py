@@ -12,7 +12,7 @@ from __future__ import annotations
 import pandas as pd
 
 
-_DEFAULT_BUILDUP: dict[int, float] = {0: 0.10, 1: 0.30, 2: 0.30, 3: 0.30}
+_DEFAULT_BUILDUP: dict[int, float] = {1: 0.25, 2: 0.25, 3: 0.25, 4: 0.25}
 
 
 def build_mra_schedule(
@@ -26,22 +26,22 @@ def build_mra_schedule(
     """
     Build annual MRA contribution schedule (operating years 1+).
 
-    The Year 0 contribution (10% of target) is funded as equity at financial
-    close and is handled by the equity injection in the waterfall. This
-    function returns only the operating-year contributions (years 1–N).
+    BESS MRA target = 60% of BESS CAPEX, funded evenly over years 1–4 (15%/yr).
+    PV MRA target   = 10% of PV CAPEX,   funded evenly over years 1–4 (2.5%/yr).
+    Both targets are 25% of their respective reserves per operating year.
 
     Excel source:
         BESS MRA target = Assumption!K46 × BESS CAPEX  (default 60%)
         PV MRA target   = Assumption!K47 × PV CAPEX    (default 10%)
-        Build-up        = Other Input!B5–B8 (Years 0–3, summing to 100%)
+        Build-up        = Other Input!B5–B8 (years 1–4, each 25% of target)
 
     Args:
         bess_capex_usd: BESS capital cost (USD).
         pv_capex_usd: PV capital cost (USD).
         bess_mra_pct: BESS MRA as fraction of BESS CAPEX (K46, default 60%).
         pv_mra_pct: PV MRA as fraction of PV CAPEX (K47, default 10%).
-        buildup_schedule: Dict {year: fraction_of_target} for years 0–3.
-            Defaults to {0: 10%, 1: 30%, 2: 30%, 3: 30%}.
+        buildup_schedule: Dict {year: fraction_of_target} for operating years.
+            Defaults to {1: 25%, 2: 25%, 3: 25%, 4: 25%} (100% over 4 years).
         project_years: Total project years for the output series.
 
     Returns:
