@@ -729,8 +729,13 @@ def run_full_model(
     cod_date_effective = str(financial_params["cod_date"])
     exchange_rate_effective = float(financial_params["exchange_rate_usd_vnd"])
     max_leverage_effective = float(financial_params["max_leverage_ratio"])
-    revenue_escalation_effective = float(financial_params.get("revenue_escalation_pct", 0.0))
-    fmp_descent_effective = float(financial_params.get("fmp_descent_pct", 0.0))
+    # Default 5% DPPA escalation, -5% FMP descent (Financial!H16, H18)
+    revenue_escalation_effective = float(financial_params.get(
+        "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
+    ))
+    fmp_descent_effective = float(financial_params.get(
+        "fmp_descent_pct", financial_params.get("fmp_change_rate", -0.05)
+    ))
     ppa_option_effective = ppa_option if ppa_option is not None else int(
         financial_params.get("ppa_option", 3)
     )
@@ -921,12 +926,20 @@ def run_model_from_json(
 
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
     settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates)
+    rev_esc = float(financial_params.get(
+        "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
+    ))
+    fmp_desc = float(financial_params.get(
+        "fmp_descent_pct", financial_params.get("fmp_change_rate", -0.05)
+    ))
     agg = _run_aggregation(
         settlement_result,
         settlement_result,
         assumptions,
         degradation_table,
         project_years=project_years,
+        revenue_escalation_pct=rev_esc,
+        fmp_descent_pct=fmp_desc,
     )
 
     initial_capex_usd = float(financial_params["initial_capex_usd"])
