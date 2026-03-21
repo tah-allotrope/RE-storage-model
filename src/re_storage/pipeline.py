@@ -418,16 +418,14 @@ def _run_financial(
     cod_date: str = "2027-01-01",
     max_leverage_ratio: float = 1.0,
     # OPEX parameters
-    installed_pv_mwp: float = 0.0,
-    bess_mwh: float = 0.0,
-    om_solar_usd_per_mwp: float = 6_000.0,
-    om_bess_usd_per_mwh: float = 2_000.0,
-    insurance_solar_pct_capex: float = 0.0025,
-    insurance_bess_pct_capex: float = 0.0025,
-    other_opex_usd_per_mwp: float = 1_000.0,
-    asset_management_usd_per_mwp: float = 3_000.0,
-    land_lease_pct_revenue: float = 0.0,
-    opex_escalation_pct: float = 0.04,
+    solar_capacity_mwp: float = 0.0,
+    bess_capacity_mwh: float = 0.0,
+    om_solar_usd_per_mwp: float = 8_000.0,
+    om_bess_usd_per_mwh: float = 5_000.0,
+    insurance_pct_capex: float = 0.005,
+    asset_management_usd: float = 15_000.0,
+    land_lease_usd: float = 20_000.0,
+    cpi: float = 0.04,
     # Tax parameters
     depreciation_tenor_years: int = 20,
     tax_rate: float = 0.20,
@@ -464,28 +462,18 @@ def _run_financial(
         }
     )
 
-    # Year 1 total revenue for land-lease base
-    year1_total_revenue = (
-        float(lifetime["dppa_revenue_usd"].iloc[0])
-        + float(lifetime["grid_savings_usd"].iloc[0])
-        + demand_charge_savings_usd_yr1
-    )
-
-    # Build real OPEX schedule (replaces zero placeholder)
+    # Build real OPEX schedule
     opex = build_opex_schedule(
-        project_years=project_years,
-        installed_pv_mwp=installed_pv_mwp,
-        bess_mwh=bess_mwh,
+        solar_capacity_mwp=solar_capacity_mwp,
+        bess_capacity_mwh=bess_capacity_mwh,
         total_capex_usd=initial_capex_usd,
+        project_years=project_years,
+        cpi=cpi,
         om_solar_usd_per_mwp=om_solar_usd_per_mwp,
         om_bess_usd_per_mwh=om_bess_usd_per_mwh,
-        insurance_solar_pct_capex=insurance_solar_pct_capex,
-        insurance_bess_pct_capex=insurance_bess_pct_capex,
-        other_opex_usd_per_mwp=other_opex_usd_per_mwp,
-        asset_management_usd_per_mwp=asset_management_usd_per_mwp,
-        land_lease_pct_revenue=land_lease_pct_revenue,
-        opex_escalation_pct=opex_escalation_pct,
-        year1_total_revenue_usd=year1_total_revenue,
+        insurance_pct_capex=insurance_pct_capex,
+        asset_management_usd=asset_management_usd,
+        land_lease_usd=land_lease_usd,
     )
 
     # Calculate EBITDA for debt sizing
@@ -819,23 +807,25 @@ def run_full_model(
         discount_rate_pct=discount_rate_effective,
         cod_date=cod_date_effective,
         max_leverage_ratio=max_leverage_effective,
-        installed_pv_mwp=float(financial_params.get("installed_pv_mwp", 0.0)),
-        bess_mwh=float(financial_params.get("bess_mwh", 0.0)),
-        om_solar_usd_per_mwp=float(financial_params.get("om_solar_usd_per_mwp", 6_000.0)),
-        om_bess_usd_per_mwh=float(financial_params.get("om_bess_usd_per_mwh", 2_000.0)),
-        insurance_solar_pct_capex=float(financial_params.get("insurance_solar_pct_capex", 0.0025)),
-        insurance_bess_pct_capex=float(financial_params.get("insurance_bess_pct_capex", 0.0025)),
-        other_opex_usd_per_mwp=float(financial_params.get("other_opex_usd_per_mwp", 1_000.0)),
-        asset_management_usd_per_mwp=float(financial_params.get("asset_management_usd_per_mwp", 3_000.0)),
-        land_lease_pct_revenue=float(financial_params.get("land_lease_pct_revenue", 0.0)),
-        opex_escalation_pct=float(financial_params.get("opex_escalation_pct", 0.04)),
+        solar_capacity_mwp=float(financial_params.get("solar_capacity_mwp",
+                                  financial_params.get("installed_pv_mwp", 0.0))),
+        bess_capacity_mwh=float(financial_params.get("bess_capacity_mwh",
+                                  financial_params.get("bess_mwh", 0.0))),
+        om_solar_usd_per_mwp=float(financial_params.get("om_solar_usd_per_mwp", 8_000.0)),
+        om_bess_usd_per_mwh=float(financial_params.get("om_bess_usd_per_mwh", 5_000.0)),
+        insurance_pct_capex=float(financial_params.get("insurance_pct_capex",
+                                   financial_params.get("insurance_solar_pct_capex", 0.0025)
+                                   + financial_params.get("insurance_bess_pct_capex", 0.0025))),
+        asset_management_usd=float(financial_params.get("asset_management_usd", 15_000.0)),
+        land_lease_usd=float(financial_params.get("land_lease_usd", 20_000.0)),
+        cpi=float(financial_params.get("cpi", financial_params.get("opex_escalation_pct", 0.04))),
         depreciation_tenor_years=int(financial_params.get("depreciation_tenor_years", 20)),
         tax_rate=float(financial_params.get("tax_rate", 0.20)),
-        tax_holiday_years=int(financial_params.get("tax_holiday_years", 5)),
-        first_discount_years=int(financial_params.get("first_discount_years", 8)),
-        first_discount_rate=float(financial_params.get("first_discount_rate", 0.05)),
-        second_discount_years=int(financial_params.get("second_discount_years", 2)),
-        second_discount_rate=float(financial_params.get("second_discount_rate", 0.10)),
+        tax_holiday_years=int(financial_params.get("tax_holiday_years", 4)),
+        first_discount_years=int(financial_params.get("first_discount_years", 5)),
+        first_discount_rate=float(financial_params.get("first_discount_rate", 0.10)),
+        second_discount_years=int(financial_params.get("second_discount_years", 0)),
+        second_discount_rate=float(financial_params.get("second_discount_rate", 0.0)),
         bess_capex_usd=float(financial_params.get("bess_capex_usd", 0.0)),
         pv_capex_usd=float(financial_params.get("solar_capex_usd", 0.0)),
         bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),
