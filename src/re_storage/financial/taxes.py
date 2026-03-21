@@ -16,14 +16,19 @@ import pandas as pd
 def build_tax_rate_schedule(
     project_years: int,
     tax_rate: float = 0.20,
-    holiday_years: int = 5,
-    first_discount_years: int = 8,
-    first_discount_rate: float = 0.05,
-    second_discount_years: int = 2,
-    second_discount_rate: float = 0.10,
+    holiday_years: int = 4,
+    first_discount_years: int = 5,
+    first_discount_rate: float = 0.10,
+    second_discount_years: int = 0,
+    second_discount_rate: float = 0.0,
 ) -> pd.Series:
     """
     Build annual tax rate schedule with holiday and tiered discount periods.
+
+    Vietnam CIT incentive-zone schedule (Assumption!K62–K65):
+        Years 1–4:    0%   (tax holiday)
+        Years 5–9:   10%   (reduced rate)
+        Years 10+:   20%   (standard CIT)
 
     Excel source: Assumption!K62–K65, J64–J65
 
@@ -35,12 +40,12 @@ def build_tax_rate_schedule(
 
     Args:
         project_years: Total project length in years.
-        tax_rate: Standard corporate tax rate (K62, default 20%).
-        holiday_years: Zero-tax holiday years (K63, default 5).
-        first_discount_years: Years at first discount rate (J64, default 8).
-        first_discount_rate: Rate during first discount period (K64, default 5%).
-        second_discount_years: Years at second discount rate (J65, default 2).
-        second_discount_rate: Rate during second discount period (K65, default 10%).
+        tax_rate: Standard CIT rate (K62, default 20%).
+        holiday_years: Zero-tax holiday years (K63, default 4).
+        first_discount_years: Years at first reduced rate (J64, default 5).
+        first_discount_rate: Rate during first discount period (K64, default 10%).
+        second_discount_years: Years at second reduced rate (J65, default 0).
+        second_discount_rate: Rate during second discount period (K65, default 0%).
 
     Returns:
         Series of annual tax rates (fractions) indexed by year (1-based).
@@ -84,6 +89,39 @@ def calculate_depreciation_schedule(
     ]
     return pd.Series(
         depreciation,
+        index=pd.RangeIndex(1, project_years + 1),
+        name="depreciation_usd",
+    )
+
+
+def build_combined_depreciation_schedule(
+    pv_capex_usd: float,
+    bess_capex_usd: float,
+    pv_tenor_years: int = 20,
+    bess_tenor_years: int = 10,
+    project_years: int = 25,
+) -> pd.Series:
+    """
+    Straight-line depreciation for PV (20yr) and BESS (10yr) combined.
+
+    Depreciation = pv_capex / pv_tenor + bess_capex / bess_tenor, zero after
+    respective tenor ends.
+
+    Args:
+        pv_capex_usd: PV capital cost (USD).
+        bess_capex_usd: BESS capital cost (USD).
+        pv_tenor_years: PV depreciation tenor (default 20 years).
+        bess_tenor_years: BESS depreciation tenor (default 10 years).
+        project_years: Project lifetime in years.
+
+    Returns:
+        Series of combined annual depreciation (USD) indexed by year (1-based).
+    """
+    pv_dep = calculate_depreciation_schedule(pv_capex_usd, pv_tenor_years, project_years)
+    bess_dep = calculate_depreciation_schedule(bess_capex_usd, bess_tenor_years, project_years)
+    combined = pv_dep.values + bess_dep.values
+    return pd.Series(
+        combined,
         index=pd.RangeIndex(1, project_years + 1),
         name="depreciation_usd",
     )

@@ -40,6 +40,7 @@ from re_storage.financial.metrics import (
 from re_storage.financial.mra import build_mra_schedule
 from re_storage.financial.opex import build_opex_schedule
 from re_storage.financial.taxes import (
+    build_combined_depreciation_schedule,
     build_tax_rate_schedule,
     calculate_depreciation_schedule,
     calculate_levered_taxes,
@@ -427,13 +428,14 @@ def _run_financial(
     land_lease_usd: float = 20_000.0,
     cpi: float = 0.04,
     # Tax parameters
-    depreciation_tenor_years: int = 20,
     tax_rate: float = 0.20,
-    tax_holiday_years: int = 5,
-    first_discount_years: int = 8,
-    first_discount_rate: float = 0.05,
-    second_discount_years: int = 2,
-    second_discount_rate: float = 0.10,
+    tax_holiday_years: int = 4,
+    first_discount_years: int = 5,
+    first_discount_rate: float = 0.10,
+    second_discount_years: int = 0,
+    second_discount_rate: float = 0.0,
+    pv_depreciation_tenor_years: int = 20,
+    bess_depreciation_tenor_years: int = 10,
     # MRA parameters
     bess_capex_usd: float = 0.0,
     pv_capex_usd: float = 0.0,
@@ -549,9 +551,12 @@ def _run_financial(
         second_discount_years=second_discount_years,
         second_discount_rate=second_discount_rate,
     )
-    depreciation = calculate_depreciation_schedule(
-        total_capex_usd=initial_capex_usd,
-        tenor_years=depreciation_tenor_years,
+    # Use separate tenors for PV (20yr) and BESS (10yr) per Vietnam tax rules
+    depreciation = build_combined_depreciation_schedule(
+        pv_capex_usd=pv_capex_usd,
+        bess_capex_usd=bess_capex_usd,
+        pv_tenor_years=pv_depreciation_tenor_years,
+        bess_tenor_years=bess_depreciation_tenor_years,
         project_years=project_years,
     )
     levered_taxes = calculate_levered_taxes(
@@ -647,6 +652,12 @@ def _run_financial(
     except Exception as exc:
         logger.warning("NPV calculation failed: %s", exc)
         results["npv_usd"] = float("nan")
+
+    try:
+        results["after_tax_npv_usd"] = calculate_npv(after_tax_project_cf, dates, discount_rate_pct)
+    except Exception as exc:
+        logger.warning("After-tax NPV calculation failed: %s", exc)
+        results["after_tax_npv_usd"] = float("nan")
 
     # DSCR
     debt_service_years = full_debt.loc[full_debt["total_debt_service_usd"] > 0]
@@ -824,13 +835,14 @@ def run_full_model(
         asset_management_usd=float(financial_params.get("asset_management_usd", 15_000.0)),
         land_lease_usd=float(financial_params.get("land_lease_usd", 20_000.0)),
         cpi=float(financial_params.get("cpi", financial_params.get("opex_escalation_pct", 0.04))),
-        depreciation_tenor_years=int(financial_params.get("depreciation_tenor_years", 20)),
         tax_rate=float(financial_params.get("tax_rate", 0.20)),
         tax_holiday_years=int(financial_params.get("tax_holiday_years", 4)),
         first_discount_years=int(financial_params.get("first_discount_years", 5)),
         first_discount_rate=float(financial_params.get("first_discount_rate", 0.10)),
         second_discount_years=int(financial_params.get("second_discount_years", 0)),
         second_discount_rate=float(financial_params.get("second_discount_rate", 0.0)),
+        pv_depreciation_tenor_years=int(financial_params.get("pv_depreciation_tenor_years", 20)),
+        bess_depreciation_tenor_years=int(financial_params.get("bess_depreciation_tenor_years", 10)),
         bess_capex_usd=float(financial_params.get("bess_capex_usd", 0.0)),
         pv_capex_usd=float(financial_params.get("solar_capex_usd", 0.0)),
         bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),

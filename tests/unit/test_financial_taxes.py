@@ -16,6 +16,7 @@ import pandas as pd
 import pytest
 
 from re_storage.financial.taxes import (
+    build_combined_depreciation_schedule,
     build_tax_rate_schedule,
     calculate_depreciation_schedule,
     calculate_levered_taxes,
@@ -74,8 +75,15 @@ class TestBuildTaxRateSchedule:
         for yr in range(10, 16):
             assert rates.loc[yr] == pytest.approx(0.20)
 
-    def test_excel_reference_schedule(self) -> None:
-        # From Assumption!K62–K65: holiday=5, 8yrs@5%, 2yrs@10%, then 20%
+    def test_vietnam_incentive_zone_default(self) -> None:
+        # Default schedule: 0% yr 1-4, 10% yr 5-9, 20% yr 10+
+        rates = build_tax_rate_schedule(project_years=25)
+        assert all(rates.loc[y] == 0.0 for y in range(1, 5))
+        assert all(rates.loc[y] == pytest.approx(0.10) for y in range(5, 10))
+        assert all(rates.loc[y] == pytest.approx(0.20) for y in range(10, 26))
+
+    def test_custom_excel_reference_schedule(self) -> None:
+        # Explicit schedule matching older Excel: holiday=5, 8yrs@5%, 2yrs@10%, then 20%
         rates = build_tax_rate_schedule(
             project_years=25,
             tax_rate=0.20,
@@ -175,3 +183,61 @@ class TestCalculateLeveredTaxes:
         rates = self._series([0.20])
         taxes = calculate_levered_taxes(ebitda, dep, interest, rates)
         assert taxes.iloc[0] == 0.0
+
+
+class TestBuildCombinedDepreciationSchedule:
+    """Tests for build_combined_depreciation_schedule (PV 20yr + BESS 10yr)."""
+
+    def test_output_length(self) -> None:
+        dep = build_combined_depreciation_schedule(
+            pv_capex_usd=30_000_000.0,
+            bess_capex_usd=13_200_000.0,
+            project_years=25,
+        )
+        assert len(dep) == 25
+        assert list(dep.index) == list(range(1, 26))
+
+    def test_pv_and_bess_combined_year1(self) -> None:
+        # PV: 30M / 20yr = 1.5M/yr; BESS: 13.2M / 10yr = 1.32M/yr
+        # Year 1 = 1.5M + 1.32M = 2.82M
+        dep = build_combined_depreciation_schedule(
+            pv_capex_usd=30_000_000.0,
+            bess_capex_usd=13_200_000.0,
+            pv_tenor_years=20,
+            bess_tenor_years=10,
+            project_years=25,
+        )
+        expected_yr1 = 30_000_000.0 / 20 + 13_200_000.0 / 10
+        assert dep.loc[1] == pytest.approx(expected_yr1)
+
+    def test_bess_depreciation_stops_after_tenor(self) -> None:
+        # After year 10, only PV depreciation remains
+        dep = build_combined_depreciation_schedule(
+            pv_capex_usd=30_000_000.0,
+            bess_capex_usd=13_200_000.0,
+            pv_tenor_years=20,
+            bess_tenor_years=10,
+            project_years=25,
+        )
+        pv_only = 30_000_000.0 / 20
+        for yr in range(11, 21):
+            assert dep.loc[yr] == pytest.approx(pv_only)
+
+    def test_both_stop_after_longer_tenor(self) -> None:
+        dep = build_combined_depreciation_schedule(
+            pv_capex_usd=20_000_000.0,
+            bess_capex_usd=10_000_000.0,
+            pv_tenor_years=20,
+            bess_tenor_years=10,
+            project_years=25,
+        )
+        for yr in range(21, 26):
+            assert dep.loc[yr] == pytest.approx(0.0)
+
+    def test_zero_capex_gives_zero(self) -> None:
+        dep = build_combined_depreciation_schedule(
+            pv_capex_usd=0.0,
+            bess_capex_usd=0.0,
+            project_years=5,
+        )
+        assert (dep == 0.0).all()

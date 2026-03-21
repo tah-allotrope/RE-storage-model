@@ -15,6 +15,7 @@ from re_storage.financial.metrics import (
 from re_storage.financial.mra import build_mra_schedule
 from re_storage.financial.opex import build_opex_schedule
 from re_storage.financial.taxes import (
+    build_combined_depreciation_schedule,
     build_tax_rate_schedule,
     calculate_depreciation_schedule,
     calculate_levered_taxes,
@@ -24,6 +25,7 @@ from re_storage.financial.waterfall import build_cash_flow_waterfall
 
 __all__ = [
     "build_cash_flow_waterfall",
+    "build_combined_depreciation_schedule",
     "build_mra_schedule",
     "build_opex_schedule",
     "build_tax_rate_schedule",
