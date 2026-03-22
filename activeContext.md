@@ -1,6 +1,6 @@
 # Active Context - ISSUE-1 Emivest / ISSUE-2 Excel Alignment / ISSUE-3 Web Tool / ISSUE-4 Gap Analysis Roadmap
 
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-03-22
 
 ---
 
@@ -438,6 +438,54 @@ Implement the full gap-analysis roadmap from `plans/gap-analysis-and-roadmap.md`
 
 ---
 
+## ISSUE-4 Current Session Progress (2026-03-22)
+
+### Financial regression unblock completed
+
+- Fixed the Emivest financial-stage year alignment bug in `src/re_storage/pipeline.py::_run_financial()`.
+- `_run_financial()` now:
+  - reindexes lifetime revenue explicitly onto `RangeIndex(1..project_years)`
+  - validates full lifetime year coverage before building revenue schedules
+  - broadcasts `demand_charge_savings_usd_yr1` across the project horizon without creating a misaligned extra row
+- This removes the prior regression crash:
+  - `ValueError: Length of values (21) does not match length of index (20)`
+
+### Tests added / updated this session
+
+- Extended `tests/unit/test_pipeline_helpers.py` with:
+  - `test_run_financial_aligns_year_indexed_lifetime_and_opex`
+    - verifies `_run_financial()` accepts year-indexed lifetime inputs and returns KPIs without the prior length mismatch
+
+### Verification run this session
+
+- `pytest tests/unit/test_pipeline_helpers.py -q` -> **4 passed**
+- `pytest tests/regression/test_emivest.py -q` -> **3 passed, 2 failed, 1 skipped**
+  - the previous `_run_financial()` length-mismatch crash is resolved
+- Clean Emivest KPI snapshot after the fix:
+  - `project_irr ~ 0.2683`
+  - `equity_irr = nan`
+  - `npv_usd ~ 3.53M`
+  - `dscr_min ~ 1.6694`
+  - `year1_solar_generation_mwh ~ 137,245.18`
+  - `year1_dppa_revenue_usd ~ 272,700.80`
+  - `year1_grid_savings_usd ~ 249,876.35`
+  - `year1_opex_usd ~ 44,397.25`
+  - `year1_ebitda_usd ~ 478,179.90`
+
+### Outstanding / blockers for next session
+
+- `tests/regression/test_emivest.py::test_solar_generation_reasonable` still fails:
+  - actual `year1_solar_generation_mwh ~ 137,245`, far above the current expected band `3000..6000`
+  - next inspection target: solar scaling / unit expectations between JSON assumptions, hourly CSV profile, and aggregation output
+- `tests/regression/test_emivest.py::test_irr_values_reasonable` still fails because `equity_irr` is `nan`
+  - current logger message: `equity cashflows must include at least one positive and one negative value`
+  - next inspection target: `_run_financial()` / `build_cash_flow_waterfall()` / debt sizing interaction that leaves FCFE one-signed
+- Repeated battery dispatch overlap warnings still create noisy regression output:
+  - `Multiple discharge conditions active at hour 17..23: ['when_needed', 'peak']`
+  - this is still a cleanup candidate after parity-critical fixes
+
+---
+
 ## ISSUE-4 Implemented This Session
 
 ### Phase 1 — Critical Financial Parity
@@ -590,7 +638,8 @@ Add to `web/functions/main.py`:
 
 ## Recommended Next Start
 
-1. Run regression workbook through updated pipeline and compare KPIs to Excel reference to quantify parity improvement.
-2. Update reference JSON files (`P1-4`).
-3. Wire `ppa_option` and new PPA params into the web handlers and frontend form (`P2-5/P2-6`).
-4. Add `/compareScenarios` and `/runSensitivity` endpoints (`P3-3`).
+1. Trace the Emivest solar-generation scale mismatch from JSON assumptions + hourly CSV through `_run_physics()` and `calculate_year1_totals()`.
+2. Fix the `equity_irr = nan` issue by inspecting FCFE sign/shape in `_run_financial()` and `build_cash_flow_waterfall()`.
+3. Re-run Emivest regression and then compare workbook KPIs to Excel reference to quantify parity improvement.
+4. Update reference JSON files (`P1-4`) once the regression KPIs are credible.
+5. Resume web wiring for `ppa_option` and scenario/sensitivity endpoints (`P2-5/P2-6`, `P3-3`).

@@ -613,16 +613,28 @@ def _run_financial(
     Returns a flat dict of financial KPIs.
     """
     years = list(range(1, project_years + 1))
+    year_index = pd.RangeIndex(1, project_years + 1)
+
+    lifetime_aligned = lifetime.set_index("year", drop=False).reindex(year_index)
+    if lifetime_aligned[["dppa_revenue_usd", "grid_savings_usd"]].isna().any().any():
+        raise ValueError("lifetime projection must cover every project year for financial runs")
+
+    demand_charge_savings = pd.Series(
+        demand_charge_savings_usd_yr1,
+        index=year_index,
+        dtype=float,
+        name="demand_charge_savings_usd",
+    )
 
     # Revenue schedule from lifetime projection
     revenue = pd.DataFrame(
         {
-            "year": years,
-            "dppa_revenue_usd": lifetime["dppa_revenue_usd"].values,
-            "grid_savings_usd": lifetime["grid_savings_usd"].values,
-            "demand_charge_savings_usd": demand_charge_savings_usd_yr1,
+            "year": year_index,
+            "dppa_revenue_usd": lifetime_aligned["dppa_revenue_usd"].to_numpy(),
+            "grid_savings_usd": lifetime_aligned["grid_savings_usd"].to_numpy(),
+            "demand_charge_savings_usd": demand_charge_savings.to_numpy(),
         }
-    )
+    ).set_index("year", drop=False)
 
     # Build real OPEX schedule
     opex = build_opex_schedule(
@@ -701,7 +713,6 @@ def _run_financial(
             full_debt.loc[overlap, col] = debt_schedule.loc[overlap, col].values
 
     # --- Taxes ---
-    year_index = pd.RangeIndex(1, project_years + 1)
     tax_rates = build_tax_rate_schedule(
         project_years=project_years,
         tax_rate=tax_rate,
