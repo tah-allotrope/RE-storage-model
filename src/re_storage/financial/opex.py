@@ -22,6 +22,10 @@ def build_opex_schedule(
     om_solar_usd_per_mwp: float = 8_000.0,
     om_bess_usd_per_mwh: float = 5_000.0,
     insurance_pct_capex: float = 0.005,
+    other_opex_usd_per_mwp: float = 0.0,
+    asset_management_usd_per_mwp: float = 0.0,
+    land_lease_pct_revenue: float = 0.0,
+    annual_revenue_usd: pd.Series | dict[int, float] | None = None,
     asset_management_usd: float = 15_000.0,
     land_lease_usd: float = 20_000.0,
 ) -> pd.DataFrame:
@@ -58,23 +62,37 @@ def build_opex_schedule(
                  mra_contribution_usd.
     """
     om_base = (
-        om_solar_usd_per_mwp * solar_capacity_mwp
-        + om_bess_usd_per_mwh * bess_capacity_mwh
-    )
+        om_solar_usd_per_mwp + other_opex_usd_per_mwp
+    ) * solar_capacity_mwp + om_bess_usd_per_mwh * bess_capacity_mwh
     insurance_base = insurance_pct_capex * total_capex_usd
-    land_lease_base = land_lease_usd
-    management_base = asset_management_usd
+    management_base = (
+        asset_management_usd_per_mwp * solar_capacity_mwp
+        if asset_management_usd_per_mwp > 0.0
+        else asset_management_usd
+    )
+
+    if annual_revenue_usd is None:
+        revenue_series = pd.Series(dtype=float)
+    elif isinstance(annual_revenue_usd, pd.Series):
+        revenue_series = annual_revenue_usd.astype(float)
+    else:
+        revenue_series = pd.Series(annual_revenue_usd, dtype=float)
+    revenue_series = revenue_series.reindex(range(1, project_years + 1), fill_value=0.0)
 
     years = list(range(1, project_years + 1))
     rows: list[dict] = []
     for year in years:
         esc = (1.0 + cpi) ** (year - 1)
+        if land_lease_pct_revenue > 0.0:
+            land_lease_value = float(revenue_series.loc[year]) * land_lease_pct_revenue
+        else:
+            land_lease_value = land_lease_usd * esc
         rows.append(
             {
                 "year": year,
                 "o_and_m_usd": om_base * esc,
                 "insurance_usd": insurance_base * esc,
-                "land_lease_usd": land_lease_base * esc,
+                "land_lease_usd": land_lease_value,
                 "management_fees_usd": management_base * esc,
                 "grid_connection_usd": 0.0,
                 "taxes_usd": 0.0,

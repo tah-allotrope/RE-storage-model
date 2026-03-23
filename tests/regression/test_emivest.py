@@ -45,8 +45,11 @@ def _compare_kpi(
     if expected is None or actual is None:
         return True, f"{kpi_key}: skipped (None reference)"
 
-    if math.isnan(actual) or math.isnan(expected):
-        return True, f"{kpi_key}: skipped (NaN)"
+    if math.isnan(actual):
+        return False, f"{kpi_key}: actual=nan, expected={expected}"
+
+    if math.isnan(expected):
+        return True, f"{kpi_key}: skipped (NaN reference)"
 
     if mode == "abs":
         diff = abs(actual - expected)
@@ -70,6 +73,12 @@ def _compare_kpi(
 
 
 class TestEmivestRegression:
+    def test_compare_kpi_fails_on_nan_actual(self) -> None:
+        passed, detail = _compare_kpi("equity_irr", float("nan"), 0.12, "abs", 0.0001)
+
+        assert passed is False
+        assert "actual=nan" in detail
+
     def test_model_runs_without_error(self) -> None:
         results = run_model_from_json(PROJECT_DIR)
         assert isinstance(results, dict)

@@ -42,7 +42,7 @@ class TestAnnualTotals:
     def test_total_solar_generation_mwh(self) -> None:
         hourly = _hourly_data()
         result = calculate_total_solar_generation_mwh(hourly, scale_factor=1.1)
-        assert result == pytest.approx(0.44)
+        assert result == pytest.approx(0.4)
 
     def test_total_dppa_revenue_usd(self) -> None:
         dppa = _dppa_hourly()

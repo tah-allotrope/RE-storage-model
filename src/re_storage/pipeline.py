@@ -106,6 +106,8 @@ _FINANCIAL_OVERRIDE_KEYS = {
     "first_discount_rate",
     "first_discount_years",
     "fixed_ppa_price_usd_per_mwh",
+    "fixed_ppa_curtailment_pct",
+    "fixed_ppa_tx_loss_pct",
     "fmp_change_rate",
     "fmp_descent_pct",
     "initial_capex_usd",
@@ -139,6 +141,7 @@ _FINANCIAL_OVERRIDE_KEYS = {
     "tax_holiday_years",
     "tax_rate",
     "tenor_years",
+    "mra_buildup_schedule",
 }
 
 
@@ -509,10 +512,17 @@ def _run_settlement(
         result["dppa_revenue_usd"] = calculate_fixed_ppa_revenue(
             solar_gen_kw=result["solar_gen_kw"],
             fixed_price_usd_per_mwh=assumptions.fixed_ppa_price_usd_per_mwh,
+            curtailment_pct=assumptions.fixed_ppa_curtailment_pct,
+            tx_loss_pct=assumptions.fixed_ppa_tx_loss_pct,
         )
     else:
         # Option 3 (default): DPPA CfD
         result = calculate_dppa_revenue(result, assumptions)
+
+    if "total_dppa_revenue_usd" not in result.columns and "dppa_revenue_usd" in result.columns:
+        result["total_dppa_revenue_usd"] = result["dppa_revenue_usd"]
+    if "dppa_revenue_usd" not in result.columns and "total_dppa_revenue_usd" in result.columns:
+        result["dppa_revenue_usd"] = result["total_dppa_revenue_usd"]
 
     return result
 
@@ -584,6 +594,9 @@ def _run_financial(
     om_solar_usd_per_mwp: float = 8_000.0,
     om_bess_usd_per_mwh: float = 5_000.0,
     insurance_pct_capex: float = 0.005,
+    other_opex_usd_per_mwp: float = 0.0,
+    asset_management_usd_per_mwp: float = 0.0,
+    land_lease_pct_revenue: float = 0.0,
     asset_management_usd: float = 15_000.0,
     land_lease_usd: float = 20_000.0,
     cpi: float = 0.04,
@@ -601,6 +614,7 @@ def _run_financial(
     pv_capex_usd: float = 0.0,
     bess_mra_pct: float = 0.60,
     pv_mra_pct: float = 0.10,
+    mra_buildup_schedule: dict[int, float] | None = None,
     # Demand charge savings (annual, already converted to USD)
     demand_charge_savings_usd_yr1: float = 0.0,
 ) -> dict[str, Any]:
@@ -616,7 +630,7 @@ def _run_financial(
     year_index = pd.RangeIndex(1, project_years + 1)
 
     lifetime_aligned = lifetime.set_index("year", drop=False).reindex(year_index)
-    if lifetime_aligned[["dppa_revenue_usd", "grid_savings_usd"]].isna().any().any():
+    if bool(lifetime_aligned[["dppa_revenue_usd", "grid_savings_usd"]].isna().to_numpy().sum()):
         raise ValueError("lifetime projection must cover every project year for financial runs")
 
     demand_charge_savings = pd.Series(
@@ -636,6 +650,13 @@ def _run_financial(
         }
     ).set_index("year", drop=False)
 
+    # Calculate revenue before OPEX so revenue-linked land lease can use it.
+    total_revenue = (
+        revenue["dppa_revenue_usd"]
+        + revenue["grid_savings_usd"]
+        + revenue["demand_charge_savings_usd"]
+    )
+
     # Build real OPEX schedule
     opex = build_opex_schedule(
         solar_capacity_mwp=solar_capacity_mwp,
@@ -646,16 +667,14 @@ def _run_financial(
         om_solar_usd_per_mwp=om_solar_usd_per_mwp,
         om_bess_usd_per_mwh=om_bess_usd_per_mwh,
         insurance_pct_capex=insurance_pct_capex,
+        other_opex_usd_per_mwp=other_opex_usd_per_mwp,
+        asset_management_usd_per_mwp=asset_management_usd_per_mwp,
+        land_lease_pct_revenue=land_lease_pct_revenue,
+        annual_revenue_usd=total_revenue,
         asset_management_usd=asset_management_usd,
         land_lease_usd=land_lease_usd,
     )
 
-    # Calculate EBITDA for debt sizing
-    total_revenue = (
-        revenue["dppa_revenue_usd"]
-        + revenue["grid_savings_usd"]
-        + revenue["demand_charge_savings_usd"]
-    )
     total_opex = (
         opex["o_and_m_usd"]
         + opex["insurance_usd"]
@@ -748,6 +767,7 @@ def _run_financial(
         pv_capex_usd=pv_capex_usd,
         bess_mra_pct=bess_mra_pct,
         pv_mra_pct=pv_mra_pct,
+        buildup_schedule=mra_buildup_schedule,
         project_years=project_years,
     )
 
@@ -1133,7 +1153,11 @@ def run_model_from_json(
 
     hourly_data = _normalize_hourly_price_columns_to_usd(hourly_data, exchange_rate_usd_vnd)
 
-    ppa_option_effective = ppa_option if ppa_option is not None else 3
+    ppa_option_effective = (
+        ppa_option
+        if ppa_option is not None
+        else int(financial_params.get("ppa_option", assumptions.ppa_option))
+    )
     assumptions = assumptions.model_copy(
         update={
             "actual_capacity_kwp": assumption_updates.get(
@@ -1152,6 +1176,10 @@ def run_model_from_json(
             "fixed_ppa_price_usd_per_mwh": float(
                 financial_params.get("fixed_ppa_price_usd_per_mwh", 70.0)
             ),
+            "fixed_ppa_curtailment_pct": float(
+                financial_params.get("fixed_ppa_curtailment_pct", 0.0)
+            ),
+            "fixed_ppa_tx_loss_pct": float(financial_params.get("fixed_ppa_tx_loss_pct", 0.0)),
             **assumption_updates,
         }
     )
@@ -1204,6 +1232,11 @@ def run_model_from_json(
                 + float(financial_params.get("insurance_bess_pct_capex", 0.0025)),
             )
         ),
+        other_opex_usd_per_mwp=float(financial_params.get("other_opex_usd_per_mwp", 0.0)),
+        asset_management_usd_per_mwp=float(
+            financial_params.get("asset_management_usd_per_mwp", 0.0)
+        ),
+        land_lease_pct_revenue=float(financial_params.get("land_lease_pct_revenue", 0.0)),
         asset_management_usd=float(financial_params.get("asset_management_usd", 15_000.0)),
         land_lease_usd=float(financial_params.get("land_lease_usd", 20_000.0)),
         cpi=float(financial_params.get("cpi", financial_params.get("opex_escalation_pct", 0.04))),
@@ -1221,6 +1254,7 @@ def run_model_from_json(
         pv_capex_usd=float(financial_params.get("solar_capex_usd", 0.0)),
         bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),
         pv_mra_pct=float(financial_params.get("pv_mra_pct", 0.10)),
+        mra_buildup_schedule=financial_params.get("mra_buildup_schedule"),
     )
 
     results: dict[str, Any] = {}

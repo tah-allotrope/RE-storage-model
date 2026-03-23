@@ -62,7 +62,7 @@ def test_load_hourly_data_from_csv_shape() -> None:
         "cfmp_usd_per_kwh",
     }
     assert expected_cols.issubset(set(df.columns))
-    assert not df[list(expected_cols)].isna().any().any()
+    assert not bool(df[list(expected_cols)].isna().to_numpy().any())
     assert pd.Timestamp(df.iloc[0]["datetime"]) == pd.Timestamp("2024-01-01 00:00")
     assert float(df.iloc[0]["load_kw"]) == 1020.0
     assert float(df.iloc[0]["simulation_profile_kw"]) == 0.0
@@ -117,7 +117,43 @@ def test_load_financial_params_from_json() -> None:
     assert params["tenor_years"] == 10
     assert params["target_dscr"] == pytest.approx(1.3)
     assert params["initial_capex_usd"] == pytest.approx(1879450.0, abs=1.0)
+    assert params["discount_rate_pct"] == pytest.approx(10.0)
     assert params["cod_date"] == "2026-01-02"
+    assert params["exchange_rate_usd_vnd"] == pytest.approx(26000.0)
+    assert params["max_leverage_ratio"] == pytest.approx(0.7)
+
+    assert params["ppa_option"] == 1
+    assert params["bundled_discount_pct"] == pytest.approx(0.15)
+    assert params["pv_discount_pct"] == pytest.approx(0.05)
+    assert params["bess_discount_pct"] == pytest.approx(0.05)
+    assert params["fixed_ppa_price_usd_per_mwh"] == pytest.approx(70.0)
+    assert params["fixed_ppa_curtailment_pct"] == pytest.approx(0.03)
+    assert params["fixed_ppa_tx_loss_pct"] == pytest.approx(0.01)
+
+    assert params["solar_capex_usd"] == pytest.approx(1449450.0, abs=1.0)
+    assert params["bess_capex_usd"] == pytest.approx(430000.0, abs=1.0)
+    assert params["bop_capex_usd"] == pytest.approx(0.0)
+    assert params["land_capex_usd"] == pytest.approx(0.0)
+    assert params["installed_pv_mwp"] == pytest.approx(3.221)
+    assert params["bess_mwh"] == pytest.approx(2.15)
+
+    assert params["om_solar_usd_per_mwp"] == pytest.approx(6000.0)
+    assert params["om_bess_usd_per_mwh"] == pytest.approx(2000.0)
+    assert params["insurance_solar_pct_capex"] == pytest.approx(0.0025)
+    assert params["insurance_bess_pct_capex"] == pytest.approx(0.0025)
+    assert params["other_opex_usd_per_mwp"] == pytest.approx(1000.0)
+    assert params["asset_management_usd_per_mwp"] == pytest.approx(3000.0)
+    assert params["land_lease_pct_revenue"] == pytest.approx(0.005)
+    assert params["opex_escalation_pct"] == pytest.approx(0.04)
+
+    assert params["tax_rate"] == pytest.approx(0.2)
+    assert params["tax_holiday_years"] == 5
+    assert params["first_discount_years"] == 8
+    assert params["first_discount_rate"] == pytest.approx(0.13)
+    assert params["second_discount_years"] == 2
+    assert params["second_discount_rate"] == pytest.approx(0.15)
+
+    assert params["mra_buildup_schedule"] == {1: 0.3, 2: 0.3, 3: 0.3}
 
 
 def test_excel_serial_to_date() -> None:

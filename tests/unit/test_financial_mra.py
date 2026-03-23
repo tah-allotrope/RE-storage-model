@@ -118,3 +118,19 @@ class TestBuildMraSchedule:
         """_DEFAULT_BUILDUP should be {1: 25%, 2: 25%, 3: 25%, 4: 25%}."""
         assert _DEFAULT_BUILDUP == {1: 0.25, 2: 0.25, 3: 0.25, 4: 0.25}
         assert sum(_DEFAULT_BUILDUP.values()) == pytest.approx(1.0)
+
+    def test_json_style_buildup_schedule_can_exclude_year0_equity_piece(self) -> None:
+        mra = build_mra_schedule(
+            bess_capex_usd=1000.0,
+            pv_capex_usd=1000.0,
+            bess_mra_pct=0.60,
+            pv_mra_pct=0.10,
+            buildup_schedule={1: 0.3, 2: 0.3, 3: 0.3},
+            project_years=5,
+        )
+
+        assert mra.loc[1] == pytest.approx(210.0)
+        assert mra.loc[2] == pytest.approx(210.0)
+        assert mra.loc[3] == pytest.approx(210.0)
+        assert mra.loc[4] == pytest.approx(0.0)
+        assert mra.sum() == pytest.approx(630.0)

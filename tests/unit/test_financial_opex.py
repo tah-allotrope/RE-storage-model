@@ -159,3 +159,27 @@ class TestBuildOpexSchedule:
         )
         assert 800_000 < year1_total < 1_200_000
         assert len(opex) == 25
+
+    def test_other_opex_asset_management_and_revenue_land_lease_inputs(self) -> None:
+        annual_revenue = {1: 1_000_000.0, 2: 1_100_000.0}
+
+        opex = build_opex_schedule(
+            solar_capacity_mwp=3.0,
+            bess_capacity_mwh=2.0,
+            total_capex_usd=1_000_000.0,
+            project_years=2,
+            cpi=0.0,
+            om_solar_usd_per_mwp=6_000.0,
+            om_bess_usd_per_mwh=2_000.0,
+            other_opex_usd_per_mwp=1_000.0,
+            asset_management_usd_per_mwp=3_000.0,
+            land_lease_pct_revenue=0.005,
+            annual_revenue_usd=annual_revenue,
+            asset_management_usd=0.0,
+            land_lease_usd=0.0,
+        )
+
+        assert opex.loc[1, "o_and_m_usd"] == pytest.approx(25_000.0)
+        assert opex.loc[1, "management_fees_usd"] == pytest.approx(9_000.0)
+        assert opex.loc[1, "land_lease_usd"] == pytest.approx(5_000.0)
+        assert opex.loc[2, "land_lease_usd"] == pytest.approx(5_500.0)

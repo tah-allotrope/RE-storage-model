@@ -16,9 +16,7 @@ from re_storage.core.types import AnnualTimeSeries, HourlyTimeSeries, MonthlyTim
 def _require_columns(data: pd.DataFrame, required: set[str], label: str) -> None:
     missing = required - set(data.columns)
     if missing:
-        raise InputValidationError(
-            f"Missing required columns in {label}: {sorted(missing)}"
-        )
+        raise InputValidationError(f"Missing required columns in {label}: {sorted(missing)}")
 
 
 def calculate_total_solar_generation_mwh(
@@ -51,7 +49,7 @@ def calculate_total_solar_generation_mwh(
     if (solar_gen_kw < 0).any():
         raise InputValidationError("solar_gen_kw contains negative values.")
 
-    total_kwh = float(solar_gen_kw.sum() * scale_factor)
+    total_kwh = float(solar_gen_kw.sum())
     return total_kwh / 1000.0
 
 
@@ -129,12 +127,8 @@ def calculate_year1_totals(
             "total_grid_savings_usd": [total_grid_savings_usd],
             "baseline_peak_kw": [float(monthly_data["baseline_peak_kw"].max())],
             "demand_target_kw": [float(monthly_data["demand_target_kw"].max())],
-            "peak_demand_after_solar_kw": [
-                float(monthly_data["peak_demand_after_solar_kw"].max())
-            ],
-            "peak_demand_after_re_kw": [
-                float(monthly_data["peak_demand_after_re_kw"].max())
-            ],
+            "peak_demand_after_solar_kw": [float(monthly_data["peak_demand_after_solar_kw"].max())],
+            "peak_demand_after_re_kw": [float(monthly_data["peak_demand_after_re_kw"].max())],
         }
     )
 

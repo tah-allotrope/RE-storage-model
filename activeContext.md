@@ -768,3 +768,50 @@ Implement Phase 4 of `plans/frontend-alignment-poc.md` by turning the richer Pha
 - The Phase 4 dashboard currently uses a fixed DSCR covenant line (`1.3x`) until a model-backed covenant field is exposed through the API.
 - Web handler endpoint tests still skip in the repo-level Python environment until Flask and related packages are installed there.
 - The frontend bundle still emits the existing Vite chunk-size warning; this is non-blocking but a future code-splitting cleanup candidate.
+
+---
+
+## ISSUE-9 Objective (Current Session)
+
+Implement the Emivest JSON parity fixes from `plans/next-session-emivest-parity.md` so the JSON path stops overstating generation, honors the fixture's commercial/debt inputs, and fails loudly on broken KPI outputs.
+
+### Scope
+
+- [ ] Remove the Year 1 solar double-scaling in the JSON/aggregation path
+- [ ] Load and honor JSON `maximum_leverage_pct`
+- [ ] Load and honor JSON `active_ppa_option` plus option-specific pricing inputs
+- [ ] Extend JSON financial loading/wiring for parity-critical OPEX, tax, MRA, and CAPEX detail inputs
+- [ ] Tighten Emivest regression handling so NaN actual KPI values fail instead of skip
+- [ ] Verify with targeted unit and regression pytest runs
+
+### Review / Results
+
+- Fixed the annual solar double-scaling path by treating `solar_gen_kw` as already scaled output in `src/re_storage/aggregation/annual.py`.
+- Extended `src/re_storage/inputs/json_loader.py` so Emivest JSON runs now load and pass through:
+  - `maximum_leverage_pct`
+  - `active_ppa_option`
+  - bundled / split discount inputs
+  - fixed PPA price plus curtailment / transmission loss inputs
+  - OPEX unit inputs
+  - tax schedule year markers converted to duration-style fields
+  - MRA buildup schedule (operating years only)
+  - `land_acquisition_USD` and `bop_USD`
+- Updated `src/re_storage/pipeline.py` and `src/re_storage/financial/opex.py` so JSON runs now honor those loaded inputs in settlement and financial calculations, including revenue-linked land lease and leverage-capped debt sizing.
+- Tightened `tests/regression/test_emivest.py` so NaN actual KPI values fail instead of being silently skipped.
+- Added/updated unit coverage in:
+  - `tests/unit/test_json_loader.py`
+  - `tests/unit/test_financial_opex.py`
+  - `tests/unit/test_financial_mra.py`
+  - `tests/unit/test_aggregation_annual.py`
+- Verification on 2026-03-23:
+  - `pytest tests/unit/test_json_loader.py tests/unit/test_financial_opex.py tests/unit/test_financial_mra.py tests/unit/test_aggregation_annual.py tests/regression/test_emivest.py -q` -> **41 passed, 1 skipped**
+- Updated Emivest KPI snapshot after the fixes:
+  - `project_irr ~ 0.2293`
+  - `equity_irr ~ 0.2957`
+  - `npv_usd ~ 2.03M`
+  - `dscr_min ~ 2.0616`
+  - `year1_solar_generation_mwh ~ 4260.95`
+  - `year1_dppa_revenue_usd ~ 212,394.89`
+  - `year1_grid_savings_usd ~ 249,876.35`
+  - `year1_opex_usd ~ 48,218.61`
+  - `year1_ebitda_usd ~ 414,052.64`

@@ -68,6 +68,8 @@ class SystemAssumptions(BaseModel):
 
     # Option 4: Fixed PPA price with EVN (USD/MWh)
     fixed_ppa_price_usd_per_mwh: float = Field(ge=0.0, default=70.0)
+    fixed_ppa_curtailment_pct: float = Field(ge=0.0, le=1.0, default=0.0)
+    fixed_ppa_tx_loss_pct: float = Field(ge=0.0, le=1.0, default=0.0)
 
     @property
     def scale_factor(self) -> float:

@@ -2,7 +2,8 @@
 Maintenance Reserve Account (MRA) schedule.
 
 Models the annual cash outflows for building up the BESS and PV maintenance
-reserves from Year 1 through Year 3 (Year 0 contribution is equity at FC).
+reserves from Year 1 onward. Year 0 equity-at-financial-close funding is
+excluded from the returned operating-year series.
 
 Excel source: Financial!F98–F103, Assumption!K46–K47, Other Input!B5–B8
 """
@@ -56,8 +57,7 @@ def build_mra_schedule(
     total_target = bess_target + pv_target
 
     contributions = [
-        total_target * buildup_schedule.get(year, 0.0)
-        for year in range(1, project_years + 1)
+        total_target * buildup_schedule.get(year, 0.0) for year in range(1, project_years + 1)
     ]
     return pd.Series(
         contributions,

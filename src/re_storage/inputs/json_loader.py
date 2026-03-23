@@ -76,6 +76,7 @@ def load_assumptions_from_json(json_path: Path) -> SystemAssumptions:
 
     exchange_rate = float(_nested_get(data, "financial_input", "exchange_rate_USD_VND"))
     strike_price_vnd = float(_nested_get(data, "ppa_settings", "option_3_dppa", "strike_price_VND"))
+    active_ppa_option = int(_nested_get(data, "ppa_settings", "active_ppa_option"))
 
     kpp_22 = float(_nested_get(regulation, "Kpp_22kv"))
     kpp_110 = float(_nested_get(regulation, "Kpp_110kv"))
@@ -162,6 +163,40 @@ def load_assumptions_from_json(json_path: Path) -> SystemAssumptions:
         kpp=kpp,
         bess_enabled=bool(_nested_get(data, "system_input", "bess_included")),
         dppa_enabled=bool(_nested_get(data, "ppa_settings", "option_3_dppa", "model_active")),
+        ppa_option=active_ppa_option,
+        bundled_discount_pct=float(
+            _nested_get(
+                data,
+                "ppa_settings",
+                "option_1_corporate_buyer",
+                "bundled_discount_to_evn_tariff_pct",
+            )
+        ),
+        pv_discount_pct=float(
+            _nested_get(
+                data,
+                "ppa_settings",
+                "option_2_pv_bess_discount",
+                "pv_discount_to_evn_tariff_pct",
+            )
+        ),
+        bess_discount_pct=float(
+            _nested_get(
+                data,
+                "ppa_settings",
+                "option_2_pv_bess_discount",
+                "bess_discount_to_evn_tariff_pct",
+            )
+        ),
+        fixed_ppa_price_usd_per_mwh=float(
+            _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "all_in_fixed_price_USD_MWh")
+        ),
+        fixed_ppa_curtailment_pct=float(
+            _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "curtailment_pct")
+        ),
+        fixed_ppa_tx_loss_pct=float(
+            _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "transmission_loss_pct")
+        ),
     )
 
 
@@ -199,7 +234,7 @@ def load_hourly_data_from_csv(csv_path: Path) -> pd.DataFrame:
         format="%m/%d/%Y %H:%M",
         errors="coerce",
     )
-    if df["datetime"].isna().any():
+    if bool(df["datetime"].isna().to_numpy().sum()):
         raise InputValidationError("CSV datetime column contains unparseable values.")
 
     numeric_cols = [
@@ -212,7 +247,7 @@ def load_hourly_data_from_csv(csv_path: Path) -> pd.DataFrame:
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    if df[numeric_cols].isna().any().any():
+    if bool(df[numeric_cols].isna().to_numpy().sum()):
         raise InputValidationError("CSV contains NaN/non-numeric values in required columns.")
 
     non_negative_cols = ["simulation_profile_kw", "irradiation_wh_m2", "load_kw"]
@@ -271,7 +306,7 @@ def load_degradation_from_json(
         "battery_factor_with_replacement",
     ]
     for col in factor_cols:
-        if ((df[col] <= 0) | (df[col] > 1)).any():
+        if bool((((df[col] <= 0) | (df[col] > 1)).to_numpy().sum())):
             raise InputValidationError(f"Degradation column '{col}' has values outside (0, 1].")
 
     return df.sort_values("year").reset_index(drop=True)
@@ -311,14 +346,54 @@ def load_financial_params_from_json(json_path: Path) -> dict[str, Any]:
         float(_nested_get(data, "bess_parameters", "total_bess_storage_capacity_kWh")) / 1000.0
     )
 
-    initial_capex_usd = (
-        float(_nested_get(data, "capex", "solar_USD_per_MWp")) * actual_capacity_mwp
-        + float(_nested_get(data, "capex", "bess_USD_per_MWh")) * total_bess_mwh
-    )
+    land_capex_usd = float(_nested_get(data, "capex", "land_acquisition_USD"))
+    bop_capex_usd = float(_nested_get(data, "capex", "bop_USD"))
+    solar_capex_usd = float(_nested_get(data, "capex", "solar_USD_per_MWp")) * actual_capacity_mwp
+    bess_capex_usd = float(_nested_get(data, "capex", "bess_USD_per_MWh")) * total_bess_mwh
+
+    initial_capex_usd = solar_capex_usd + bess_capex_usd + land_capex_usd + bop_capex_usd
 
     cod_serial = int(
         _nested_get(data, "financial_input", "timing", "commercial_operation_date_excel_serial")
     )
+
+    target_minimum_equity_irr = float(
+        _nested_get(
+            data,
+            "financial_assumptions",
+            "return_expectations",
+            "target_minimum_equity_irr_pct",
+        )
+    )
+    max_leverage_ratio = float(
+        _nested_get(data, "financial_assumptions", "debt_sizing", "maximum_leverage_pct")
+    )
+
+    tax = _nested_get(data, "financial_assumptions", "tax")
+    if not isinstance(tax, dict):
+        raise InputValidationError("financial_assumptions.tax must be an object")
+
+    tax_holiday_years = int(_nested_get(tax, "tax_holiday_years"))
+    first_discount_year = int(_nested_get(tax, "first_discount_year"))
+    second_discount_year = int(_nested_get(tax, "second_discount_year"))
+    first_discount_years = max(first_discount_year - tax_holiday_years, 0)
+    second_discount_years = max(second_discount_year - first_discount_year, 0)
+
+    active_ppa_option = int(_nested_get(data, "ppa_settings", "active_ppa_option"))
+    mra_buildup_raw = _nested_get(data, "retail_tariff_matrix", "mra_buildup_assumption")
+    if not isinstance(mra_buildup_raw, list):
+        raise InputValidationError("retail_tariff_matrix.mra_buildup_assumption must be a list")
+
+    mra_buildup_schedule: dict[int, float] = {}
+    for entry in mra_buildup_raw:
+        if not isinstance(entry, dict):
+            raise InputValidationError(
+                "retail_tariff_matrix.mra_buildup_assumption entries must be objects"
+            )
+        year = int(_nested_get(entry, "year"))
+        pct = float(_nested_get(entry, "pct"))
+        if year >= 1:
+            mra_buildup_schedule[year] = pct
 
     return {
         "project_years": project_years,
@@ -330,11 +405,88 @@ def load_financial_params_from_json(json_path: Path) -> dict[str, Any]:
             _nested_get(data, "financial_assumptions", "debt_sizing", "target_dscr_x")
         ),
         "initial_capex_usd": initial_capex_usd,
-        "discount_rate_pct": 8.0,
+        "discount_rate_pct": target_minimum_equity_irr * 100.0,
         "cod_date": _excel_serial_to_date(cod_serial),
         "exchange_rate_usd_vnd": float(
             _nested_get(data, "financial_input", "exchange_rate_USD_VND")
         ),
+        "max_leverage_ratio": max_leverage_ratio,
+        "solar_capex_usd": solar_capex_usd,
+        "bess_capex_usd": bess_capex_usd,
+        "bop_capex_usd": bop_capex_usd,
+        "land_capex_usd": land_capex_usd,
+        "installed_pv_mwp": actual_capacity_mwp,
+        "bess_mwh": total_bess_mwh,
+        "om_solar_usd_per_mwp": float(_nested_get(data, "opex", "solar_om_USD_per_MWp_pa")),
+        "om_bess_usd_per_mwh": float(_nested_get(data, "opex", "bess_om_USD_per_MWh_pa")),
+        "insurance_solar_pct_capex": float(
+            _nested_get(data, "opex", "insurance_solar_pct_total_capex")
+        ),
+        "insurance_bess_pct_capex": float(
+            _nested_get(data, "opex", "insurance_bess_pct_total_capex")
+        ),
+        "other_opex_usd_per_mwp": float(_nested_get(data, "opex", "other_opex_USD_per_MWp_pa")),
+        "asset_management_usd_per_mwp": float(
+            _nested_get(data, "opex", "asset_management_USD_per_MWp_pa")
+        ),
+        "land_lease_pct_revenue": float(_nested_get(data, "opex", "land_lease_pct_of_revenue")),
+        "opex_escalation_pct": float(_nested_get(data, "opex", "opex_escalation_cpi_pct_pa")),
+        "depreciation_tenor_years": int(_nested_get(data, "capex", "depreciation_tenor_years")),
+        "pv_depreciation_tenor_years": int(_nested_get(data, "capex", "depreciation_tenor_years")),
+        "tax_rate": float(_nested_get(tax, "corporate_tax_rate_pct")),
+        "tax_holiday_years": tax_holiday_years,
+        "first_discount_years": first_discount_years,
+        "first_discount_rate": float(_nested_get(tax, "first_discount_rate")),
+        "second_discount_years": second_discount_years,
+        "second_discount_rate": float(_nested_get(tax, "second_discount_rate")),
+        "ppa_option": active_ppa_option,
+        "bundled_discount_pct": float(
+            _nested_get(
+                data,
+                "ppa_settings",
+                "option_1_corporate_buyer",
+                "bundled_discount_to_evn_tariff_pct",
+            )
+        ),
+        "pv_discount_pct": float(
+            _nested_get(
+                data,
+                "ppa_settings",
+                "option_2_pv_bess_discount",
+                "pv_discount_to_evn_tariff_pct",
+            )
+        ),
+        "bess_discount_pct": float(
+            _nested_get(
+                data,
+                "ppa_settings",
+                "option_2_pv_bess_discount",
+                "bess_discount_to_evn_tariff_pct",
+            )
+        ),
+        "fixed_ppa_price_usd_per_mwh": float(
+            _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "all_in_fixed_price_USD_MWh")
+        ),
+        "fixed_ppa_curtailment_pct": float(
+            _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "curtailment_pct")
+        ),
+        "fixed_ppa_tx_loss_pct": float(
+            _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "transmission_loss_pct")
+        ),
+        "revenue_escalation_pct": float(
+            _nested_get(
+                data, "ppa_settings", "option_1_corporate_buyer", "evn_price_escalation_pct_pa"
+            )
+        ),
+        "fmp_descent_pct": float(
+            _nested_get(
+                data,
+                "ppa_settings",
+                "option_3_dppa",
+                "avg_sun_hours_market_price_descent_pct_pa",
+            )
+        ),
+        "mra_buildup_schedule": mra_buildup_schedule,
     }
 
 
