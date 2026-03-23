@@ -56,7 +56,11 @@ def test_handle_run_excel_rejects_missing_file(app: Flask) -> None:
 
 def test_handle_run_excel_success(monkeypatch: pytest.MonkeyPatch, app: Flask) -> None:
     def fake_run_full_model(_: Path) -> dict[str, float]:
-        return {"project_irr": 0.05, "npv_usd": 1000.0}
+        return {
+            "project_irr": 0.05,
+            "npv_usd": 1000.0,
+            "_annual_df": None,
+        }
 
     monkeypatch.setattr("handlers.run_excel.run_full_model", fake_run_full_model)
 
@@ -72,6 +76,7 @@ def test_handle_run_excel_success(monkeypatch: pytest.MonkeyPatch, app: Flask) -
     assert status == 200
     assert payload["kpis"]["project_irr"] == 0.05
     assert payload["lifetime"] == []
+    assert payload["annual"] == []
 
 
 def test_handle_run_json_requires_hourly_csv(app: Flask) -> None:
@@ -90,6 +95,7 @@ def test_handle_run_json_success(monkeypatch: pytest.MonkeyPatch, app: Flask) ->
         return {
             "project_irr": 0.04,
             "_lifetime_df": None,
+            "_annual_df": None,
         }
 
     monkeypatch.setattr("handlers.run_json.run_model_from_json", fake_run_model_from_json)
@@ -121,3 +127,4 @@ def test_handle_run_json_success(monkeypatch: pytest.MonkeyPatch, app: Flask) ->
 
     assert status == 200
     assert payload["kpis"]["project_irr"] == 0.04
+    assert payload["annual"] == []

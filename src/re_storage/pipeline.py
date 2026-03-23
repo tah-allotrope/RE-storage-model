@@ -603,7 +603,7 @@ def _run_financial(
     pv_mra_pct: float = 0.10,
     # Demand charge savings (annual, already converted to USD)
     demand_charge_savings_usd_yr1: float = 0.0,
-) -> dict[str, float]:
+) -> dict[str, Any]:
     """
     Run financial waterfall and calculate return metrics.
 
@@ -787,7 +787,7 @@ def _run_financial(
     # Unlevered IRR: EBITDA without debt (same as project_cf)
     unlevered_cf = project_cf.copy()
 
-    results: dict[str, float] = {}
+    results: dict[str, Any] = {}
     results["year1_opex_usd"] = float(
         opex_with_tax["o_and_m_usd"].iloc[0]
         + opex_with_tax["insurance_usd"].iloc[0]
@@ -844,8 +844,17 @@ def _run_financial(
     else:
         results["dscr_min"] = float("nan")
         results["dscr_avg"] = float("nan")
+        dscr_series = pd.Series(dtype=float)
 
     results["debt_amount_usd"] = debt_amount_usd
+
+    annual = waterfall.loc[year_index].copy()
+    annual["dppa_revenue_usd"] = revenue["dppa_revenue_usd"].values
+    annual["grid_savings_usd"] = revenue["grid_savings_usd"].values
+    annual["demand_charge_savings_usd"] = revenue["demand_charge_savings_usd"].values
+    annual["dscr"] = dscr_series.reindex(year_index).astype(float)
+
+    results["_annual_df"] = annual.reset_index(drop=True)
 
     return results
 
@@ -1226,6 +1235,10 @@ def run_model_from_json(
     results["year1_solar_generation_mwh"] = float(year1.loc[1, "total_solar_generation_mwh"])
     results["year1_dppa_revenue_usd"] = float(year1.loc[1, "total_dppa_revenue_usd"])
     results["year1_grid_savings_usd"] = float(year1.loc[1, "total_grid_savings_usd"])
+
+    annual_df = financial_kpis.get("_annual_df")
+    if isinstance(annual_df, pd.DataFrame):
+        results["_annual_df"] = annual_df
 
     results["_hourly_df"] = settlement_result
     results["_lifetime_df"] = agg["lifetime"]

@@ -20,9 +20,57 @@ export interface LifetimeRow {
   grid_savings_usd: number;
 }
 
+export interface AnnualRow {
+  year: number;
+  dppa_revenue_usd: number | null;
+  grid_savings_usd: number | null;
+  demand_charge_savings_usd: number | null;
+  total_revenue_usd: number | null;
+  total_opex_usd: number | null;
+  ebitda_usd: number | null;
+  total_debt_service_usd: number | null;
+  cfads_usd: number | null;
+  taxes_usd: number | null;
+  mra_contribution_usd: number | null;
+  free_cash_flow_to_equity_usd: number | null;
+  capex_usd: number | null;
+  dscr: number | null;
+}
+
+export interface CashflowRow {
+  year: number;
+  ebitda_usd: number | null;
+  cfads_usd: number | null;
+  free_cash_flow_to_equity_usd: number | null;
+  capex_usd: number | null;
+}
+
+export interface DscrRow {
+  year: number;
+  dscr: number | null;
+  total_debt_service_usd: number | null;
+  cfads_usd: number | null;
+}
+
+export interface DispatchSampleRow {
+  datetime: string | null;
+  soc_kwh: number | null;
+  solar_gen_kw: number | null;
+  load_kw: number | null;
+  direct_pv_consumption_kw?: number | null;
+  pv_charged_kw?: number | null;
+  grid_charged_kw?: number | null;
+  discharged_kw: number | null;
+  grid_load_after_re_kw?: number | null;
+}
+
 export interface ModelResponse {
   kpis: ModelKpis;
   lifetime: LifetimeRow[];
+  annual: AnnualRow[];
+  cashflow: CashflowRow[];
+  dscr_series: DscrRow[];
+  dispatch_sample: DispatchSampleRow[];
 }
 
 export interface ApiErrorResponse {

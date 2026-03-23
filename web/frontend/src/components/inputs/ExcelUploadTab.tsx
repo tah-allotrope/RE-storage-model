@@ -18,8 +18,8 @@ export function ExcelUploadTab({ onRun, isRunning }: ExcelUploadTabProps): JSX.E
   }
 
   return (
-    <section className="panel">
-      <h2>Upload Excel</h2>
+    <section className="panel panel-input-surface">
+      <h3>Upload Excel workbook</h3>
       <p className="panel-description">
         Upload a model workbook with Assumption, Data Input, Loss, and Tariff Schedule sheets.
       </p>
