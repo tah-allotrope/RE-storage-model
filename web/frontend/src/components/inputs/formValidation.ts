@@ -61,6 +61,7 @@ export function validateProjectForm(
   const errors: FieldErrors = {};
   const bessEnabled = values.bess_enabled === "true";
   const dppaEnabled = values.dppa_enabled === "true";
+  const ppaOption = values.ppa_option;
 
   validatePositive(errors, "actual_capacity_kwp", "Installed capacity", values.actual_capacity_kwp);
   validatePositive(errors, "simulation_capacity_kwp", "Simulation capacity", values.simulation_capacity_kwp);
@@ -85,10 +86,48 @@ export function validateProjectForm(
   }
 
   if (dppaEnabled) {
-    validatePositive(errors, "strike_price_vnd", "Strike price", values.strike_price_vnd);
-    validatePositive(errors, "k_factor", "k-factor", values.k_factor);
-    validatePositive(errors, "kpp_22", "Kpp 22kV", values.kpp_22);
-    validatePositive(errors, "kpp_110", "Kpp 110kV", values.kpp_110);
+    if (ppaOption === "3") {
+      validatePositive(errors, "strike_price_vnd", "Strike price", values.strike_price_vnd);
+      validatePositive(errors, "k_factor", "k-factor", values.k_factor);
+      validatePositive(errors, "kpp_22", "Kpp 22kV", values.kpp_22);
+      validatePositive(errors, "kpp_110", "Kpp 110kV", values.kpp_110);
+    }
+  }
+
+  if (!["1", "2", "3", "4"].includes(ppaOption)) {
+    errors.ppa_option = "Choose a supported PPA option.";
+  }
+
+  validateNonNegative(errors, "revenue_escalation_pct", "Revenue escalation", values.revenue_escalation_pct);
+
+  if (ppaOption === "1") {
+    validateRatio(errors, "bundled_discount_pct", "Bundled discount", values.bundled_discount_pct);
+  }
+
+  if (ppaOption === "2") {
+    validateRatio(errors, "pv_discount_pct", "PV discount", values.pv_discount_pct);
+    validateRatio(errors, "bess_discount_pct", "BESS discount", values.bess_discount_pct);
+  }
+
+  if (ppaOption === "4") {
+    validatePositive(
+      errors,
+      "fixed_ppa_price_usd_per_mwh",
+      "Fixed PPA price",
+      values.fixed_ppa_price_usd_per_mwh,
+    );
+    validateRatio(
+      errors,
+      "fixed_ppa_curtailment_pct",
+      "Fixed PPA curtailment",
+      values.fixed_ppa_curtailment_pct,
+    );
+    validateRatio(
+      errors,
+      "fixed_ppa_tx_loss_pct",
+      "Fixed PPA transmission loss",
+      values.fixed_ppa_tx_loss_pct,
+    );
   }
 
   validateNonNegative(errors, "tariff_off_peak", "Off-peak tariff", values.tariff_off_peak);

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RE-Storage Model — Progress Report</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3247;
+    --accent: #4f8ef7;
+    --accent2: #6ee7b7;
+    --accent3: #f59e0b;
+    --accent4: #f87171;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --done: #10b981;
+    --partial: #f59e0b;
+    --todo: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: 0.3rem; }
+  h2 { font-size: 1.25rem; font-weight: 600; color: var(--accent2); margin-bottom: 1rem; margin-top: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+  p { color: var(--muted); margin-bottom: 0.75rem; }
+  .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+  .meta span { color: var(--text); font-weight: 600; }
+
+  /* KPI Cards */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1rem; text-align: center; }
+  .kpi .val { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .kpi .lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+  .kpi.green .val { color: var(--done); }
+  .kpi.amber .val { color: var(--partial); }
+  .kpi.red .val { color: var(--accent4); }
+
+  /* Progress bar */
+  .progress-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; }
+  .progress-label { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; }
+  .bar-bg { background: var(--surface2); border-radius: 999px; height: 14px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; transition: width 0.5s; }
+  .bar-done { background: linear-gradient(90deg, var(--done), var(--accent2)); }
+  .bar-partial { background: linear-gradient(90deg, var(--partial), #fde68a); }
+
+  /* Pipeline diagram */
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 1.5rem 0; overflow-x: auto; padding-bottom: 0.5rem; }
+  .pipe-box { flex-shrink: 0; border-radius: 8px; padding: 0.7rem 1rem; font-size: 0.78rem; font-weight: 600; text-align: center; min-width: 100px; }
+  .pipe-arrow { flex-shrink: 0; color: var(--muted); font-size: 1.2rem; padding: 0 4px; }
+  .pipe-done { background: rgba(16,185,129,0.15); border: 1px solid var(--done); color: var(--done); }
+  .pipe-partial { background: rgba(245,158,11,0.15); border: 1px solid var(--partial); color: var(--partial); }
+  .pipe-todo { background: rgba(107,114,128,0.12); border: 1px solid var(--todo); color: var(--todo); }
+
+  /* Module table */
+  .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+  .layer-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+  .layer-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.8rem; }
+  .module-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+  .module-row:last-child { border-bottom: none; }
+  .badge { padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0; }
+  .badge-done { background: rgba(16,185,129,0.2); color: var(--done); }
+  .badge-partial { background: rgba(245,158,11,0.2); color: var(--partial); }
+  .badge-todo { background: rgba(107,114,128,0.15); color: var(--todo); }
+  .module-name { font-family: 'Courier New', monospace; color: var(--text); }
+  .module-desc { color: var(--muted); font-size: 0.78rem; margin-left: auto; text-align: right; }
+
+  /* Architecture diagram */
+  .arch-diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; overflow-x: auto; }
+  .arch-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: stretch; }
+  .arch-layer-label { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); min-width: 20px; text-align: center; padding: 0 2px; }
+  .arch-boxes { display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1; align-items: center; }
+  .arch-box { border-radius: 7px; padding: 0.5rem 0.8rem; font-size: 0.78rem; text-align: center; flex: 1; min-width: 90px; }
+  .arch-inputs  { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35); color: #fcd34d; }
+  .arch-processing { background: rgba(79,142,247,0.12); border: 1px solid rgba(79,142,247,0.35); color: #93c5fd; }
+  .arch-aggregation { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35); color: var(--accent2); }
+  .arch-financial { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.35); color: #fca5a5; }
+  .arch-output { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.35); color: #c4b5fd; }
+  .arch-arrow { color: var(--muted); text-align: center; font-size: 1rem; margin: 0.1rem 0; }
+
+  /* Risks */
+  .risk-list { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 2rem; }
+  .risk-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; display: flex; gap: 1rem; align-items: flex-start; }
+  .risk-sev { flex-shrink: 0; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+  .sev-high { background: rgba(248,113,113,0.2); color: #f87171; }
+  .sev-med { background: rgba(245,158,11,0.2); color: #f59e0b; }
+  .sev-low { background: rgba(107,114,128,0.2); color: #9ca3af; }
+  .risk-content h3 { font-size: 0.88rem; margin-bottom: 0.2rem; }
+  .risk-content p { font-size: 0.8rem; margin: 0; }
+
+  /* Next steps */
+  .next-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+  .step-num { display: inline-block; background: var(--accent); color: #fff; font-weight: 700; font-size: 0.75rem; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; margin-bottom: 0.6rem; }
+  .step-card h3 { font-size: 0.9rem; margin-bottom: 0.4rem; }
+  .step-card ul { list-style: none; padding: 0; }
+  .step-card ul li { font-size: 0.8rem; color: var(--muted); padding: 0.2rem 0; padding-left: 1rem; position: relative; }
+  .step-card ul li::before { content: "›"; position: absolute; left: 0; color: var(--accent2); }
+
+  /* Financial KPIs from model */
+  .fin-kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 2rem; }
+  .fin-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+  .fin-kpi .fval { font-size: 1.4rem; font-weight: 700; }
+  .fin-kpi .flbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+  .fval.pos { color: var(--done); }
+  .fval.neg { color: var(--accent4); }
+  .fval.neu { color: var(--accent); }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 2rem; margin-bottom: 2rem; }
+  .timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 1.2rem; }
+  .tl-dot { position: absolute; left: -2rem; top: 4px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid; }
+  .tl-done .tl-dot { background: var(--done); border-color: var(--done); }
+  .tl-partial .tl-dot { background: var(--partial); border-color: var(--partial); }
+  .tl-todo .tl-dot { background: var(--surface); border-color: var(--todo); }
+  .tl-item h3 { font-size: 0.88rem; margin-bottom: 0.15rem; }
+  .tl-item p { font-size: 0.78rem; margin: 0; }
+  .tl-done h3 { color: var(--done); }
+  .tl-partial h3 { color: var(--partial); }
+  .tl-todo h3 { color: var(--todo); }
+
+  footer { text-align: center; color: var(--todo); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<h1>RE-Storage Model — Progress Report</h1>
+<p class="meta">Project: <span>re-storage-model</span> &nbsp;|&nbsp; Version: <span>0.1.0-alpha</span> &nbsp;|&nbsp; Report Date: <span>24 March 2026</span> &nbsp;|&nbsp; Asset: <span>40MW Solar + BESS, Vietnam (Ecoplexus)</span></p>
+
+<!-- Overall KPIs -->
+<div class="kpi-row">
+  <div class="kpi amber">
+    <div class="val">38%</div>
+    <div class="lbl">Overall Completion</div>
+  </div>
+  <div class="kpi green">
+    <div class="val">5 / 13</div>
+    <div class="lbl">Modules Complete</div>
+  </div>
+  <div class="kpi green">
+    <div class="val">2</div>
+    <div class="lbl">Test Files Written</div>
+  </div>
+  <div class="kpi red">
+    <div class="val">8</div>
+    <div class="lbl">Modules Remaining</div>
+  </div>
+</div>
+
+<!-- Overall progress bar -->
+<div class="progress-wrap">
+  <div class="progress-label"><span style="color:var(--text);font-weight:600">Implementation Progress</span><span style="color:var(--done)">38% complete</span></div>
+  <div class="bar-bg"><div class="bar-fill bar-done" style="width:38%"></div></div>
+  <div style="margin-top:1rem">
+    <div class="progress-label"><span>Analysis &amp; Architecture</span><span style="color:var(--done)">100%</span></div>
+    <div class="bar-bg" style="margin-bottom:0.6rem"><div class="bar-fill bar-done" style="width:100%"></div></div>
+    <div class="progress-label"><span>Core Layer (types, exceptions)</span><span style="color:var(--done)">100%</span></div>
+    <div class="bar-bg" style="margin-bottom:0.6rem"><div class="bar-fill bar-done" style="width:100%"></div></div>
+    <div class="progress-label"><span>Physics Layer (solar, battery, balance)</span><span style="color:var(--done)">100%</span></div>
+    <div class="bar-bg" style="margin-bottom:0.6rem"><div class="bar-fill bar-done" style="width:100%"></div></div>
+    <div class="progress-label"><span>Unit Tests</span><span style="color:var(--partial)">25% (2 of ~8 modules tested)</span></div>
+    <div class="bar-bg" style="margin-bottom:0.6rem"><div class="bar-fill bar-partial" style="width:25%"></div></div>
+    <div class="progress-label"><span>Input Layer (schemas, loaders)</span><span style="color:var(--todo)">0%</span></div>
+    <div class="bar-bg" style="margin-bottom:0.6rem"><div class="bar-fill bar-partial" style="width:0%"></div></div>
+    <div class="progress-label"><span>Settlement Layer (DPPA, Grid)</span><span style="color:var(--todo)">0%</span></div>
+    <div class="bar-bg" style="margin-bottom:0.6rem"><div class="bar-fill bar-partial" style="width:0%"></div></div>
+    <div class="progress-label"><span>Aggregation Layer (monthly, annual, lifetime)</span><span style="color:var(--todo)">0%</span></div>
+    <div class="bar-bg" style="margin-bottom:0.6rem"><div class="bar-fill bar-partial" style="width:0%"></div></div>
+    <div class="progress-label"><span>Financial Layer (waterfall, debt, metrics)</span><span style="color:var(--todo)">0%</span></div>
+    <div class="bar-bg"><div class="bar-fill bar-partial" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- What is this project -->
+<h2>What Is This Project?</h2>
+<p>This project is a <strong style="color:var(--text)">Python simulation engine</strong> that replaces a complex Excel financial model used to evaluate a <strong style="color:var(--text)">40 MW Solar + Battery Energy Storage System (BESS)</strong> project in Vietnam, developed for Ecoplexus. The Excel model spans 13 sheets, 8,760 hourly rows, 25-year lifetime projections, and a VBA-driven debt sizing solver — all of which this Python engine aims to replicate with full auditability, testability, and reproducibility.</p>
+<p>The model sits at the intersection of <strong style="color:var(--text)">energy physics</strong> (battery dispatch, solar scaling), <strong style="color:var(--text)">Vietnamese energy regulation</strong> (DPPA/CfD mechanism), and <strong style="color:var(--text)">project finance</strong> (DSCR, IRR, NPV, debt sculpting). The Python engine will make it possible to run scenario analyses, stress tests, and audits that are impractical in Excel.</p>
+
+<!-- Excel model KPIs -->
+<h2>Reference Financial Model KPIs (From Excel Audit)</h2>
+<p>These are the outputs the Python engine must reproduce to validate correctness.</p>
+<div class="fin-kpis">
+  <div class="fin-kpi">
+    <div class="fval neu">5.07%</div>
+    <div class="flbl">Project IRR</div>
+  </div>
+  <div class="fin-kpi">
+    <div class="fval neu">4.64%</div>
+    <div class="flbl">Equity IRR</div>
+  </div>
+  <div class="fin-kpi">
+    <div class="fval pos">8.83%</div>
+    <div class="flbl">Unlevered IRR</div>
+  </div>
+  <div class="fin-kpi">
+    <div class="fval neg">-$2.65M</div>
+    <div class="flbl">NPV</div>
+  </div>
+</div>
+
+<!-- Excel model architecture -->
+<h2>Excel Model Architecture (What We Are Replicating)</h2>
+<p>The original Excel model has five logical layers. All 5 must be reproduced faithfully in Python.</p>
+<div class="arch-diagram">
+  <div class="arch-row">
+    <div class="arch-layer-label">Inputs</div>
+    <div class="arch-boxes">
+      <div class="arch-box arch-inputs">Assumption<br><small>System params</small></div>
+      <div class="arch-box arch-inputs">Data Input<br><small>8760-hr series</small></div>
+      <div class="arch-box arch-inputs">Other Input<br><small>MRA &amp; Tariffs</small></div>
+      <div class="arch-box arch-inputs">Loss<br><small>Degradation tables</small></div>
+    </div>
+  </div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-row">
+    <div class="arch-layer-label">Processing</div>
+    <div class="arch-boxes">
+      <div class="arch-box arch-processing">Calc<br><small>Physics engine &amp; battery dispatch</small></div>
+      <div class="arch-box arch-processing">DPPA<br><small>CfD settlement (Vietnam)</small></div>
+      <div class="arch-box arch-processing">Helper<br><small>Monthly aggregator</small></div>
+    </div>
+  </div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-row">
+    <div class="arch-layer-label">Aggregation</div>
+    <div class="arch-boxes">
+      <div class="arch-box arch-aggregation">Measures<br><small>Annual totals</small></div>
+      <div class="arch-box arch-aggregation">Lifetime<br><small>25-year projection + degradation</small></div>
+    </div>
+  </div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-row">
+    <div class="arch-layer-label">Financials</div>
+    <div class="arch-boxes">
+      <div class="arch-box arch-financial">Financial<br><small>Cash flow waterfall, DSCR, GoalSeek debt sizing</small></div>
+    </div>
+  </div>
+  <div class="arch-arrow">↓</div>
+  <div class="arch-row">
+    <div class="arch-layer-label">Output</div>
+    <div class="arch-boxes">
+      <div class="arch-box arch-output">Output<br><small>Executive summary &amp; KPIs</small></div>
+    </div>
+  </div>
+</div>
+
+<!-- Data pipeline -->
+<h2>Python Data Pipeline (Implementation Status)</h2>
+<p>Each box shows the Python module status. Green = done, amber = partial, grey = not yet started.</p>
+<div class="pipeline">
+  <div class="pipe-box pipe-done">inputs.loaders<br><small style="font-weight:400;font-size:0.7rem">spec written</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-done">physics.solar<br><small style="font-weight:400;font-size:0.7rem">implemented</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-done">physics.battery<br><small style="font-weight:400;font-size:0.7rem">implemented</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-todo">settlement.dppa<br><small style="font-weight:400;font-size:0.7rem">not started</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-todo">aggregation.monthly<br><small style="font-weight:400;font-size:0.7rem">not started</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-todo">aggregation.annual<br><small style="font-weight:400;font-size:0.7rem">not started</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-todo">aggregation.lifetime<br><small style="font-weight:400;font-size:0.7rem">not started</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-todo">financial.waterfall<br><small style="font-weight:400;font-size:0.7rem">not started</small></div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-box pipe-todo">financial.metrics<br><small style="font-weight:400;font-size:0.7rem">not started</small></div>
+</div>
+
+<!-- Module Status -->
+<h2>Module-by-Module Status</h2>
+<div class="module-grid">
+
+  <div class="layer-card">
+    <div class="layer-title">Core Layer — Foundation</div>
+    <div class="module-row">
+      <span class="badge badge-done">done</span>
+      <span class="module-name">core.types</span>
+      <span class="module-desc">Enums, type aliases</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-done">done</span>
+      <span class="module-name">core.exceptions</span>
+      <span class="module-desc">6 domain exceptions</span>
+    </div>
+  </div>
+
+  <div class="layer-card">
+    <div class="layer-title">Physics Layer — Simulation Engine</div>
+    <div class="module-row">
+      <span class="badge badge-done">done</span>
+      <span class="module-name">physics.solar</span>
+      <span class="module-desc">Scale, direct consumption, surplus</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-done">done</span>
+      <span class="module-name">physics.battery</span>
+      <span class="module-desc">Full dispatch engine + SoC tracking</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-done">done</span>
+      <span class="module-name">physics.balance</span>
+      <span class="module-desc">Energy balance validation</span>
+    </div>
+  </div>
+
+  <div class="layer-card">
+    <div class="layer-title">Input Layer — Data Ingestion</div>
+    <div class="module-row">
+      <span class="badge badge-partial">spec only</span>
+      <span class="module-name">inputs.schemas</span>
+      <span class="module-desc">Pydantic models (spec written)</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">inputs.loaders</span>
+      <span class="module-desc">Excel / CSV reader</span>
+    </div>
+  </div>
+
+  <div class="layer-card">
+    <div class="layer-title">Settlement Layer — Vietnam DPPA</div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">settlement.dppa</span>
+      <span class="module-desc">CfD settlement, R_total, CDN</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">settlement.grid</span>
+      <span class="module-desc">Grid savings &amp; demand charges</span>
+    </div>
+  </div>
+
+  <div class="layer-card">
+    <div class="layer-title">Aggregation Layer — Time Bridge</div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">aggregation.monthly</span>
+      <span class="module-desc">Hourly → monthly (peak demand)</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">aggregation.annual</span>
+      <span class="module-desc">Monthly → Year 1 totals</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">aggregation.lifetime</span>
+      <span class="module-desc">25-yr degradation projection</span>
+    </div>
+  </div>
+
+  <div class="layer-card">
+    <div class="layer-title">Financial Layer — Returns</div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">financial.waterfall</span>
+      <span class="module-desc">Revenue → EBITDA → CFADS</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">financial.debt</span>
+      <span class="module-desc">DSCR-based debt sculpting</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">financial.metrics</span>
+      <span class="module-desc">XIRR / XNPV / DSCR</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Testing status -->
+<h2>Test Coverage Status</h2>
+<div class="module-grid">
+  <div class="layer-card">
+    <div class="layer-title">Tests Written</div>
+    <div class="module-row">
+      <span class="badge badge-done">done</span>
+      <span class="module-name">test_solar.py</span>
+      <span class="module-desc">6 classes, ~20 cases</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-done">done</span>
+      <span class="module-name">test_balance.py</span>
+      <span class="module-desc">4 classes, ~25 cases</span>
+    </div>
+  </div>
+  <div class="layer-card">
+    <div class="layer-title">Tests Needed</div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">test_battery.py</span>
+      <span class="module-desc">dispatch, SoC, charge/discharge logic</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">test_dppa.py</span>
+      <span class="module-desc">CfD settlement, activation toggle</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">test_financial.py</span>
+      <span class="module-desc">IRR/NPV accuracy vs Excel</span>
+    </div>
+    <div class="module-row">
+      <span class="badge badge-todo">todo</span>
+      <span class="module-name">integration tests</span>
+      <span class="module-desc">End-to-end vs Excel model outputs</span>
+    </div>
+  </div>
+</div>
+
+<!-- What's been built — walkthrough -->
+<h2>What Has Been Built — Detailed Walkthrough</h2>
+
+<div class="timeline">
+
+  <div class="tl-item tl-done">
+    <div class="tl-dot"></div>
+    <h3>Phase 1: Full Excel Model Audit</h3>
+    <p>The 40 MW Solar + BESS Excel workbook was fully reverse-engineered. Every sheet was classified, every formula pattern extracted, and all cross-sheet data flows mapped. This produced three key artefacts: <code style="color:var(--accent2)">model_architecture.md</code>, <code style="color:var(--accent2)">docs/analysis_report.md</code>, and <code style="color:var(--accent2)">docs/besstoload_investigation.md</code>. The audit also identified 7 risks in the Excel model (hardcoded values, circular references, DPPA toggle risk, battery augmentation timing). These documents form the authoritative blueprint for the Python implementation.</p>
+  </div>
+
+  <div class="tl-item tl-done">
+    <div class="tl-dot"></div>
+    <h3>Phase 2: Python Implementation Specification</h3>
+    <p>A detailed <code style="color:var(--accent2)">implementation_spec.md</code> was written defining 13 Python modules across 7 layers. It includes exact function signatures, input/output types, formula-to-code mappings (e.g. Excel's <em>LET()</em> discharge logic → <code>evaluate_discharge_permission()</code>), and a Pydantic input schema. This spec means any developer can implement a module without touching the Excel file.</p>
+  </div>
+
+  <div class="tl-item tl-done">
+    <div class="tl-dot"></div>
+    <h3>Phase 3: Core Layer — Type System &amp; Exception Hierarchy</h3>
+    <p><code style="color:var(--accent2)">core.types</code> defines 4 enums (<code>StrategyMode</code>, <code>ChargingMode</code>, <code>TimePeriod</code>, <code>GridChargeMode</code>) and 6 physical unit type aliases (<code>PowerKW</code>, <code>EnergyKWH</code>, <code>Ratio</code>, etc.). <code style="color:var(--accent2)">core.exceptions</code> defines a 6-exception hierarchy all rooted at <code>REStorageError</code>, with structured attributes for debugging (timestep, imbalance_kwh, soc_kwh, etc.).</p>
+  </div>
+
+  <div class="tl-item tl-done">
+    <div class="tl-dot"></div>
+    <h3>Phase 4: Physics Layer — Solar Module</h3>
+    <p><code style="color:var(--accent2)">physics.solar</code> implements three functions (plus vectorized numpy versions of each): <code>scale_generation()</code> replicates Excel's <em>Calc!Col F</em> output scale factor; <code>calculate_direct_pv_consumption()</code> replicates <em>Calc!Col I</em> (<code>MIN(Load, MAX(Solar-PV2BESS, 0))</code>); and <code>calculate_surplus_generation()</code> calculates grid-exportable surplus. Full unit tests in <code>test_solar.py</code>.</p>
+  </div>
+
+  <div class="tl-item tl-done">
+    <div class="tl-dot"></div>
+    <h3>Phase 5: Physics Layer — Battery Dispatch Engine</h3>
+    <p><code style="color:var(--accent2)">physics.battery</code> is the most complex module — it replicates the entire <em>Calc sheet LET() formula</em>. It includes: <code>BatteryConfig</code> (frozen dataclass with all dispatch parameters), <code>BatteryState</code> (per-timestep output), <code>calculate_pv_to_bess()</code> with both TIME_WINDOW and PRECHARGE_TARGET modes, <code>evaluate_discharge_permission()</code> with 4 overlapping conditions (and a warning logger for conflicts, addressing Risk 1 from the audit), <code>calculate_discharge_power()</code>, <code>calculate_grid_charge_power()</code> with 3 grid charge modes, <code>update_soc()</code> with physics-correct efficiency application, and a top-level <code>dispatch_single_timestep()</code> that orchestrates all steps. SoCBoundsError is raised (not silently clipped) when dispatch logic over-charges or over-discharges.</p>
+  </div>
+
+  <div class="tl-item tl-done">
+    <div class="tl-dot"></div>
+    <h3>Phase 6: Physics Layer — Energy Balance Validation</h3>
+    <p><code style="color:var(--accent2)">physics.balance</code> implements the "Physics First" principle: before any financial calculation runs, energy must balance to within 1 Wh. Three validators: <code>validate_energy_balance()</code> checks Solar = Direct + Charged + Surplus; <code>validate_soc_bounds()</code> checks 0 ≤ SoC ≤ Capacity; <code>validate_power_rating()</code> checks power ≤ inverter/grid rating. All have vectorized numpy variants for processing full 8760-hour arrays in one pass. Full unit tests in <code>test_balance.py</code>.</p>
+  </div>
+
+  <div class="tl-item tl-partial">
+    <div class="tl-dot"></div>
+    <h3>In Progress: Input Layer — Pydantic Schemas</h3>
+    <p>The <code>SystemAssumptions</code> Pydantic model is fully specified in <code>implementation_spec.md</code> with all field validators, but has not yet been implemented as actual Python code in the <code>inputs/</code> package. The spec includes validators for capacity constraints, efficiency bounds (0.5–1.0), hour ranges, DPPA parameters, and financial parameters.</p>
+  </div>
+
+  <div class="tl-item tl-todo">
+    <div class="tl-dot"></div>
+    <h3>Not Started: Settlement, Aggregation, Financial Layers</h3>
+    <p>The remaining 8 modules — DPPA/Grid settlement, monthly/annual/lifetime aggregation, and the financial waterfall with debt sculpting — have full spec but zero implementation. These are the commercially critical modules that produce the IRR and NPV outputs.</p>
+  </div>
+
+</div>
+
+<!-- Key risks from audit -->
+<h2>Key Risks Identified in Excel Model (Must Be Addressed in Python)</h2>
+<div class="risk-list">
+  <div class="risk-item">
+    <span class="risk-sev sev-high">High</span>
+    <div class="risk-content">
+      <h3>Circular Reference in Debt Sizing (Financial sheet)</h3>
+      <p>The VBA GoalSeek creates a circular dependency: Debt Size → Debt Service → DSCR → Debt Size Check → Debt Size. If iterative calculation is off or VBA fails silently, the debt size is stale. Python replacement must use <code>scipy.optimize</code> with explicit convergence checks.</p>
+    </div>
+  </div>
+  <div class="risk-item">
+    <span class="risk-sev sev-med">Med</span>
+    <div class="risk-content">
+      <h3>Discharge Strategy Condition Overlap (Calc!Col J)</h3>
+      <p>4 overlapping discharge conditions (when_needed, after_sunset, optimize_mode, peak) are OR'd together. Multiple conditions can fire simultaneously, causing unexpected off-peak discharge. The Python battery module already logs warnings for this — but the strategy logic itself needs explicit priority ordering.</p>
+    </div>
+  </div>
+  <div class="risk-item">
+    <span class="risk-sev sev-med">Med</span>
+    <div class="risk-content">
+      <h3>DPPA Activation Toggle (DPPA!Col F)</h3>
+      <p>A single flag <code>Does_model_is_actived?=0</code> silently zeros all DPPA revenue without error. In Python, the settlement module must validate that DPPA revenue is non-zero when the DPPA module is enabled, and raise an <code>InputValidationError</code> otherwise.</p>
+    </div>
+  </div>
+  <div class="risk-item">
+    <span class="risk-sev sev-med">Med</span>
+    <div class="risk-content">
+      <h3>Battery Augmentation Reset at Years 11 &amp; 22</h3>
+      <p>Loss!Col F resets battery capacity factor to 0.9745 at years 11 and 22 (implying full cell replacement). This assumes 100% restoration, not the typical 20–30% partial augmentation. The Python lifetime module must allow configurable partial augmentation percentages and validate that augmentation cost in the financial model matches the year schedule.</p>
+    </div>
+  </div>
+  <div class="risk-item">
+    <span class="risk-sev sev-low">Low</span>
+    <div class="risk-content">
+      <h3>Loss Table Year Coverage</h3>
+      <p>If Loss!Col A doesn't span years 1–25, XLOOKUP silently returns 0, making projected generation drop to zero. Python's <code>DegradationTableError</code> exception is already defined to catch this — the lifetime module must validate coverage at load time.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Next steps -->
+<h2>Recommended Next Steps</h2>
+<div class="next-steps">
+  <div class="step-card">
+    <div class="step-num">1</div>
+    <h3>Close the Physics Gap — test_battery.py</h3>
+    <ul>
+      <li>Write unit tests for all battery dispatch scenarios</li>
+      <li>Test TIME_WINDOW vs PRECHARGE_TARGET charging modes</li>
+      <li>Test 4-condition discharge logic (arbitrage + peak shaving)</li>
+      <li>Test SoCBoundsError is raised on over-discharge</li>
+      <li>Test grid charge modes (DISABLED / TO_TARGET / TO_FULL)</li>
+    </ul>
+  </div>
+  <div class="step-card">
+    <div class="step-num">2</div>
+    <h3>Build the Input Layer</h3>
+    <ul>
+      <li>Implement <code>inputs.schemas</code> from the spec (Pydantic models)</li>
+      <li>Build <code>inputs.loaders</code> to read from the audit .xlsx file</li>
+      <li>Validate actual Ecoplexus data loads without errors</li>
+      <li>Write test_inputs.py with fixture from tests/data/projects/</li>
+    </ul>
+  </div>
+  <div class="step-card">
+    <div class="step-num">3</div>
+    <h3>Implement Settlement Layer (DPPA is Critical)</h3>
+    <ul>
+      <li>Implement <code>settlement.dppa</code>: NetGen, Rg, Q_Khc, CDN, CCL, R_CFD, R_total</li>
+      <li>Implement CfD mechanism: IF FMP &lt; Strike → top-up payment</li>
+      <li>Implement DPPA activation guard (raises on silent zero)</li>
+      <li>Implement <code>settlement.grid</code>: BAU vs RE grid expense</li>
+    </ul>
+  </div>
+  <div class="step-card">
+    <div class="step-num">4</div>
+    <h3>Build Aggregation Layer</h3>
+    <ul>
+      <li>Implement <code>aggregation.monthly</code>: MAXIFS peak demand per month</li>
+      <li>Implement <code>aggregation.annual</code>: roll hourly data to Year 1 totals</li>
+      <li>Implement <code>aggregation.lifetime</code>: 25-yr degradation with augmentation at Years 11 &amp; 22</li>
+      <li>Validate degradation table covers all years (DegradationTableError)</li>
+    </ul>
+  </div>
+  <div class="step-card">
+    <div class="step-num">5</div>
+    <h3>Build Financial Layer</h3>
+    <ul>
+      <li>Implement <code>financial.waterfall</code>: Revenue → EBITDA → CFADS cascade</li>
+      <li>Implement <code>financial.debt</code>: DSCR-sculpted debt sizing via scipy.optimize</li>
+      <li>Implement <code>financial.metrics</code>: XIRR and XNPV using scipy</li>
+      <li>Validate Project IRR ≈ 5.07%, Unlevered IRR ≈ 8.83% vs Excel</li>
+    </ul>
+  </div>
+  <div class="step-card">
+    <div class="step-num">6</div>
+    <h3>End-to-End Integration Test</h3>
+    <ul>
+      <li>Load real Ecoplexus .xlsx via inputs.loaders</li>
+      <li>Run full simulation pipeline end-to-end</li>
+      <li>Compare Python outputs to each Excel sheet's key cells</li>
+      <li>Target: NPV within 0.1%, IRR within 5 bps of Excel</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Summary -->
+<h2>Summary</h2>
+<p>The project is in a <strong style="color:var(--partial)">solid foundation phase</strong>. The hardest architectural decisions are made and documented. The physics engine — which is the most complex part of the simulation — is fully implemented and tested. The remaining work is largely mechanical: implement the higher-level modules (settlement → aggregation → financial) following the spec, then validate end-to-end against the Excel numbers.</p>
+<p>The biggest risk to timeline is the <strong style="color:var(--text)">DPPA settlement layer</strong>, which requires careful interpretation of Vietnam's CfD mechanism (k_factor, Kpp, Delta parameters), and the <strong style="color:var(--text)">debt sizing module</strong>, which must replicate Excel's VBA GoalSeek correctly using scipy. Both have detailed specs. Neither requires new research — just implementation.</p>
+
+<footer>Generated by Claude Code &nbsp;|&nbsp; re-storage-model v0.1.0 &nbsp;|&nbsp; 40MW Solar + BESS, Vietnam</footer>
+</body>
+</html>

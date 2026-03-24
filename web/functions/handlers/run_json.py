@@ -47,6 +47,7 @@ def _build_project_payload(form: dict[str, str]) -> dict[str, Any]:
     kpp_22 = _to_float(form, "kpp_22", 1.027263)
     kpp_110 = _to_float(form, "kpp_110", 1.008525)
     project_years = _to_int(form, "project_years", 20)
+    ppa_option = _to_int(form, "ppa_option", 3)
 
     degradation_json = form.get("degradation_json", "")
     if degradation_json.strip() == "":
@@ -108,6 +109,13 @@ def _build_project_payload(form: dict[str, str]) -> dict[str, Any]:
         },
         "grid_connection_and_tariff": {
             "connection_voltage_level_kV": connection_voltage_kv,
+            "tariff_structure": "1-component",
+            "evn_retail_tariff_VND": {
+                "Cp_demand": 0.0,
+                "Ca_normal": _to_float(form, "evn_tariff_standard_vnd", 1833.0),
+                "Ca_peak": _to_float(form, "evn_tariff_peak_vnd", 3398.0),
+                "Ca_offpeak": _to_float(form, "evn_tariff_off_peak_vnd", 1190.0),
+            },
             "current_applied_evn_tariff_USD_MWh": {
                 "off_peak": _to_float(form, "tariff_off_peak", 45.7692307692308),
                 "standard": _to_float(form, "tariff_standard", 70.5),
@@ -116,22 +124,66 @@ def _build_project_payload(form: dict[str, str]) -> dict[str, Any]:
             },
         },
         "ppa_settings": {
+            "contract_duration_years": project_years,
+            "active_ppa_option": ppa_option,
             "option_3_dppa": {
                 "model_active": _to_bool(form, "dppa_enabled", True),
                 "strike_price_VND": strike_price_vnd,
+                "avg_sun_hours_market_price_descent_pct_pa": _to_float(
+                    form,
+                    "fmp_descent_pct",
+                    -0.05,
+                ),
+                "curtailment_pct": _to_float(form, "dppa_curtailment_pct", 0.02),
+                "price_escalation_pct": _to_float(form, "revenue_escalation_pct", 0.05),
                 "regulation_parameters": {
                     "k": _to_float(form, "k_factor", 1.02),
                     "Kpp_22kv": kpp_22,
                     "Kpp_110kv": kpp_110,
                 },
-            }
+            },
+            "option_1_corporate_buyer": {
+                "evn_price_escalation_pct_pa": _to_float(form, "revenue_escalation_pct", 0.05),
+                "net_billing_USD_MWh": _to_float(form, "net_billing_usd_per_mwh", 38.4615384615385),
+                "pv_export_net_billing_share_pct": _to_float(
+                    form, "net_billing_export_share_pct", 0.2
+                ),
+                "bundled_discount_to_evn_tariff_pct": _to_float(form, "bundled_discount_pct", 0.15),
+            },
+            "option_2_pv_bess_discount": {
+                "pv_discount_to_evn_tariff_pct": _to_float(form, "pv_discount_pct", 0.05),
+                "bess_discount_to_evn_tariff_pct": _to_float(form, "bess_discount_pct", 0.05),
+            },
+            "option_4_ppa_with_evn": {
+                "all_in_fixed_price_USD_MWh": _to_float(form, "fixed_ppa_price_usd_per_mwh", 70.0),
+                "curtailment_pct": _to_float(form, "fixed_ppa_curtailment_pct", 0.03),
+                "transmission_loss_pct": _to_float(form, "fixed_ppa_tx_loss_pct", 0.01),
+            },
         },
         "capex": {
+            "land_acquisition_USD": _to_float(form, "land_acquisition_usd", 0.0),
             "solar_USD_per_MWp": _to_float(form, "solar_usd_per_mwp", 0.0),
             "bess_USD_per_MWh": _to_float(form, "bess_usd_per_mwh", 0.0),
+            "bop_USD": _to_float(form, "bop_usd", 0.0),
+            "depreciation_tenor_years": _to_int(form, "depreciation_tenor_years", 20),
+        },
+        "opex": {
+            "solar_om_USD_per_MWp_pa": _to_float(form, "solar_om_usd_per_mwp_pa", 6000.0),
+            "bess_om_USD_per_MWh_pa": _to_float(form, "bess_om_usd_per_mwh_pa", 2000.0),
+            "insurance_solar_pct_total_capex": _to_float(form, "insurance_solar_pct_capex", 0.0025),
+            "insurance_bess_pct_total_capex": _to_float(form, "insurance_bess_pct_capex", 0.0025),
+            "other_opex_USD_per_MWp_pa": _to_float(form, "other_opex_usd_per_mwp_pa", 1000.0),
+            "asset_management_USD_per_MWp_pa": _to_float(
+                form,
+                "asset_management_usd_per_mwp_pa",
+                3000.0,
+            ),
+            "land_lease_pct_of_revenue": _to_float(form, "land_lease_pct_revenue", 0.005),
+            "opex_escalation_cpi_pct_pa": _to_float(form, "opex_escalation_pct", 0.04),
         },
         "financial_assumptions": {
             "debt_sizing": {
+                "maximum_leverage_pct": _to_float(form, "maximum_leverage_pct", 0.7),
                 "maximum_debt_tenor_years": _to_int(form, "tenor_years", 15),
                 "target_dscr_x": _to_float(form, "target_dscr", 1.3),
             },
@@ -139,14 +191,37 @@ def _build_project_payload(form: dict[str, str]) -> dict[str, Any]:
                 "base_rate_floating": _to_float(form, "base_rate", 0.06),
                 "debt_margin_pct": _to_float(form, "debt_margin", 0.0),
             },
+            "tax": {
+                "corporate_tax_rate_pct": _to_float(form, "tax_rate", 0.2),
+                "tax_holiday_years": _to_int(form, "tax_holiday_years", 5),
+                "first_discount_year": _to_int(form, "first_discount_year", 13),
+                "first_discount_rate": _to_float(form, "first_discount_rate", 0.13),
+                "second_discount_year": _to_int(form, "second_discount_year", 15),
+                "second_discount_rate": _to_float(form, "second_discount_rate", 0.15),
+            },
+            "return_expectations": {
+                "target_minimum_equity_irr_pct": _to_float(
+                    form,
+                    "target_minimum_equity_irr_pct",
+                    0.1,
+                )
+            },
         },
         "degradation_and_loss": {
             "annual_table": annual_table,
         },
+        "retail_tariff_matrix": {
+            "mra_buildup_assumption": [
+                {"year": 0, "pct": _to_float(form, "mra_buildup_year0_pct", 0.1)},
+                {"year": 1, "pct": _to_float(form, "mra_buildup_year1_pct", 0.3)},
+                {"year": 2, "pct": _to_float(form, "mra_buildup_year2_pct", 0.3)},
+                {"year": 3, "pct": _to_float(form, "mra_buildup_year3_pct", 0.3)},
+            ]
+        },
     }
 
 
-def handle_run_json(request: Request) -> Response:
+def handle_run_json(request: Request):
     method_error = ensure_post_method(request)
     if method_error is not None:
         return jsonify({"error": method_error}), 405
@@ -162,11 +237,11 @@ def handle_run_json(request: Request) -> Response:
     try:
         payload = _build_project_payload(form)
     except ValueError as exc:
+        if isinstance(exc, json.JSONDecodeError):
+            return jsonify(
+                {"error": f"Invalid degradation_json: {exc}", "type": "JSONDecodeError"}
+            ), 400
         return jsonify({"error": str(exc), "type": type(exc).__name__}), 400
-    except json.JSONDecodeError as exc:
-        return jsonify(
-            {"error": f"Invalid degradation_json: {exc}", "type": "JSONDecodeError"}
-        ), 400
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         project_dir = Path(tmp_dir)

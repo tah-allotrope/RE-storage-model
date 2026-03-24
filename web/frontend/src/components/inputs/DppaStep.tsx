@@ -15,6 +15,11 @@ function fieldClassName(error?: string): string {
 
 export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Element {
   const dppaEnabled = values.dppa_enabled === "true";
+  const ppaOption = values.ppa_option;
+  const isBundled = ppaOption === "1";
+  const isSeparate = ppaOption === "2";
+  const isDppa = ppaOption === "3";
+  const isFixedPpa = ppaOption === "4";
 
   return (
     <div className="form-grid">
@@ -25,7 +30,16 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
           <option value="false">No</option>
         </select>
       </label>
-      <label className={!dppaEnabled ? "field-disabled" : undefined}>
+      <label>
+        PPA option
+        <select className={fieldClassName(errors.ppa_option)} name="ppa_option" value={values.ppa_option} onChange={onChange}>
+          <option value="1">Option 1 - Bundled discount</option>
+          <option value="2">Option 2 - Separate PV + BESS discount</option>
+          <option value="3">Option 3 - DPPA / CfD</option>
+          <option value="4">Option 4 - Fixed EVN PPA</option>
+        </select>
+      </label>
+      <label className={!isDppa || !dppaEnabled ? "field-disabled" : undefined}>
         Strike price (VND/kWh)
         <input
           className={fieldClassName(errors.strike_price_vnd)}
@@ -33,11 +47,11 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
           type="number"
           value={values.strike_price_vnd}
           onChange={onChange}
-          disabled={!dppaEnabled}
+          disabled={!dppaEnabled || !isDppa}
         />
         {errors.strike_price_vnd ? <span className="field-error">{errors.strike_price_vnd}</span> : null}
       </label>
-      <label className={!dppaEnabled ? "field-disabled" : undefined}>
+      <label className={!isDppa || !dppaEnabled ? "field-disabled" : undefined}>
         k-factor
         <input
           className={fieldClassName(errors.k_factor)}
@@ -46,7 +60,7 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
           step="0.0001"
           value={values.k_factor}
           onChange={onChange}
-          disabled={!dppaEnabled}
+          disabled={!dppaEnabled || !isDppa}
         />
         {errors.k_factor ? <span className="field-error">{errors.k_factor}</span> : null}
       </label>
@@ -62,7 +76,7 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
           <option value="110">110</option>
         </select>
       </label>
-      <label className={!dppaEnabled ? "field-disabled" : undefined}>
+      <label className={!isDppa || !dppaEnabled ? "field-disabled" : undefined}>
         Kpp 22kV
         <input
           className={fieldClassName(errors.kpp_22)}
@@ -71,11 +85,11 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
           step="0.000001"
           value={values.kpp_22}
           onChange={onChange}
-          disabled={!dppaEnabled}
+          disabled={!dppaEnabled || !isDppa}
         />
         {errors.kpp_22 ? <span className="field-error">{errors.kpp_22}</span> : null}
       </label>
-      <label className={!dppaEnabled ? "field-disabled" : undefined}>
+      <label className={!isDppa || !dppaEnabled ? "field-disabled" : undefined}>
         Kpp 110kV
         <input
           className={fieldClassName(errors.kpp_110)}
@@ -84,9 +98,112 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
           step="0.000001"
           value={values.kpp_110}
           onChange={onChange}
-          disabled={!dppaEnabled}
+          disabled={!dppaEnabled || !isDppa}
         />
         {errors.kpp_110 ? <span className="field-error">{errors.kpp_110}</span> : null}
+      </label>
+      <label className={!isBundled ? "field-disabled" : undefined}>
+        Bundled discount
+        <input
+          className={fieldClassName(errors.bundled_discount_pct)}
+          name="bundled_discount_pct"
+          type="number"
+          step="0.01"
+          value={values.bundled_discount_pct}
+          onChange={onChange}
+          disabled={!isBundled}
+        />
+        {errors.bundled_discount_pct ? <span className="field-error">{errors.bundled_discount_pct}</span> : null}
+      </label>
+      <label>
+        Revenue escalation
+        <input
+          className={fieldClassName(errors.revenue_escalation_pct)}
+          name="revenue_escalation_pct"
+          type="number"
+          step="0.01"
+          value={values.revenue_escalation_pct}
+          onChange={onChange}
+        />
+        {errors.revenue_escalation_pct ? <span className="field-error">{errors.revenue_escalation_pct}</span> : null}
+      </label>
+      <label className={!isSeparate ? "field-disabled" : undefined}>
+        PV discount
+        <input
+          className={fieldClassName(errors.pv_discount_pct)}
+          name="pv_discount_pct"
+          type="number"
+          step="0.01"
+          value={values.pv_discount_pct}
+          onChange={onChange}
+          disabled={!isSeparate}
+        />
+        {errors.pv_discount_pct ? <span className="field-error">{errors.pv_discount_pct}</span> : null}
+      </label>
+      <label className={!isSeparate ? "field-disabled" : undefined}>
+        BESS discount
+        <input
+          className={fieldClassName(errors.bess_discount_pct)}
+          name="bess_discount_pct"
+          type="number"
+          step="0.01"
+          value={values.bess_discount_pct}
+          onChange={onChange}
+          disabled={!isSeparate}
+        />
+        {errors.bess_discount_pct ? <span className="field-error">{errors.bess_discount_pct}</span> : null}
+      </label>
+      <label className={!isFixedPpa ? "field-disabled" : undefined}>
+        Fixed PPA price (USD/MWh)
+        <input
+          className={fieldClassName(errors.fixed_ppa_price_usd_per_mwh)}
+          name="fixed_ppa_price_usd_per_mwh"
+          type="number"
+          step="0.01"
+          value={values.fixed_ppa_price_usd_per_mwh}
+          onChange={onChange}
+          disabled={!isFixedPpa}
+        />
+        {errors.fixed_ppa_price_usd_per_mwh ? <span className="field-error">{errors.fixed_ppa_price_usd_per_mwh}</span> : null}
+      </label>
+      <label className={!isFixedPpa ? "field-disabled" : undefined}>
+        Fixed PPA curtailment
+        <input
+          className={fieldClassName(errors.fixed_ppa_curtailment_pct)}
+          name="fixed_ppa_curtailment_pct"
+          type="number"
+          step="0.01"
+          value={values.fixed_ppa_curtailment_pct}
+          onChange={onChange}
+          disabled={!isFixedPpa}
+        />
+        {errors.fixed_ppa_curtailment_pct ? <span className="field-error">{errors.fixed_ppa_curtailment_pct}</span> : null}
+      </label>
+      <label className={!isFixedPpa ? "field-disabled" : undefined}>
+        Fixed PPA transmission loss
+        <input
+          className={fieldClassName(errors.fixed_ppa_tx_loss_pct)}
+          name="fixed_ppa_tx_loss_pct"
+          type="number"
+          step="0.01"
+          value={values.fixed_ppa_tx_loss_pct}
+          onChange={onChange}
+          disabled={!isFixedPpa}
+        />
+        {errors.fixed_ppa_tx_loss_pct ? <span className="field-error">{errors.fixed_ppa_tx_loss_pct}</span> : null}
+      </label>
+      <label className={!isDppa ? "field-disabled" : undefined}>
+        Market price descent
+        <input
+          className={fieldClassName(errors.fmp_descent_pct)}
+          name="fmp_descent_pct"
+          type="number"
+          step="0.01"
+          value={values.fmp_descent_pct}
+          onChange={onChange}
+          disabled={!isDppa}
+        />
+        {errors.fmp_descent_pct ? <span className="field-error">{errors.fmp_descent_pct}</span> : null}
       </label>
       <label>
         Off-peak tariff (USD/MWh)

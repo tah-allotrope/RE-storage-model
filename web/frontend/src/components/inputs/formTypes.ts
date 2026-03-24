@@ -16,11 +16,20 @@ export interface ProjectFormValues {
   precharge_target_soc_kwh: string;
   precharge_target_hour: string;
   dppa_enabled: string;
+  ppa_option: string;
   strike_price_vnd: string;
   k_factor: string;
   connection_voltage_kv: string;
   kpp_22: string;
   kpp_110: string;
+  bundled_discount_pct: string;
+  pv_discount_pct: string;
+  bess_discount_pct: string;
+  fixed_ppa_price_usd_per_mwh: string;
+  fixed_ppa_curtailment_pct: string;
+  fixed_ppa_tx_loss_pct: string;
+  revenue_escalation_pct: string;
+  fmp_descent_pct: string;
   tariff_off_peak: string;
   tariff_standard: string;
   tariff_peak: string;
@@ -55,11 +64,20 @@ export const defaultFormValues: ProjectFormValues = {
   precharge_target_soc_kwh: "1500",
   precharge_target_hour: "17",
   dppa_enabled: "true",
+  ppa_option: "3",
   strike_price_vnd: "1800",
   k_factor: "1.02",
   connection_voltage_kv: "22",
   kpp_22: "1.027263",
   kpp_110: "1.008525",
+  bundled_discount_pct: "0.15",
+  pv_discount_pct: "0.05",
+  bess_discount_pct: "0.05",
+  fixed_ppa_price_usd_per_mwh: "70",
+  fixed_ppa_curtailment_pct: "0.03",
+  fixed_ppa_tx_loss_pct: "0.01",
+  revenue_escalation_pct: "0.05",
+  fmp_descent_pct: "-0.05",
   tariff_off_peak: "45.7692307692308",
   tariff_standard: "70.5",
   tariff_peak: "130.692307692308",
