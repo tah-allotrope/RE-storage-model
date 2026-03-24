@@ -32,6 +32,8 @@ KPI_TOLERANCES: dict[str, tuple[str, float]] = {
     "year1_solar_generation_mwh": ("rel", TOLERANCE_RELATIVE_ENERGY),
     "year1_dppa_revenue_usd": ("rel", TOLERANCE_RELATIVE_REVENUE),
     "year1_grid_savings_usd": ("rel", TOLERANCE_RELATIVE_REVENUE),
+    "year1_opex_usd": ("rel", TOLERANCE_RELATIVE_REVENUE),
+    "year1_ebitda_usd": ("rel", TOLERANCE_RELATIVE_REVENUE),
 }
 
 
@@ -97,6 +99,8 @@ class TestEmivestRegression:
             "year1_solar_generation_mwh",
             "year1_dppa_revenue_usd",
             "year1_grid_savings_usd",
+            "year1_opex_usd",
+            "year1_ebitda_usd",
         }
         assert expected_keys.issubset(set(results.keys()))
 
@@ -117,10 +121,6 @@ class TestEmivestRegression:
 
     def test_all_kpis_against_reference(self) -> None:
         reference: dict[str, Any] = json.loads(REFERENCE_PATH.read_text(encoding="utf-8"))
-        reference_values = [reference.get(k) for k in KPI_TOLERANCES]
-        if all(v is None for v in reference_values):
-            pytest.skip("Reference KPIs are all null; fill tests/data/references/emivest.json")
-
         results = run_model_from_json(PROJECT_DIR)
 
         failures: list[str] = []

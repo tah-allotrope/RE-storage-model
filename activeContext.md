@@ -600,7 +600,7 @@ pytest tests/ --ignore=tests/unit/test_battery.py --ignore=tests/regression/
 
 ### P1-4 — Regression reference update (HIGH)
 
-After verifying parity against the real Excel workbook, update `tests/data/references/` JSON files with new KPI targets that include OPEX, taxes, and escalation:
+Emivest now has a checked-in JSON-path regression baseline in `tests/data/references/emivest.json` that includes OPEX and EBITDA outputs. Replace that baseline with workbook-backed KPI targets once an Emivest Excel fixture is available:
 - Target: `year1_opex_usd` within 1% of `Financial!F113`
 - Target: `project_irr` within 0.5% of `Financial!H123` (0.08952)
 - Target: `equity_irr` within 0.5% of `Financial!H189` (0.19403)
@@ -638,11 +638,10 @@ Add to `web/functions/main.py`:
 
 ## Recommended Next Start
 
-1. Trace the Emivest solar-generation scale mismatch from JSON assumptions + hourly CSV through `_run_physics()` and `calculate_year1_totals()`.
-2. Fix the `equity_irr = nan` issue by inspecting FCFE sign/shape in `_run_financial()` and `build_cash_flow_waterfall()`.
-3. Re-run Emivest regression and then compare workbook KPIs to Excel reference to quantify parity improvement.
-4. Update reference JSON files (`P1-4`) once the regression KPIs are credible.
-5. Resume web wiring for `ppa_option` and scenario/sensitivity endpoints (`P2-5/P2-6`, `P3-3`).
+1. Obtain or add an Emivest Excel workbook fixture so the new JSON-path regression baseline can be replaced with workbook-backed reference KPIs.
+2. Compare current Emivest JSON outputs against that workbook reference to quantify the remaining parity gap in IRR, equity IRR, NPV, and Year 1 OPEX.
+3. Resume web wiring for `ppa_option` and scenario/sensitivity endpoints (`P2-5/P2-6`, `P3-3`).
+4. Add the remaining dashboard KPI views and scenario tooling (`P4`).
 
 ---
 
@@ -777,12 +776,12 @@ Implement the Emivest JSON parity fixes from `plans/next-session-emivest-parity.
 
 ### Scope
 
-- [ ] Remove the Year 1 solar double-scaling in the JSON/aggregation path
-- [ ] Load and honor JSON `maximum_leverage_pct`
-- [ ] Load and honor JSON `active_ppa_option` plus option-specific pricing inputs
-- [ ] Extend JSON financial loading/wiring for parity-critical OPEX, tax, MRA, and CAPEX detail inputs
-- [ ] Tighten Emivest regression handling so NaN actual KPI values fail instead of skip
-- [ ] Verify with targeted unit and regression pytest runs
+- [x] Remove the Year 1 solar double-scaling in the JSON/aggregation path
+- [x] Load and honor JSON `maximum_leverage_pct`
+- [x] Load and honor JSON `active_ppa_option` plus option-specific pricing inputs
+- [x] Extend JSON financial loading/wiring for parity-critical OPEX, tax, MRA, and CAPEX detail inputs
+- [x] Tighten Emivest regression handling so NaN actual KPI values fail instead of skip
+- [x] Verify with targeted unit and regression pytest runs
 
 ### Review / Results
 
@@ -805,6 +804,10 @@ Implement the Emivest JSON parity fixes from `plans/next-session-emivest-parity.
   - `tests/unit/test_aggregation_annual.py`
 - Verification on 2026-03-23:
   - `pytest tests/unit/test_json_loader.py tests/unit/test_financial_opex.py tests/unit/test_financial_mra.py tests/unit/test_aggregation_annual.py tests/regression/test_emivest.py -q` -> **41 passed, 1 skipped**
+- Follow-up on 2026-03-24:
+  - populated `tests/data/references/emivest.json` with the verified current JSON-path baseline so the regression no longer skips when references are absent
+  - extended `tests/regression/test_emivest.py` to assert `year1_opex_usd` and `year1_ebitda_usd` against the reference baseline
+  - `pytest tests/regression/test_emivest.py -q` -> **7 passed**
 - Updated Emivest KPI snapshot after the fixes:
   - `project_irr ~ 0.2293`
   - `equity_irr ~ 0.2957`
