@@ -19,8 +19,10 @@ FUNCTIONS_DIR = Path(__file__).resolve().parents[2] / "web" / "functions"
 if str(FUNCTIONS_DIR) not in sys.path:
     sys.path.append(str(FUNCTIONS_DIR))
 
+from handlers.compare_scenarios import handle_compare_scenarios  # noqa: E402
 from handlers.run_excel import handle_run_excel  # noqa: E402
 from handlers.run_json import _build_project_payload, handle_run_json  # noqa: E402
+from handlers.run_sensitivity import handle_run_sensitivity  # noqa: E402
 
 
 @pytest.fixture
@@ -128,6 +130,114 @@ def test_handle_run_json_success(monkeypatch: pytest.MonkeyPatch, app: Flask) ->
     assert status == 200
     assert payload["kpis"]["project_irr"] == 0.04
     assert payload["annual"] == []
+
+
+def test_handle_compare_scenarios_requires_hourly_csv(app: Flask) -> None:
+    with app.test_request_context("/api/compare-scenarios", method="POST"):
+        response = handle_compare_scenarios(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert "hourly_csv" in str(payload["error"])
+
+
+def test_handle_compare_scenarios_success(monkeypatch: pytest.MonkeyPatch, app: Flask) -> None:
+    def fake_run_all_scenarios(*, project_dir: Path) -> dict[int, dict[str, Any]]:
+        assert project_dir.exists()
+        return {
+            1: {"ppa_option": 1, "project_irr": 0.11, "ppa_label": "Bundled Discount"},
+            3: {"ppa_option": 3, "project_irr": 0.08, "ppa_label": "DPPA (CfD)"},
+        }
+
+    monkeypatch.setattr("handlers.compare_scenarios.run_all_scenarios", fake_run_all_scenarios)
+
+    form_data = {
+        "project_name": "Scenario Test",
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/compare-scenarios", method="POST", data=form_data):
+        response = handle_compare_scenarios(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 200
+    assert payload["scenarios"]["1"]["project_irr"] == pytest.approx(0.11)
+    assert payload["scenarios"]["3"]["ppa_label"] == "DPPA (CfD)"
+
+
+def test_handle_run_sensitivity_requires_variable(app: Flask) -> None:
+    form_data = {
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/run-sensitivity", method="POST", data=form_data):
+        response = handle_run_sensitivity(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert payload["error"] == "sensitivity_variable is required"
+
+
+def test_handle_run_sensitivity_success(monkeypatch: pytest.MonkeyPatch, app: Flask) -> None:
+    def fake_run_sensitivity_for_values(
+        *,
+        variable_name: str,
+        test_values: list[float],
+        project_dir: Path,
+        base_params: dict[str, Any],
+        ppa_option: int,
+    ) -> dict[float, dict[str, Any]]:
+        assert variable_name == "strike_price_vnd"
+        assert test_values == [1600.0, 1800.0, 2000.0]
+        assert project_dir.exists()
+        assert base_params["actual_capacity_kwp"] == 1000
+        assert ppa_option == 3
+        return {
+            1600.0: {"project_irr": 0.07},
+            1800.0: {"project_irr": 0.08},
+            2000.0: {"project_irr": 0.09},
+        }
+
+    monkeypatch.setattr(
+        "handlers.run_sensitivity.run_sensitivity_for_values",
+        fake_run_sensitivity_for_values,
+    )
+
+    form_data = {
+        "project_name": "Sensitivity Test",
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "ppa_option": "3",
+        "sensitivity_variable": "strike_price_vnd",
+        "sensitivity_values": json.dumps([1600, 1800, 2000]),
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/run-sensitivity", method="POST", data=form_data):
+        response = handle_run_sensitivity(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 200
+    assert payload["variable"] == "strike_price_vnd"
+    assert payload["results"]["1800.0"]["project_irr"] == pytest.approx(0.08)
 
 
 def test_build_project_payload_includes_all_ppa_options() -> None:

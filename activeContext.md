@@ -818,3 +818,98 @@ Implement the Emivest JSON parity fixes from `plans/next-session-emivest-parity.
   - `year1_grid_savings_usd ~ 249,876.35`
   - `year1_opex_usd ~ 48,218.61`
   - `year1_ebitda_usd ~ 414,052.64`
+
+---
+
+## ISSUE-10 Objective (Current Session)
+
+Implement the next missing web API slice from the roadmap by adding scenario-comparison and sensitivity endpoints on top of the existing Firebase Functions backend.
+
+### Scope
+
+- [x] Add backend handlers for scenario comparison and sensitivity analysis using the existing `re_storage.scenarios` package
+- [x] Expose new Firebase function entrypoints for those handlers
+- [x] Add Hosting rewrites so the SPA can call the new `/api/*` routes consistently
+- [x] Add unit coverage for the new handlers and payload shapes
+- [x] Verify targeted handler checks as far as the current environment allows
+
+### Review / Results
+
+- Added shared multipart-form payload builder in `web/functions/handlers/project_payload.py` so `runJson`, scenario comparison, and sensitivity analysis all construct the same JSON-model payload shape.
+- Added `web/functions/handlers/compare_scenarios.py`:
+  - validates POST + `hourly_csv`
+  - reuses the structured-form payload builder
+  - writes a temp JSON+CSV project bundle and calls `run_all_scenarios(project_dir=...)`
+  - returns `{ "scenarios": { "1": {...}, ... } }`
+- Added `web/functions/handlers/run_sensitivity.py`:
+  - validates POST + `hourly_csv` + required `sensitivity_variable`
+  - parses `sensitivity_values` from JSON array text
+  - builds `base_params` from submitted form fields
+  - writes a temp JSON+CSV project bundle and calls `run_sensitivity_for_values(...)`
+  - returns `{ "variable": ..., "results": { "1800.0": {...}, ... } }`
+- Updated `web/functions/main.py` with new Cloud Function entrypoints:
+  - `compareScenarios`
+  - `runSensitivity`
+- Updated `firebase.json` rewrites so the SPA can reach:
+  - `/api/compare-scenarios`
+  - `/api/run-sensitivity`
+- Extended `tests/unit/test_web_handlers.py` with request/response coverage for both new handlers and kept `_build_project_payload()` compatibility via the existing `run_json` import surface.
+
+### Verification
+
+- `ruff check web/functions/main.py web/functions/handlers/run_json.py web/functions/handlers/project_payload.py web/functions/handlers/compare_scenarios.py web/functions/handlers/run_sensitivity.py tests/unit/test_web_handlers.py` -> **pass**
+- `pytest tests/unit/test_web_handlers.py -q` -> **skipped in repo-level env** because Flask is not installed there (`tests/unit/test_web_handlers.py` already guards on that dependency)
+
+### Next Sensible Step
+
+- Wire the frontend to these new routes with a scenario comparison view and a sensitivity panel, then exercise the full handler suite inside the `web/functions` virtualenv where Flask and Functions Framework are installed.
+
+---
+
+## ISSUE-11 Objective (Current Session)
+
+Wire the new scenario-comparison and sensitivity APIs into the React web app so structured-form runs can drive follow-up analysis directly from the results workspace.
+
+### Scope
+
+- [x] Extend frontend API/types for scenario comparison and sensitivity responses
+- [x] Retain the latest structured-form submission payload so follow-up analysis calls can reuse it
+- [x] Add scenario comparison and sensitivity panels to the results dashboard
+- [x] Add frontend proxy/config/style updates for the new analysis routes and components
+- [x] Verify frontend build and probe Flask-backed handler imports from `web/functions/.venv`
+
+### Review / Results
+
+- Extended `web/frontend/src/types/model.ts` with:
+  - `ScenarioComparisonResponse`
+  - `SensitivityResponse`
+  - scenario/sensitivity KPI row types layered on the existing model KPI contract
+- Extended `web/frontend/src/api/client.ts` with:
+  - `compareScenarios(formData)` -> `POST /api/compare-scenarios`
+  - `runSensitivity(formData)` -> `POST /api/run-sensitivity`
+- Updated `web/frontend/src/hooks/useModelRun.ts` so the app now:
+  - stores the latest structured-form `FormData` payload after a successful JSON run
+  - clears analysis state when switching to a new run
+  - can trigger scenario comparison against that stored payload
+  - can trigger sensitivity analysis with preset value ranges for supported backend variables
+- Updated `web/frontend/src/components/results/ResultsDashboard.tsx` to add an analysis action strip plus two new result sections:
+  - `ScenarioComparisonTable`
+  - `SensitivityPanel`
+- Added new result components:
+  - `web/frontend/src/components/results/ScenarioComparisonTable.tsx`
+  - `web/frontend/src/components/results/SensitivityPanel.tsx`
+- Updated `web/frontend/vite.config.ts` to proxy the new endpoints locally:
+  - `/api/compare-scenarios` -> `localhost:8083`
+  - `/api/run-sensitivity` -> `localhost:8084`
+- Updated `web/frontend/src/styles.css` with analysis-panel, summary-card, and comparison-table styles that follow the existing results dashboard language and collapse cleanly on narrower screens.
+
+### Verification
+
+- `npm run build` in `web/frontend` -> **pass**
+- `ruff check web/functions/main.py web/functions/handlers/project_payload.py web/functions/handlers/compare_scenarios.py web/functions/handlers/run_sensitivity.py tests/unit/test_web_handlers.py` -> **pass**
+- `web/functions/.venv\Scripts\python.exe -c "import main; import handlers.compare_scenarios; import handlers.run_sensitivity; print('imports-ok')"` -> **pass**
+- Full Flask-backed handler pytest execution in `web/functions/.venv` remains blocked because that virtualenv currently lacks `pytest`, even though the web-function imports themselves load successfully there.
+
+### Next Sensible Step
+
+- Start the new local function targets on ports `8083` and `8084`, then exercise the full end-to-end browser flow so the new analysis panels populate from live API responses instead of build-only verification.

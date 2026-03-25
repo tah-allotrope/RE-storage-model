@@ -12,6 +12,12 @@ export interface ModelKpis {
   year1_grid_savings_usd: number | null;
 }
 
+export interface ScenarioKpis extends Partial<ModelKpis> {
+  ppa_option?: number;
+  ppa_label?: string;
+  error?: string;
+}
+
 export interface LifetimeRow {
   year: number;
   generation_mwh: number;
@@ -76,4 +82,19 @@ export interface ModelResponse {
 export interface ApiErrorResponse {
   error: string;
   type?: string;
+}
+
+export interface ScenarioComparisonResponse {
+  scenarios: Record<string, ScenarioKpis>;
+}
+
+export interface SensitivityPointResponse extends Partial<ModelKpis> {
+  sensitivity_variable?: string;
+  sensitivity_value?: number;
+  error?: string;
+}
+
+export interface SensitivityResponse {
+  variable: string;
+  results: Record<string, SensitivityPointResponse>;
 }

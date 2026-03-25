@@ -1,12 +1,16 @@
-import type { ModelResponse } from "../types/model";
+import type {
+  ModelResponse,
+  ScenarioComparisonResponse,
+  SensitivityResponse,
+} from "../types/model";
 
-async function parseResponse(response: Response): Promise<ModelResponse> {
+async function parseResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json()) as unknown;
   if (!response.ok) {
     const error = payload as { error?: string };
     throw new Error(error.error ?? "Model run failed");
   }
-  return payload as ModelResponse;
+  return payload as T;
 }
 
 export async function runExcel(file: File): Promise<ModelResponse> {
@@ -18,7 +22,7 @@ export async function runExcel(file: File): Promise<ModelResponse> {
     body: formData,
   });
 
-  return parseResponse(response);
+  return parseResponse<ModelResponse>(response);
 }
 
 export async function runJson(formData: FormData): Promise<ModelResponse> {
@@ -27,5 +31,23 @@ export async function runJson(formData: FormData): Promise<ModelResponse> {
     body: formData,
   });
 
-  return parseResponse(response);
+  return parseResponse<ModelResponse>(response);
+}
+
+export async function compareScenarios(formData: FormData): Promise<ScenarioComparisonResponse> {
+  const response = await fetch("/api/compare-scenarios", {
+    method: "POST",
+    body: formData,
+  });
+
+  return parseResponse<ScenarioComparisonResponse>(response);
+}
+
+export async function runSensitivity(formData: FormData): Promise<SensitivityResponse> {
+  const response = await fetch("/api/run-sensitivity", {
+    method: "POST",
+    body: formData,
+  });
+
+  return parseResponse<SensitivityResponse>(response);
 }

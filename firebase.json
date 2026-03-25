@@ -5,6 +5,8 @@
     "rewrites": [
       { "source": "/api/run-excel", "function": "runExcel" },
       { "source": "/api/run-json", "function": "runJson" },
+      { "source": "/api/compare-scenarios", "function": "compareScenarios" },
+      { "source": "/api/run-sensitivity", "function": "runSensitivity" },
       { "source": "**", "destination": "/index.html" }
     ]
   },

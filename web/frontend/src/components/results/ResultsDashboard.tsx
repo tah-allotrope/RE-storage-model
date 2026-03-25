@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 
-import type { ModelResponse } from "../../types/model";
+import type {
+  ModelResponse,
+  ScenarioComparisonResponse,
+  SensitivityResponse,
+} from "../../types/model";
 import { currencyLabel, type CurrencyCode, formatCurrency, formatNumber } from "../../utils/formatters";
 import { BatteryCapacityChart } from "./BatteryCapacityChart";
 import { CashFlowChart } from "./CashFlowChart";
@@ -9,9 +13,17 @@ import { DscrChart } from "./DscrChart";
 import { GenerationChart } from "./GenerationChart";
 import { KpiGrid } from "./KpiGrid";
 import { LifetimeRevenueChart } from "./LifetimeRevenueChart";
+import { ScenarioComparisonTable } from "./ScenarioComparisonTable";
+import { SensitivityPanel } from "./SensitivityPanel";
 
 interface ResultsDashboardProps {
   result: ModelResponse;
+  scenarioComparison: ScenarioComparisonResponse | null;
+  sensitivity: SensitivityResponse | null;
+  canRunAnalysis: boolean;
+  isRunningAnalysis: boolean;
+  onRunScenarioComparison: () => Promise<void>;
+  onRunSensitivity: (variable: string) => Promise<void>;
 }
 
 function downloadJson(result: ModelResponse): void {
@@ -24,8 +36,17 @@ function downloadJson(result: ModelResponse): void {
   URL.revokeObjectURL(url);
 }
 
-export function ResultsDashboard({ result }: ResultsDashboardProps): JSX.Element {
+export function ResultsDashboard({
+  result,
+  scenarioComparison,
+  sensitivity,
+  canRunAnalysis,
+  isRunningAnalysis,
+  onRunScenarioComparison,
+  onRunSensitivity,
+}: ResultsDashboardProps): JSX.Element {
   const [currency, setCurrency] = useState<CurrencyCode>("USD");
+  const [sensitivityVariable, setSensitivityVariable] = useState("strike_price_vnd");
   const exchangeRate = 26000;
 
   const firstAnnualRow = result.annual[0] ?? null;
@@ -89,6 +110,24 @@ export function ResultsDashboard({ result }: ResultsDashboardProps): JSX.Element
         ))}
       </section>
 
+      <section className="analysis-action-strip">
+        <div>
+          <p className="workspace-kicker">Analysis Tools</p>
+          <h3>Scenario and sensitivity follow-up</h3>
+          <p className="panel-description">
+            Reuse the latest structured-form submission to compare PPA options and run quick variable sweeps.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => void onRunScenarioComparison()}
+          disabled={!canRunAnalysis || isRunningAnalysis}
+        >
+          {isRunningAnalysis ? "Running..." : "Compare All Scenarios"}
+        </button>
+      </section>
+
       <div className="charts-grid">
         <CashFlowChart rows={result.cashflow} currency={currency} exchangeRate={exchangeRate} />
         <DscrChart rows={result.dscr_series} covenantFloor={1.3} />
@@ -98,6 +137,18 @@ export function ResultsDashboard({ result }: ResultsDashboardProps): JSX.Element
       </div>
 
       <DispatchPreviewChart rows={result.dispatch_sample} />
+
+      <ScenarioComparisonTable comparison={scenarioComparison} currency={currency} exchangeRate={exchangeRate} />
+      <SensitivityPanel
+        sensitivity={sensitivity}
+        selectedVariable={sensitivityVariable}
+        currency={currency}
+        exchangeRate={exchangeRate}
+        isRunning={isRunningAnalysis}
+        onChangeVariable={setSensitivityVariable}
+        onRun={() => void onRunSensitivity(sensitivityVariable)}
+        disabled={!canRunAnalysis}
+      />
 
       <div className="results-actions">
         <button className="secondary-button" type="button" onClick={() => downloadJson(result)}>

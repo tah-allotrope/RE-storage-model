@@ -12,7 +12,18 @@ type ActiveTab = "excel" | "form";
 
 export default function App(): JSX.Element {
   const [activeTab, setActiveTab] = useState<ActiveTab>("excel");
-  const { isRunning, error, result, runWithExcel, runWithJson } = useModelRun();
+  const {
+    isRunning,
+    error,
+    result,
+    scenarioComparison,
+    sensitivity,
+    lastStructuredRunReady,
+    runWithExcel,
+    runWithJson,
+    runScenarioComparison,
+    runSensitivityAnalysis,
+  } = useModelRun();
 
   return (
     <Layout subtitle="Configure a model run on the left and review live outputs on the right.">
@@ -81,7 +92,15 @@ export default function App(): JSX.Element {
           {isRunning ? <ProgressBar label="This usually takes 2-10 seconds." /> : null}
 
           {result ? (
-            <ResultsDashboard result={result} />
+            <ResultsDashboard
+              result={result}
+              scenarioComparison={scenarioComparison}
+              sensitivity={sensitivity}
+              canRunAnalysis={lastStructuredRunReady}
+              isRunningAnalysis={isRunning}
+              onRunScenarioComparison={runScenarioComparison}
+              onRunSensitivity={runSensitivityAnalysis}
+            />
           ) : (
             <section className="results-shell results-empty-state">
               <p className="workspace-kicker">Ready When You Are</p>

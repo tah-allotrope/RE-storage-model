@@ -15,6 +15,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => "/",
       },
+      "/api/compare-scenarios": {
+        target: "http://localhost:8083",
+        changeOrigin: true,
+        rewrite: () => "/",
+      },
+      "/api/run-sensitivity": {
+        target: "http://localhost:8084",
+        changeOrigin: true,
+        rewrite: () => "/",
+      },
     },
   },
 });

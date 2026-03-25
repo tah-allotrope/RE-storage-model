@@ -1,4 +1,4 @@
-"""Handler for structured JSON+CSV model runs."""
+"""Handler for scenario comparison runs across PPA options."""
 
 from __future__ import annotations
 
@@ -6,20 +6,21 @@ import json
 import tempfile
 from pathlib import Path
 
-from flask import Request, jsonify
-from utils.serialise import serialise_results
+from flask import Request, Response, jsonify
 from utils.validate import ensure_post_method, ensure_uploaded_file
 
 from handlers.project_payload import build_project_payload
 from re_storage.core.exceptions import REStorageError
-from re_storage.pipeline import run_model_from_json
+from re_storage.scenarios.runner import run_all_scenarios
 
 
-def _build_project_payload(form: dict[str, str]):
-    return build_project_payload(form)
+def _serialise_scenario_results(
+    results: dict[int, dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    return {str(option): dict(payload) for option, payload in results.items()}
 
 
-def handle_run_json(request: Request):
+def handle_compare_scenarios(request: Request) -> Response:
     method_error = ensure_post_method(request)
     if method_error is not None:
         return jsonify({"error": method_error}), 405
@@ -29,7 +30,6 @@ def handle_run_json(request: Request):
         return jsonify({"error": file_error}), 400
 
     uploaded_csv = request.files["hourly_csv"]
-
     form = dict(request.form)
 
     try:
@@ -50,8 +50,8 @@ def handle_run_json(request: Request):
         uploaded_csv.save(str(csv_path))
 
         try:
-            model_results = run_model_from_json(project_dir)
-            return jsonify(serialise_results(model_results))
+            scenario_results = run_all_scenarios(project_dir=project_dir)
+            return jsonify({"scenarios": _serialise_scenario_results(scenario_results)})
         except REStorageError as exc:
             return jsonify({"error": str(exc), "type": type(exc).__name__}), 422
         except ValueError as exc:
