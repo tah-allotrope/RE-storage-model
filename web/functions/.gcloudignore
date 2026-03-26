@@ -4,3 +4,5 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+re_storage/__pycache__/
+re_storage/**/*.pyc

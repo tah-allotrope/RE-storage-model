@@ -12,6 +12,11 @@
   },
   "functions": {
     "source": "web/functions",
-    "runtime": "python311"
+    "runtime": "python311",
+    "predeploy": [
+      "python scripts/prepare_firebase_functions.py"
+    ],
+    "timeoutSeconds": 300,
+    "availableMemoryMb": 1024
   }
 }

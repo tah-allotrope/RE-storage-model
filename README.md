@@ -85,8 +85,16 @@ MIT
 
 This repository now includes a Firebase-hosted web interface under `web/`:
 
-- `web/functions` - Python Cloud Functions endpoints (`/api/run-excel`, `/api/run-json`)
+- `web/functions` - Python Cloud Functions endpoints (`/api/run-excel`, `/api/run-json`, `/api/compare-scenarios`, `/api/run-sensitivity`)
 - `web/frontend` - Vite + React + TypeScript SPA
+
+Before deploying functions, vendor the Python package into `web/functions` so Firebase uploads the model code alongside the handlers:
+
+```bash
+python scripts/prepare_firebase_functions.py
+```
+
+`firebase deploy` runs this automatically via the `functions.predeploy` hook in `firebase.json`.
 
 ### Local development
 
@@ -96,6 +104,7 @@ Backend (functions framework):
 cd web/functions
 python -m venv .venv
 .venv\Scripts\activate
+python ..\..\scripts\prepare_firebase_functions.py
 pip install -r requirements.txt
 functions-framework --target runExcel --port 8081
 ```
@@ -110,3 +119,15 @@ npm run dev
 
 The frontend dev server proxies `/api/*` to `http://localhost:8080` by default; update
 `web/frontend/vite.config.ts` if you run function targets on different ports.
+
+### Deployment checklist
+
+```bash
+python scripts/prepare_firebase_functions.py
+web\functions\.venv\Scripts\python -m pytest tests/unit/test_web_handlers.py -v
+cd web/frontend && npm run build
+firebase deploy --only functions,hosting
+```
+
+- Replace the placeholder project ID in `.firebaserc` with a real Firebase project before the first deploy.
+- The current Firebase config sets Python functions to `timeoutSeconds: 300` and `availableMemoryMb: 1024` to support the model runtime.

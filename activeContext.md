@@ -913,3 +913,45 @@ Wire the new scenario-comparison and sensitivity APIs into the React web app so 
 ### Next Sensible Step
 
 - Start the new local function targets on ports `8083` and `8084`, then exercise the full end-to-end browser flow so the new analysis panels populate from live API responses instead of build-only verification.
+
+---
+
+## ISSUE-12 Objective (Current Session)
+
+Implement the code-side deployment blockers from `plans/web-app-deployment-roadmap.md` so the Firebase web app can be built and deployed with the `re_storage` package bundled into Cloud Functions and with explicit function resource settings.
+
+### Scope
+
+- [x] Replace the functions editable install with a deploy-safe vendored package flow
+- [x] Automate vendoring in Firebase predeploy so deploys do not depend on manual copy steps
+- [x] Add function resource settings in `firebase.json` for the current Python workload
+- [x] Update ignore rules and docs for the new deployment flow
+- [x] Verify the vendored install path, handler tests in the functions virtualenv, and the frontend production build
+
+### Planned Implementation
+
+- Add a small Python preparation script that copies `src/re_storage/` into `web/functions/re_storage/` while skipping caches and stale copies.
+- Update `web/functions/requirements.txt` to remove the broken `-e ../..` deploy-time dependency.
+- Update `firebase.json` to run the preparation script before deploy and to set higher timeout / memory limits for Python functions.
+- Extend `web/functions/.gcloudignore` so vendored cache artifacts are excluded from upload.
+- Document the new local verification and deployment steps in `README.md`.
+
+### Expected Manual Follow-Up
+
+- Firebase project creation and `.firebaserc` project ID replacement still require console / CLI access outside the repository.
+- Final `firebase deploy --only functions,hosting` and production smoke tests depend on that real project setup.
+
+### Review / Results
+
+- Added `scripts/prepare_firebase_functions.py` to copy `src/re_storage/` into `web/functions/re_storage/` while skipping cache artifacts, giving Firebase deploys a self-contained import path for the model package.
+- Updated `web/functions/requirements.txt` to remove the broken `-e ../..` editable install that would fail once Firebase uploads only the functions directory.
+- Updated `firebase.json` with a `functions.predeploy` hook for the vendoring script plus `timeoutSeconds: 300` and `availableMemoryMb: 1024` for the Python workload.
+- Updated `web/functions/.gcloudignore`, `.gitignore`, and `README.md` so the generated vendored package is deploy-safe, locally reproducible, and not accidentally tracked as hand-authored source.
+
+### Verification
+
+- `python scripts/prepare_firebase_functions.py` -> passed
+- `web/functions/.venv/Scripts/python.exe -m pip install -r web/functions/requirements.txt` -> passed
+- `web/functions/.venv/Scripts/python.exe -c "from re_storage.pipeline import run_full_model; print('ok')"` -> passed
+- `web/functions/.venv/Scripts/python.exe -m pytest tests/unit/test_web_handlers.py -v` -> **11 passed**
+- `npm --prefix web/frontend run build` -> passed (existing Vite chunk-size warning remains non-blocking)
