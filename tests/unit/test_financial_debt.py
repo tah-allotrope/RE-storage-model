@@ -13,7 +13,11 @@ import pandas as pd
 import pytest
 
 from re_storage.core.exceptions import DSCRConstraintError
-from re_storage.financial.debt import calculate_amortization_schedule, size_debt_for_dscr
+from re_storage.financial.debt import (
+    calculate_amortization_schedule,
+    calculate_sculpted_debt_schedule,
+    size_debt_for_dscr,
+)
 
 
 class TestAmortizationSchedule:
@@ -60,3 +64,34 @@ class TestDebtSizing:
                 target_dscr=1.3,
                 initial_guess_usd=1000.0,
             )
+
+    def test_calculate_sculpted_debt_schedule_matches_target_debt_service(self) -> None:
+        cfads = pd.Series([1300.0, 1430.0], index=[1, 2], name="cfads_usd")
+        debt_amount = (1000.0 / 1.1) + (1100.0 / (1.1**2))
+
+        schedule = calculate_sculpted_debt_schedule(
+            debt_amount_usd=debt_amount,
+            cfads_series=cfads,
+            interest_rate_pct=10.0,
+            target_dscr=1.3,
+        )
+
+        assert schedule.loc[1, "total_debt_service_usd"] == pytest.approx(1000.0)
+        assert schedule.loc[2, "total_debt_service_usd"] == pytest.approx(1100.0)
+        assert schedule.loc[2, "closing_balance_usd"] == pytest.approx(0.0, abs=1e-6)
+
+    def test_size_debt_for_dscr_returns_sculpted_schedule(self) -> None:
+        cfads = pd.Series([1300.0, 1430.0], index=[1, 2], name="cfads_usd")
+
+        debt_amount, schedule = size_debt_for_dscr(
+            ebitda_series=cfads,
+            interest_rate_pct=10.0,
+            tenor_years=2,
+            target_dscr=1.3,
+            initial_guess_usd=1000.0,
+        )
+
+        assert debt_amount == pytest.approx((1000.0 / 1.1) + (1100.0 / (1.1**2)), rel=1e-6)
+        dscr = cfads / schedule["total_debt_service_usd"]
+        assert dscr.loc[1] == pytest.approx(1.3)
+        assert dscr.loc[2] == pytest.approx(1.3)

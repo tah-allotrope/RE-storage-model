@@ -40,9 +40,7 @@ DEBT_COLUMNS = {
 def _require_columns(data: pd.DataFrame, required: set[str], label: str) -> None:
     missing = required - set(data.columns)
     if missing:
-        raise InputValidationError(
-            f"Missing required columns in {label}: {sorted(missing)}"
-        )
+        raise InputValidationError(f"Missing required columns in {label}: {sorted(missing)}")
 
 
 def _with_year_index(data: AnnualTimeSeries, label: str) -> AnnualTimeSeries:
@@ -110,12 +108,11 @@ def build_cash_flow_waterfall(
         + opex["land_lease_usd"]
         + opex["management_fees_usd"]
         + opex["grid_connection_usd"]
+        + opex["mra_contribution_usd"]
     )
     ebitda_usd = total_revenue_usd - total_opex_usd
-    cfads_usd = ebitda_usd - debt["total_debt_service_usd"]
-    free_cash_flow_to_equity_usd = (
-        cfads_usd - opex["taxes_usd"] - opex["mra_contribution_usd"]
-    )
+    cfads_usd = ebitda_usd - opex["taxes_usd"]
+    free_cash_flow_to_equity_usd = cfads_usd + debt["principal_usd"] - debt["interest_usd"]
 
     output_years = pd.Index([0]).append(years)
     waterfall = pd.DataFrame(

@@ -230,6 +230,82 @@ class TestLoadHourlyData:
         assert "datetime" in df.columns
 
 
+def test_load_financial_params_from_cells_converts_tax_year_markers_to_durations(
+    tmp_path: Path,
+) -> None:
+    """Workbook tax markers should become duration-style schedule inputs."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        raise RuntimeError("Workbook active sheet unavailable")
+    ws.title = "Assumption"
+
+    ws["I2"] = "Project Lifetime"
+    ws["K2"] = 20
+    ws["I3"] = "Base Rate (floating)"
+    ws["K3"] = 0.065
+    ws["I4"] = "Debt Margin"
+    ws["K4"] = 0.02
+    ws["I5"] = "Maximum Debt Tenor"
+    ws["K5"] = 10
+    ws["I6"] = "Target DSCR"
+    ws["K6"] = 1.3
+    ws["I7"] = "Target Minimum Equity IRR"
+    ws["K7"] = 0.10
+    ws["I39"] = "Total Cost (fully in place)"
+    ws["I40"] = "Land acquisition"
+    ws["K40"] = 1_200_000
+    ws["I41"] = "Solar"
+    ws["K41"] = 750_000
+    ws["I42"] = "BESS"
+    ws["K42"] = 200_000
+    ws["I43"] = "BOP"
+    ws["K43"] = 4_843_200
+    ws["I44"] = "Depreciation Tenor (Straight line)"
+    ws["K44"] = 20
+    ws["I48"] = "Maximum Leverage"
+    ws["K48"] = 0.7
+    ws["I59"] = "Corporate Tax Rate"
+    ws["K59"] = 0.2
+    ws["I60"] = "Tax Holiday"
+    ws["J60"] = 5
+    ws["K60"] = 0.0
+    ws["I61"] = "First Discount"
+    ws["J61"] = 13
+    ws["K61"] = 0.05
+    ws["I62"] = "Second discount"
+    ws["J62"] = 15
+    ws["K62"] = 0.1
+    ws["I66"] = "Target Minimum Equity IRR"
+    ws["K66"] = 0.10
+
+    ws["C2"] = "Actual installation capacity"
+    ws["E2"] = 40360
+    ws["C3"] = "Total BESS Storage Capacity"
+    ws["E3"] = 66000
+
+    ws["O20"] = "PPA Setting Option"
+    ws["Q20"] = 3
+    ws["O25"] = "Price Escalation"
+    ws["Q25"] = 0.05
+    ws["O41"] = "Avg. Sun hours Market Price descend"
+    ws["Q41"] = -0.05
+    ws["O57"] = "Capacity"
+    ws["Q57"] = 8056.115384615385
+
+    path = tmp_path / "tax_markers.xlsx"
+    wb.save(path)
+    wb.close()
+
+    params = load_financial_params_from_cells(path)
+
+    assert params["tax_holiday_years"] == 4
+    assert params["first_discount_years"] == 8
+    assert params["second_discount_years"] == 2
+
+
 class TestLoadDegradationTable:
     """Tests for load_degradation_table."""
 

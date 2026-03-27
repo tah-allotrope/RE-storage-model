@@ -31,6 +31,8 @@ ASSUMPTIONS_SHEET = "Assumption"
 DATA_INPUT_SHEET = "Data Input"
 LOSS_SHEET = "Loss"
 TARIFF_SHEET = "Tariff Schedule"
+CALC_SHEET = "Calc"
+OTHER_INPUT_SHEET = "Other Input"
 
 REQUIRED_HOURLY_COLUMNS = {
     "datetime",
@@ -87,16 +89,17 @@ def load_assumptions(path: Path) -> SystemAssumptions:
     required_fields = {
         name
         for name, field in SystemAssumptions.model_fields.items()
-        if field.default is None and field.default_factory is None  # type: ignore[misc]
+        if field.default is None
+        and field.default_factory is None  # type: ignore[misc]
         and not field.is_required() is False
     }
     # Simpler: fields are required when FieldInfo.default is PydanticUndefined
     from pydantic_core import PydanticUndefinedType
+
     required_fields = {
         name
         for name, field in SystemAssumptions.model_fields.items()
-        if isinstance(field.default, PydanticUndefinedType)
-        and field.default_factory is None  # type: ignore[misc]
+        if isinstance(field.default, PydanticUndefinedType) and field.default_factory is None  # type: ignore[misc]
     }
     missing = _missing_columns(df, required_fields)
     if missing:
@@ -407,6 +410,10 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         key = label_substring.lower()
         for label, raw_value in ik_map.items():
             if key in label.strip().lower():
+                if raw_value is None:
+                    # Empty cell next to a matching label — treat as absent and
+                    # fall through to the default rather than crashing.
+                    continue
                 try:
                     return float(raw_value)
                 except (TypeError, ValueError) as exc:
@@ -514,13 +521,26 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         return default
 
     installed_pv_kwp = _ce_float("actual installation capacity", default=0.0)
-    installed_pv_mwp = installed_pv_kwp / 1000.0 if installed_pv_kwp > 0 else (
-        solar_capex / solar_usd_per_mwp if solar_usd_per_mwp > 0 else 0.0
+    installed_pv_mwp = (
+        installed_pv_kwp / 1000.0
+        if installed_pv_kwp > 0
+        else (solar_capex / solar_usd_per_mwp if solar_usd_per_mwp > 0 else 0.0)
     )
     total_bess_kwh = _ce_float("Total BESS Storage Capacity", default=0.0)
-    bess_mwh = total_bess_kwh / 1000.0 if total_bess_kwh > 0 else (
-        bess_capex / bess_usd_per_mwh if bess_usd_per_mwh > 0 else 0.0
+    bess_mwh = (
+        total_bess_kwh / 1000.0
+        if total_bess_kwh > 0
+        else (bess_capex / bess_usd_per_mwh if bess_usd_per_mwh > 0 else 0.0)
     )
+
+    # The Solar and BESS rows in the Total Cost section store unit rates ($/MWp, $/MWh),
+    # not absolute costs. Recompute absolute capex using unit rate × installed capacity
+    # now that capacities are known. BOP and Land are already absolute ($).
+    if installed_pv_mwp > 0 and solar_usd_per_mwp > 0:
+        solar_capex = solar_usd_per_mwp * installed_pv_mwp
+    if bess_mwh > 0 and bess_usd_per_mwh > 0:
+        bess_capex = bess_usd_per_mwh * bess_mwh
+    initial_capex_usd = max(solar_capex + bess_capex + bop_capex + land_capex, 0.0)
 
     # --- OPEX parameters (Assumption!K26–K34) ---
     om_solar_usd_per_mwp = _find_float("o&m", default=6_000.0)
@@ -549,7 +569,6 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
     tax_rate = _find_float("corporate tax rate", default=0.20)
     if tax_rate > 1.0:
         tax_rate /= 100.0
-    tax_holiday_years = int(_find_float("tax holiday", default=5.0))
 
     # First/second discount periods stored across I/J/K columns
     def _ij_float(key: str, default: float = 0.0) -> float:
@@ -562,22 +581,97 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
                     pass
         return default
 
-    first_discount_years = int(_ij_float("first discount", default=8.0))
+    tax_holiday_marker = int(_ij_float("tax holiday", default=0.0))
+    first_discount_marker = int(_ij_float("first discount", default=9.0))
     first_discount_rate = _find_float("first discount rate", default=0.05)
     if first_discount_rate > 1.0:
         first_discount_rate /= 100.0
-    second_discount_years = int(_ij_float("second discount", default=2.0))
+    second_discount_marker = int(_ij_float("second discount", default=0.0))
     second_discount_rate = _find_float("second discount rate", default=0.10)
     if second_discount_rate > 1.0:
         second_discount_rate /= 100.0
 
-    # --- MRA parameters (Assumption!K46–K47) ---
+    # Workbook tax rows store period end markers in column J, not durations.
+    # Example: Tax Holiday J=5 with rate K=0 means years 1-4 are exempt and the
+    # first reduced-rate period starts in year 5.
+    tax_holiday_years = max(tax_holiday_marker - 1, 0)
+    first_discount_years = max(first_discount_marker - tax_holiday_marker, 0)
+    second_discount_years = max(second_discount_marker - first_discount_marker, 0)
+
+    # --- MRA parameters (Assumption!K46–K47, K35–K36, Other Input rows 3–6) ---
     bess_mra_pct = _find_float("bess mra", default=0.60)
     if bess_mra_pct > 1.0:
         bess_mra_pct /= 100.0
     pv_mra_pct = _find_float("pv mra", default=0.10)
     if pv_mra_pct > 1.0:
         pv_mra_pct /= 100.0
+
+    # MRA buildup schedule: load maintenance years + build-up fractions from workbook.
+    # Assumption!L35 = PV maintenance year (0 = not scheduled).
+    # Assumption!L36 = BESS maintenance year (0 = not scheduled).
+    # Other Input rows 3–N, cols B (year offset from maintenance) and C (fraction).
+    # Year offset 0 = the maintenance year itself, offset k = k years before maintenance.
+    mra_buildup_schedule: dict[int, float] = {}
+    pv_maintenance_year = 0
+    bess_maintenance_year = 0
+    try:
+        wb_mra = load_workbook(str(path), data_only=True, read_only=True)
+        ws_assum = wb_mra[ASSUMPTIONS_SHEET]
+
+        # Read maintenance years from col K (col 11) in Assumption (label in col I)
+        pv_maintenance_year = 0
+        bess_maintenance_year = 0
+        for row in range(1, (ws_assum.max_row or 1) + 1):
+            label = str(ws_assum.cell(row=row, column=9).value or "").lower()  # col I
+            val = ws_assum.cell(row=row, column=11).value  # col K
+            if "pv maintenance" in label and val is not None:
+                try:
+                    pv_maintenance_year = int(float(val))
+                except (TypeError, ValueError):
+                    pass
+            elif "bess maintenance" in label and val is not None:
+                try:
+                    bess_maintenance_year = int(float(val))
+                except (TypeError, ValueError):
+                    pass
+
+        # Read build-up fractions from Other Input sheet
+        if OTHER_INPUT_SHEET in wb_mra.sheetnames:
+            ws_other = wb_mra[OTHER_INPUT_SHEET]
+            buildup_fractions: dict[int, float] = {}  # offset → fraction
+            for row in range(2, 20):
+                offset_val = ws_other.cell(row=row, column=2).value  # col B = offset year
+                pct_val = ws_other.cell(row=row, column=3).value  # col C = fraction
+                if offset_val is None and pct_val is None:
+                    continue
+                try:
+                    offset = int(float(offset_val))
+                    pct = float(pct_val)
+                    if 0 <= pct <= 1 and offset >= 0:
+                        buildup_fractions[offset] = pct
+                except (TypeError, ValueError):
+                    continue
+
+            # Convert (maintenance_year, offset) → absolute project year
+            if pv_maintenance_year > 0 and buildup_fractions:
+                for offset, pct in buildup_fractions.items():
+                    abs_year = pv_maintenance_year - offset
+                    if abs_year > 0:
+                        mra_buildup_schedule[abs_year] = (
+                            mra_buildup_schedule.get(abs_year, 0.0) + pct
+                        )
+            if bess_maintenance_year > 0 and buildup_fractions:
+                for offset, pct in buildup_fractions.items():
+                    abs_year = bess_maintenance_year - offset
+                    if abs_year > 0:
+                        mra_buildup_schedule[abs_year] = (
+                            mra_buildup_schedule.get(abs_year, 0.0) + pct
+                        )
+
+        wb_mra.close()
+    except Exception as exc:
+        logger.warning("MRA buildup schedule load failed: %s — using default 4-year schedule", exc)
+        mra_buildup_schedule = {}  # empty → build_mra_schedule uses its own default
 
     # --- PPA / revenue scenario parameters (Assumption!O/Q) ---
     def _oq_float(key: str, default: float = 0.0) -> float:
@@ -590,7 +684,7 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
                     pass
         return default
 
-    ppa_option = int(_oq_float("ppa option", default=3.0))
+    ppa_option = int(_oq_float("ppa setting", default=3.0))
     if ppa_option not in (1, 2, 3, 4):
         ppa_option = 3
     bundled_discount_pct = _oq_float("bundled discount", default=0.15)
@@ -609,6 +703,8 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
     fmp_descent_pct = _oq_float("market price descent", default=-0.05)
     if fmp_descent_pct < -1.0:
         fmp_descent_pct /= 100.0
+    # Capacity/demand tariff (USD/MW/year, Financial!H32 = Assumption!Q57)
+    capacity_demand_rate_usd_per_mw = _oq_float("capacity", default=0.0)
 
     return {
         "project_years": project_years,
@@ -645,8 +741,10 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         "second_discount_years": second_discount_years,
         "second_discount_rate": second_discount_rate,
         # MRA parameters
-        "bess_mra_pct": bess_mra_pct,
+        # Zero out BESS MRA when no BESS maintenance is scheduled (maintenance_year=0).
+        "bess_mra_pct": bess_mra_pct if bess_maintenance_year > 0 else 0.0,
         "pv_mra_pct": pv_mra_pct,
+        "mra_buildup_schedule": mra_buildup_schedule if mra_buildup_schedule else None,
         # PPA / scenario parameters
         "ppa_option": ppa_option,
         "bundled_discount_pct": bundled_discount_pct,
@@ -655,6 +753,7 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         "fixed_ppa_price_usd_per_mwh": fixed_ppa_price_usd_per_mwh,
         "revenue_escalation_pct": revenue_escalation_pct,
         "fmp_descent_pct": fmp_descent_pct,
+        "capacity_demand_rate_usd_per_mw": capacity_demand_rate_usd_per_mw,
     }
 
 
@@ -928,6 +1027,66 @@ def _read_loss_sheet(path: Path) -> pd.DataFrame:
         df["year"] = year_numeric.loc[df.index].astype(int)
 
     return df
+
+
+def load_tariff_schedule_from_calc(path: Path) -> dict[TimePeriod, list[int]]:
+    """
+    Load tariff schedule from the Calc sheet's TimePeriodFlag column ('O', 'S', 'P').
+
+    The Calc sheet assigns each hour a time-period flag based on the Vietnamese EVN
+    tariff schedule. Reading the first 24 rows (one per hour of day) captures the
+    full 24-hour cycle.
+    """
+    try:
+        wb = load_workbook(str(path), data_only=True, read_only=True)
+    except (FileNotFoundError, OSError) as exc:
+        raise InputValidationError(f"Failed to open {path}: {exc}") from exc
+
+    if CALC_SHEET not in wb.sheetnames:
+        wb.close()
+        raise InputValidationError(f"Sheet '{CALC_SHEET}' not found in {path}.")
+
+    ws = wb[CALC_SHEET]
+    # Row 1 = header, row 2 = hour 0, row 3 = hour 1, ..., row 25 = hour 23
+    # Col E = TimePeriodFlag: 'O' = off-peak, 'S' = standard, 'P' = peak
+    flag_col = None
+    header_row = ws[1]
+    for cell in header_row:
+        if cell.value and "timeperiodflag" in str(cell.value).lower().replace(" ", ""):
+            flag_col = cell.column
+            break
+    wb.close()
+
+    if flag_col is None:
+        raise InputValidationError("'TimePeriodFlag' column not found in Calc sheet.")
+
+    wb2 = load_workbook(str(path), data_only=True, read_only=True)
+    ws2 = wb2[CALC_SHEET]
+
+    # Calc sheet uses 'O'=off-peak, 'N'=normal/standard, 'P'=peak (and legacy 'S'=standard)
+    flag_map = {
+        "o": TimePeriod.OFF_PEAK,
+        "s": TimePeriod.STANDARD,
+        "n": TimePeriod.STANDARD,
+        "p": TimePeriod.PEAK,
+    }
+    schedule: dict[TimePeriod, list[int]] = {
+        TimePeriod.OFF_PEAK: [],
+        TimePeriod.STANDARD: [],
+        TimePeriod.PEAK: [],
+    }
+    for hour in range(24):
+        row_idx = hour + 2  # row 2 = hour 0
+        raw = ws2.cell(row=row_idx, column=flag_col).value
+        if raw is None:
+            continue
+        flag = str(raw).strip().lower()[0] if str(raw).strip() else ""
+        period = flag_map.get(flag)
+        if period is not None:
+            schedule[period].append(hour)
+
+    wb2.close()
+    return schedule
 
 
 def load_tariff_schedule(path: Path) -> dict[TimePeriod, list[int]]:

@@ -1,6 +1,48 @@
 # Active Context - ISSUE-1 Emivest / ISSUE-2 Excel Alignment / ISSUE-3 Web Tool / ISSUE-4 Gap Analysis Roadmap
 
-**Last Updated:** 2026-03-23
+**Last Updated:** 2026-03-27
+
+## Current Working Plan - ISSUE-5 Parity First
+
+- [x] Reproduce the current Ecoplexus workbook parity deltas with targeted regression output.
+- [x] Identify the primary financial mismatch driver in DPPA revenue, OPEX/tax/MRA, or debt sizing.
+- [x] Add or tighten a regression test around the specific parity bug before changing code.
+- [ ] Implement the smallest viable parity fix in the financial pipeline.
+- [x] Re-run targeted tests and capture updated deltas versus workbook references.
+- [x] Record the outcome and remaining ISSUE-5 gaps in this file.
+
+### ISSUE-5 Current Session Progress (2026-03-27)
+
+#### Parity findings implemented this session
+
+- Added a loader regression in `tests/unit/test_inputs_loaders.py` to lock workbook tax-marker conversion into duration-style schedule inputs.
+- Added sculpted-debt regressions in `tests/unit/test_financial_debt.py` to pin workbook-style DSCR debt service instead of the prior annuity schedule behavior.
+- Updated `src/re_storage/inputs/loaders.py` so workbook tax rows now interpret Assumption column-J values as period markers rather than raw durations.
+- Updated `src/re_storage/financial/debt.py` so DSCR sizing now returns a sculpted debt schedule based on discounted target debt service instead of a flat-payment amortization schedule.
+- Updated `src/re_storage/financial/waterfall.py` and `src/re_storage/pipeline.py` so MRA is included in EBITDA timing, signed tax rows flow like the workbook, and FCFE is built from CFADS plus principal less interest.
+
+#### Verification run this session
+
+- `pytest tests/unit/test_inputs_loaders.py tests/unit/test_financial_debt.py tests/unit/test_pipeline_helpers.py -q` -> **29 passed**
+- `pytest tests/regression/test_excel_comparison.py -q` -> **still failing on final financial KPIs only**
+- Visual progress artifact generated: `reports/issue5_parity_progress.html`
+
+#### Updated Ecoplexus parity snapshot after first-pass fixes
+
+- `project_irr ~ 0.04970` vs Excel `0.05074` (much closer)
+- `equity_irr ~ 0.04369` vs Excel `0.04638` (closer, still low)
+- `unlevered_irr ~ 0.10989` vs Excel `0.08833` (still high)
+- `npv_usd ~ +2.77M` vs Excel `-2.65M` (still materially wrong sign)
+- `debt_amount_usd ~ 16.12M` vs workbook cached `H169 ~ 24.58M`
+
+#### Current blocker / next target
+
+- Remaining parity gap is now concentrated in the levered financial path, not physics or settlement totals.
+- The workbook fixture reports a large stale solver signal at `Financial!G170 ~ -8.37M`, so cached debt-related rows are internally inconsistent with the current workbook state.
+- The next parity step should inspect whether Python should:
+  - trust the workbook's cached `H169` debt amount,
+  - replicate the workbook's stale GoalSeek state exactly for regression parity, or
+  - treat `G170` as evidence that the reference workbook itself must be refreshed before final parity can converge.
 
 ---
 
@@ -397,6 +439,190 @@ curl -X POST http://localhost:8082/ \
 3. **Firebase project**: `.firebaserc` has a placeholder alias (`re-storage-tool`). Replace with real project ID and run `firebase init` to activate Hosting + Functions.
 
 4. **Full end-to-end UI test**: run Playwright against `http://127.0.0.1:5173` to verify Excel upload + results dashboard in-browser.
+
+---
+
+## ISSUE-5 Objective — DPPA Feasibility Study Review
+
+**Date:** 2026-03-27
+**Context:** Colleague provided `DPPA_FS_Study.pdf` — a REopt.jl-generated DPPA feasibility study for a **different project** (Scenario 3: Wind+Solar+BESS, 50 MW Industrial Park, Ninh Thuan). This is NOT the Ecoplexus workbook — it is a comparable project using the same DPPA mechanism (ND57/2025 CfD). Goal is to validate whether this model can reproduce a similar analysis and identify gaps.
+
+**Source file:** `DPPA_FS_Study.pdf` (downloaded to local inbox, ~1.27 MB)
+
+### PDF Key Findings (REopt.jl — Scenario 3: Wind+Solar+BESS)
+
+| Metric | Value |
+|--------|-------|
+| Project | 50 MW Industrial Park, Ninh Thuan, ≥110 kV |
+| DER Capacity | 50.0 MW (PV 30 MW + Wind 20 MW + BESS 10 MW / 40 MWh) |
+| Total CAPEX | $28.50M ($24M wind + $2M PV est. + $2.50M BESS) |
+| Capital Structure | 70% debt / 30% equity |
+| Loan Terms | 12-yr, 1-yr grace, 8.5% p.a. (VND commercial) |
+| **Project IRR** | **18.1%** |
+| **Equity IRR** | **31.4%** |
+| **Min DSCR** | **1.53x** (bankable) |
+| **Factory NPV** | **$7.97M** |
+| Project Payback | Year 6 |
+| CIT Holiday | 4 yr exempt → 9 yr 50% pref → std 20% |
+
+**DPPA Commercial Terms:**
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| DPPA Type | VIRTUAL | ND57/2025 CfD settlement via EVN |
+| Contracted PPA Strike | 5.500 ¢/kWh | Fixed |
+| Developer Floor (NPV=0) | 4.273 ¢/kWh | Min viable price |
+| Factory Ceiling | 7.394 ¢/kWh | Max before factory loses money |
+| FMP (spot, annual mean) | 5.707 ¢/kWh | Developer sells Q_mq at FMP |
+| Negotiable Window | +3.122 ¢/kWh | **VIABLE** |
+| Grid Service Fees | Bundled in strike price | C_DPPAdv + P_CL |
+
+**Technical Results (Year 1):**
+| Metric | Value |
+|--------|-------|
+| Total RE Generation | 117.58 GWh/yr |
+| Factory Load | 240.90 GWh/yr (mean 27.5 MW, peak 134.1 MW) |
+| RE Penetration | 48.8% |
+| Self-Consumption Rate | 59.6% |
+| Annual Degradation | 0.5%/yr |
+| Wind: capacity factor | 38.0% |
+
+**Annual Proforma (Selected Years):**
+| Yr | Revenue | O&M | Depr. | Interest | EBIT | CIT | Net Income |
+|----|---------|-----|-------|----------|------|-----|------------|
+| 1 | $6.00M | -$621k | -$2.85M | -$1.70M | $837.9k | 0% | ~$838k |
+| 5 | $6.10M | -$713k | -$2.85M | -$1.23M | $1.31M | 5% | ~$1.24M |
+| 10 | $6.24M | -$846k | -$2.85M | -$463k | $2.08M | 5% | ~$1.97M |
+| 15 | $6.39M | -$1.01M | $0 | $0 | $5.38M | 10% | ~$4.85M |
+| 20 | $6.56M | -$1.19M | $0 | $0 | $5.36M | 20% | ~$4.29M |
+| 25 | $6.74M | -$1.42M | $0 | $0 | $5.33M | ~$4.26M | |
+
+**Viability Frontier:** Min PPA ≥ 3.850 ¢/kWh for 15% equity hurdle at all interest rates 6.5–10.5%.
+
+### Key Differences vs Ecoplexus (Excel model)
+
+| Dimension | REopt Study (Scenario 3) | Ecoplexus Excel |
+|-----------|--------------------------|-----------------|
+| Technology | Wind+Solar+BESS | Solar+BESS only |
+| Total Capacity | 50 MW DER | 40 MW Solar |
+| BESS | 10 MW / 40 MWh | Not specified |
+| Project IRR | 18.1% | 5.07% |
+| Equity IRR | 31.4% | 4.64% |
+| DSCR | 1.53x | Target ~1.2-1.4x |
+| Strike Price | 5.500 ¢/kWh | Different |
+| CIT treatment | Explicit (4yr exempt) | Unknown if modeled |
+| Wind component | Yes | No |
+
+### Implications for This Model
+
+1. **CIT Holiday not implemented**: The Python model likely has no CIT holiday (4yr exempt → 9yr 50% pref). This is a major reason for IRR overstatement vs a proper Vietnamese tax model.
+2. **Wind source not supported**: Current `physics/solar.py` only handles PV. Adding wind as a passthrough generation source would extend usefulness.
+3. **DPPA CfD structure is consistent**: Both use ND57/2025 CfD — the model's DPPA module is on the right track.
+4. **Factory economics**: The study shows factory NPV ($7.97M) separately from developer NPV — the model doesn't currently split these views.
+5. **Viability frontier analysis**: The sensitivity heatmap (PPA price vs interest rate → equity IRR) is a valuable output the model doesn't yet produce.
+
+---
+
+### Pre-requisite: Fix Regression Blocker
+
+Before any meaningful comparison can be done, the known regression failure must be resolved:
+
+- [ ] **BLOCKER**: `tests/regression/test_emivest.py` fails with `ValueError: Length of values (21) does not match length of index (20)` in `_run_financial()`
+  - Root cause: year-count mismatch between `lifetime_df` (21 rows) and EBITDA series (20 rows) in `src/re_storage/pipeline.py::_run_financial()`
+  - Also check: `src/re_storage/financial/mra.py` and `src/re_storage/financial/taxes.py` for off-by-one in project year indexing
+  - Fix: ensure all financial series are indexed from `year 0` (construction) or `year 1` (COD) consistently — do not mix
+
+---
+
+### Phase 1 — Establish Baseline Run
+
+- [ ] Run the Ecoplexus workbook (`data/AUDIT 20251201 40MW Solar ^M BESS Ecoplexus.xlsx`) through `run_full_model()` and capture output KPIs
+- [ ] Compare to Excel reference values from `model_architecture.md §D.4`:
+  - Project IRR: **5.07%**
+  - Equity IRR: **4.64%**
+  - Unlevered IRR: **8.83%**
+  - NPV: **-$2.65M**
+- [ ] Log deltas between Python model and Excel in a comparison table
+
+Known gap from ISSUE-2: Python currently returns `project_irr ~ 1.18x` (badly overstated). Financial parity is the primary work item.
+
+---
+
+### Phase 2 — Financial Parity Fix
+
+Root causes to investigate (from ISSUE-2 notes):
+
+- [ ] **Revenue overstatement**: DPPA and grid savings revenue is too high — verify `_build_dppa_net_generation()` signal against Calc!Col AB and DPPA!Col Q
+- [ ] **OPEX missing lines**: O&M, insurance, land lease, management fee, grid connection charges need to be loaded and wired into `_run_financial()`
+  - Source: `Financial` sheet rows (OPEX stack, §D.2 in architecture doc)
+- [ ] **Tax & depreciation**: confirm `financial/taxes.py` correctly models Vietnamese corporate tax and accelerated depreciation
+- [ ] **MRA drawdown**: confirm `financial/mra.py` deducts augmentation capex at years 11 & 22 (aligned to `Loss!Col F` reset years per Risk 7)
+- [ ] **Debt sizing**: verify the Python DSCR solver reproduces Excel's GoalSeek result (`DebtSize_Check → 0`)
+  - Check `financial/debt.py` against VBA logic in `analysis_report.md`
+
+---
+
+### Phase 3 — DPPA Revenue Validation
+
+Key items from the DPPA module (architecture §B):
+
+- [ ] Verify `delivered_re_gen = net_gen / (k_factor × kpp) × delta` (corrected in ISSUE-2, confirm still correct)
+- [ ] Verify CfD settlement: `R_CFD = Q_Khc × (Strike_Price - FMP)` — check sign convention when FMP > Strike
+- [ ] Verify DPPA activation toggle (`Does_model_is_actived?`) is correctly propagated — Risk 3
+- [ ] Cross-check total Year 1 DPPA revenue against `DPPA!Col Q` sum from Excel workbook
+
+---
+
+### Phase 4 — ReOpt Comparison (DPPA_FS_Study.pdf)
+
+Once the model baseline is stable:
+
+- [ ] Extract key metrics from `DPPA_FS_Study.pdf`:
+  - Optimal battery size (kW / kWh)
+  - Solar capacity used
+  - DPPA revenue projection (Year 1 and lifetime)
+  - Project/equity IRR from ReOpt's financial model
+  - Dispatch strategy (arbitrage vs peak-shaving mix)
+- [ ] Compare to `run_full_model()` output for same inputs
+- [ ] Document gaps in a findings table (which tool is more conservative, why)
+- [ ] Note any assumptions in ReOpt not captured by this model (e.g., grid export limits, curtailment rules, Vietnam DPPA regulatory specifics)
+
+---
+
+### Phase 5 — Validation Checks & Reporting
+
+- [ ] Add/update `validation/checks.py` to flag:
+  - DPPA revenue = 0 when DPPA is enabled (Risk 3)
+  - `Loss` table doesn't cover all project years (Risk 5)
+  - `Blance_Check` column has non-zero rows (Risk 6, typo in original)
+- [ ] Generate comparison HTML report via `generate_report()` with:
+  - Python model KPIs vs Excel reference
+  - Python model KPIs vs ReOpt study (from PDF)
+  - Year-by-year DPPA revenue and DSCR charts
+
+---
+
+### Success Criteria
+
+| Check | Target |
+|-------|--------|
+| Regression test passes | `pytest tests/regression/test_emivest.py` → **PASS** |
+| Project IRR delta vs Excel | < 50 bps |
+| Equity IRR delta vs Excel | < 50 bps |
+| DPPA Year 1 revenue delta vs Excel | < 5% |
+| Min DSCR delta vs Excel | < 0.05x |
+
+---
+
+### Files To Modify (Expected)
+
+| File | Change |
+|------|--------|
+| `src/re_storage/pipeline.py` | Fix year-index alignment in `_run_financial()`; wire OPEX lines |
+| `src/re_storage/financial/mra.py` | Align augmentation years to Loss table (11, 22) |
+| `src/re_storage/financial/taxes.py` | Verify depreciation schedule |
+| `src/re_storage/financial/debt.py` | Validate DSCR solver convergence |
+| `src/re_storage/validation/checks.py` | Add Risk 3, 5, 6 checks |
+| `tests/regression/test_emivest.py` | Un-block after pipeline fix |
 
 5. **Handler tests with Flask**: install Flask in the repo-level Python env (`pip install flask flask-cors functions-framework`) and run `pytest tests/unit/test_web_handlers.py` to exercise the full handler test suite.
 

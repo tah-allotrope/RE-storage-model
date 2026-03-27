@@ -61,6 +61,7 @@ from re_storage.inputs.loaders import (
     load_hourly_data,
     load_tariff_rates_from_cells,
     load_tariff_schedule,
+    load_tariff_schedule_from_calc,
 )
 from re_storage.inputs.schemas import SystemAssumptions
 from re_storage.physics.battery import BatteryConfig, dispatch_single_timestep
@@ -675,13 +676,36 @@ def _run_financial(
         land_lease_usd=land_lease_usd,
     )
 
-    total_opex = (
+    total_opex_excluding_mra = (
         opex["o_and_m_usd"]
         + opex["insurance_usd"]
         + opex["land_lease_usd"]
         + opex["management_fees_usd"]
         + opex["grid_connection_usd"]
     )
+
+    # --- Taxes ---
+    tax_rates = build_tax_rate_schedule(
+        project_years=project_years,
+        tax_rate=tax_rate,
+        holiday_years=tax_holiday_years,
+        first_discount_years=first_discount_years,
+        first_discount_rate=first_discount_rate,
+        second_discount_years=second_discount_years,
+        second_discount_rate=second_discount_rate,
+    )
+
+    # --- MRA ---
+    mra_series = build_mra_schedule(
+        bess_capex_usd=bess_capex_usd,
+        pv_capex_usd=pv_capex_usd,
+        bess_mra_pct=bess_mra_pct,
+        pv_mra_pct=pv_mra_pct,
+        buildup_schedule=mra_buildup_schedule,
+        project_years=project_years,
+    )
+
+    total_opex = total_opex_excluding_mra + mra_series
     ebitda = total_revenue - total_opex
     ebitda_series = pd.Series(ebitda.values, index=pd.Index(years, name="year"))
 
@@ -731,16 +755,6 @@ def _run_financial(
         if len(overlap) > 0:
             full_debt.loc[overlap, col] = debt_schedule.loc[overlap, col].values
 
-    # --- Taxes ---
-    tax_rates = build_tax_rate_schedule(
-        project_years=project_years,
-        tax_rate=tax_rate,
-        holiday_years=tax_holiday_years,
-        first_discount_years=first_discount_years,
-        first_discount_rate=first_discount_rate,
-        second_discount_years=second_discount_years,
-        second_discount_rate=second_discount_rate,
-    )
     # Use separate tenors for PV (20yr) and BESS (10yr) per Vietnam tax rules
     depreciation = build_combined_depreciation_schedule(
         pv_capex_usd=pv_capex_usd,
@@ -749,27 +763,19 @@ def _run_financial(
         bess_tenor_years=bess_depreciation_tenor_years,
         project_years=project_years,
     )
-    levered_taxes = calculate_levered_taxes(
+    levered_taxes_raw = calculate_levered_taxes(
         ebitda=ebitda_series,
         depreciation=depreciation,
         debt_interest=full_debt["interest_usd"].set_axis(year_index),
         tax_rates=tax_rates,
     )
-    unlevered_taxes = calculate_unlevered_taxes(
+    levered_taxes = -levered_taxes_raw
+    unlevered_taxes_raw = calculate_unlevered_taxes(
         ebitda=ebitda_series,
         depreciation=depreciation,
         tax_rates=tax_rates,
     )
-
-    # --- MRA ---
-    mra_series = build_mra_schedule(
-        bess_capex_usd=bess_capex_usd,
-        pv_capex_usd=pv_capex_usd,
-        bess_mra_pct=bess_mra_pct,
-        pv_mra_pct=pv_mra_pct,
-        buildup_schedule=mra_buildup_schedule,
-        project_years=project_years,
-    )
+    unlevered_taxes = -unlevered_taxes_raw
 
     # Inject levered taxes and MRA into the opex DataFrame for waterfall
     opex_with_tax = opex.copy()
@@ -791,21 +797,22 @@ def _run_financial(
         index=waterfall.index,
     )
 
-    # Project IRR: capex (negative) + EBITDA - unlevered taxes
+    # after_tax_project_cf mirrors Financial!134 = pre-tax FCF + signed unlevered tax row.
     after_tax_project_cf = waterfall["ebitda_usd"].copy()
     after_tax_project_cf.iloc[0] = -initial_capex_usd
-    after_tax_project_cf.loc[year_index] -= unlevered_taxes.values
+    after_tax_project_cf.loc[year_index] += unlevered_taxes.values
 
-    # Pre-tax project CF (EBITDA only, for backward-compat)
+    # project_irr = workbook G123 = unlevered pre-tax FCF.
     project_cf = waterfall["ebitda_usd"].copy()
-    project_cf.iloc[0] = -initial_capex_usd  # Year 0 = capex outflow
+    project_cf.iloc[0] = -initial_capex_usd  # Year 0 = full capex outflow
 
-    # Equity IRR: capex - debt + free cash flow to equity
-    equity_cf = waterfall["free_cash_flow_to_equity_usd"].copy()
-    equity_cf.iloc[0] = -(initial_capex_usd - debt_amount_usd)  # Equity portion
+    # equity_irr = workbook G136 = unlevered after-tax FCF.
+    equity_cf = after_tax_project_cf  # already has year 0 = -capex
 
-    # Unlevered IRR: EBITDA without debt (same as project_cf)
-    unlevered_cf = project_cf.copy()
+    # unlevered_irr = workbook G189 = levered equity IRR on FCFE.
+    # npv_usd = workbook G193 = XNPV on the same FCFE series.
+    unlevered_cf = waterfall["free_cash_flow_to_equity_usd"].copy()
+    unlevered_cf.iloc[0] = -(initial_capex_usd - debt_amount_usd)  # equity contribution at year 0
 
     results: dict[str, Any] = {}
     results["year1_opex_usd"] = float(
@@ -813,6 +820,7 @@ def _run_financial(
         + opex_with_tax["insurance_usd"].iloc[0]
         + opex_with_tax["land_lease_usd"].iloc[0]
         + opex_with_tax["management_fees_usd"].iloc[0]
+        + opex_with_tax["mra_contribution_usd"].iloc[0]
     )
     results["year1_ebitda_usd"] = float(ebitda_series.iloc[0])
 
@@ -856,7 +864,7 @@ def _run_financial(
     debt_service_years = full_debt.loc[full_debt["total_debt_service_usd"] > 0]
     if len(debt_service_years) > 0:
         dscr_series = calculate_dscr_series(
-            ebitda_series.loc[debt_service_years.index],
+            (ebitda_series + levered_taxes).loc[debt_service_years.index],
             debt_service_years["total_debt_service_usd"],
         )
         results["dscr_min"] = float(dscr_series.min())
@@ -989,13 +997,16 @@ def run_full_model(
 
     try:
         schedule = load_tariff_schedule(excel_path)
-    except Exception as exc:
-        logger.warning("Tariff schedule load failed: %s — using defaults", exc)
-        schedule = {
-            TimePeriod.OFF_PEAK: list(range(0, 7)),
-            TimePeriod.STANDARD: list(range(7, 17)),
-            TimePeriod.PEAK: list(range(17, 24)),
-        }
+    except Exception:
+        try:
+            schedule = load_tariff_schedule_from_calc(excel_path)
+        except Exception as exc2:
+            logger.warning("Tariff schedule load failed: %s — using defaults", exc2)
+            schedule = {
+                TimePeriod.OFF_PEAK: list(range(0, 7)),
+                TimePeriod.STANDARD: list(range(7, 17)),
+                TimePeriod.PEAK: list(range(17, 24)),
+            }
 
     if tariff_rates is None:
         tariff_rates = load_tariff_rates_from_cells(excel_path)
@@ -1017,16 +1028,32 @@ def run_full_model(
         fmp_descent_pct=fmp_descent_effective,
     )
 
-    # Demand charge savings
+    # Demand charge savings — use capacity tariff from Excel if available.
+    # For 2-component (energy+capacity) EVN tariff, the capacity component is
+    # in USD/MW/year (Financial!H32). Convert to VND/kW for the shared helper:
+    #   cp_vnd_per_kw = (USD/MW/year × FX) / (kW/MW) = USD/kW/year × FX
+    capacity_demand_rate_usd_per_mw = float(
+        financial_params.get("capacity_demand_rate_usd_per_mw", 0.0)
+    )
+    cp_demand_vnd_per_kw = (
+        capacity_demand_rate_usd_per_mw / 1000.0 * exchange_rate_effective
+        if capacity_demand_rate_usd_per_mw > 0 and exchange_rate_effective > 0
+        else 0.0
+    )
     demand_savings_yr1 = calculate_annual_demand_savings(
         monthly_data=agg["monthly"],
-        cp_demand_vnd_per_kw=0.0,  # 1-component tariff = 0; extend loader for 2-component
+        cp_demand_vnd_per_kw=cp_demand_vnd_per_kw,
         exchange_rate_usd_vnd=exchange_rate_effective,
     )
 
+    # Grid savings = factory's utility bill reduction. For all PPA structures, the project only
+    # receives its PPA cash flows (dppa_revenue_usd). Grid savings accrue to the off-taker.
+    lifetime_for_financial = agg["lifetime"].copy()
+    lifetime_for_financial["grid_savings_usd"] = 0.0
+
     # --- Stage D: Financial ---
     financial_kpis = _run_financial(
-        lifetime=agg["lifetime"],
+        lifetime=lifetime_for_financial,
         project_years=project_years_effective,
         interest_rate_pct=interest_rate_effective,
         tenor_years=tenor_years_effective,
@@ -1069,6 +1096,7 @@ def run_full_model(
         pv_capex_usd=float(financial_params.get("solar_capex_usd", 0.0)),
         bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),
         pv_mra_pct=float(financial_params.get("pv_mra_pct", 0.10)),
+        mra_buildup_schedule=financial_params.get("mra_buildup_schedule"),
         demand_charge_savings_usd_yr1=demand_savings_yr1,
     )
 

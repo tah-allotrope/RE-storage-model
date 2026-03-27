@@ -8,7 +8,6 @@ consistent with the Excel GoalSeek logic.
 from __future__ import annotations
 
 import pandas as pd
-from scipy.optimize import brentq
 
 from re_storage.core.exceptions import DSCRConstraintError, InputValidationError
 from re_storage.core.types import AnnualTimeSeries
@@ -115,48 +114,81 @@ def size_debt_for_dscr(
     if (ebitda <= 0).any():
         raise DSCRConstraintError("EBITDA must be positive to size debt.")
 
-    def min_dscr(debt_amount_usd: float) -> float:
-        schedule = calculate_amortization_schedule(
-            debt_amount_usd=debt_amount_usd,
-            interest_rate_pct=interest_rate_pct,
-            tenor_years=tenor_years,
-        )
-        dscr = ebitda / schedule["total_debt_service_usd"]
-        return float(dscr.min())
-
-    def dscr_residual(debt_amount_usd: float) -> float:
-        return min_dscr(debt_amount_usd) - target_dscr
-
-    lower = 1e-6
-    upper = initial_guess_usd
-
-    residual_lower = dscr_residual(lower)
-    if residual_lower < 0:
-        raise DSCRConstraintError(
-            "EBITDA too low to meet DSCR even at minimal debt.",
-            min_dscr_achieved=residual_lower + target_dscr,
-            target_dscr=target_dscr,
-        )
-
-    residual_upper = dscr_residual(upper)
-    attempts = 0
-    while residual_upper > 0 and attempts < 20:
-        upper *= 2
-        residual_upper = dscr_residual(upper)
-        attempts += 1
-
-    if residual_upper > 0:
-        raise DSCRConstraintError(
-            "Unable to bracket DSCR target with initial_guess_usd.",
-            min_dscr_achieved=residual_upper + target_dscr,
-            target_dscr=target_dscr,
-        )
-
-    optimal_debt_usd = float(brentq(dscr_residual, lower, upper))
-    schedule = calculate_amortization_schedule(
+    target_debt_service = ebitda / target_dscr
+    rate = interest_rate_pct / 100.0
+    discount_factors = pd.Series(
+        [(1.0 + rate) ** year for year in range(1, tenor_years + 1)],
+        index=years,
+        dtype=float,
+    )
+    optimal_debt_usd = float((target_debt_service / discount_factors).sum())
+    schedule = calculate_sculpted_debt_schedule(
         debt_amount_usd=optimal_debt_usd,
+        cfads_series=ebitda,
         interest_rate_pct=interest_rate_pct,
-        tenor_years=tenor_years,
+        target_dscr=target_dscr,
     )
 
     return optimal_debt_usd, schedule
+
+
+def calculate_sculpted_debt_schedule(
+    debt_amount_usd: float,
+    cfads_series: pd.Series,
+    interest_rate_pct: float,
+    target_dscr: float,
+) -> AnnualTimeSeries:
+    """Build the workbook-style sculpted debt schedule from CFADS and DSCR."""
+    if debt_amount_usd <= 0:
+        raise InputValidationError("debt_amount_usd must be positive.")
+    if interest_rate_pct < 0:
+        raise InputValidationError("interest_rate_pct must be non-negative.")
+    if target_dscr <= 0:
+        raise InputValidationError("target_dscr must be positive.")
+
+    cfads = cfads_series.astype(float)
+    if cfads.empty:
+        raise InputValidationError("cfads_series must not be empty.")
+    if (cfads <= 0).any():
+        raise DSCRConstraintError("CFADS must be positive to sculpt debt.")
+
+    rate = interest_rate_pct / 100.0
+    balance = float(debt_amount_usd)
+    rows: list[dict[str, float]] = []
+
+    for year, cfads_value in cfads.items():
+        target_debt_service = float(cfads_value) / target_dscr
+        interest_usd = balance * rate
+        principal_usd = target_debt_service - interest_usd
+
+        if principal_usd < -1e-9:
+            raise DSCRConstraintError(
+                "CFADS is too low to cover sculpted debt interest.",
+                min_dscr_achieved=float(cfads_value / interest_usd) if interest_usd > 0 else None,
+                target_dscr=target_dscr,
+            )
+
+        principal_usd = max(principal_usd, 0.0)
+        if principal_usd > balance:
+            principal_usd = balance
+
+        total_debt_service_usd = interest_usd + principal_usd
+        closing_balance_usd = balance - principal_usd
+        if abs(closing_balance_usd) < 1e-6:
+            closing_balance_usd = 0.0
+
+        rows.append(
+            {
+                "year": int(year),
+                "opening_balance_usd": balance,
+                "interest_usd": interest_usd,
+                "principal_usd": principal_usd,
+                "total_debt_service_usd": total_debt_service_usd,
+                "closing_balance_usd": closing_balance_usd,
+            }
+        )
+        balance = closing_balance_usd
+
+    schedule = pd.DataFrame(rows)
+    schedule["year"] = schedule["year"].astype(int)
+    return schedule.set_index("year", drop=False)
