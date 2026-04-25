@@ -380,20 +380,31 @@ class TestEvaluateDischargePermission:
         )
         assert conditions.peak
 
-    def test_peak_mode_sunday_window(
+    def test_peak_mode_sunday_no_discharge_when_not_peak_period(
         self, default_battery_config: BatteryConfig
     ) -> None:
-        """Peak mode should permit during Sunday peak window."""
+        """
+        Peak mode must NOT permit discharge on Sunday when is_peak_period=False.
+
+        The old _is_sunday_peak_window(17-20) override has been removed because
+        EVN Sunday has no peak tariff period under either TOU2024 or TOU2026.
+        Discharge permission is now driven solely by is_peak_period, which comes
+        from the tariff schedule loaded by the pipeline.
+        """
         conditions = evaluate_discharge_permission(
-            hour=18,  # Sunday peak window (17-20)
+            hour=18,
             load_kw=50.0,
             solar_gen_kw=100.0,
             grid_load_after_solar_kw=0.0,
             config=default_battery_config,
-            is_peak_period=False,
+            is_peak_period=False,  # Sunday standard/off-peak hour
             is_sunday=True,
         )
-        assert conditions.peak
+        assert not conditions.peak, (
+            "peak condition must be False when is_peak_period=False, "
+            "even on Sunday. The Sunday override was removed in Phase 2 "
+            "of the TOU2026 dispatch audit."
+        )
 
     def test_multiple_conditions_logs_warning(
         self, full_soc_config: BatteryConfig, caplog: pytest.LogCaptureFixture

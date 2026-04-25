@@ -414,14 +414,20 @@ def evaluate_discharge_permission(
         peak_shaving_needed = grid_load_after_solar_kw > config.demand_target_kw
         return DischargeConditions(when_needed=peak_shaving_needed)
 
-    # Arbitrage mode: evaluate 4 conditions
+    # Arbitrage mode: evaluate 4 conditions.
+    # The `peak` condition is driven exclusively by `is_peak_period`, which comes
+    # from the tariff schedule loaded by the pipeline.  The old Sunday override
+    # (_is_sunday_peak_window) was removed because EVN Sunday has no peak period
+    # under either the TOU2024 or TOU2026 schedule; relying on the hardcoded
+    # window caused erroneous discharge at hours 17–20 on Sundays regardless of
+    # what the tariff schedule said.  Schedule-driven classification via
+    # is_peak_period is both correct and tariff-version-agnostic.
     conditions = DischargeConditions(
         when_needed=config.when_needed and (load_kw > solar_gen_kw),
         after_sunset=config.after_sunset and (hour >= 17),
         optimize=config.optimize_mode
         and (_is_in_optimization_window(hour) or is_peak_period),
-        peak=config.peak_mode
-        and (is_peak_period or (is_sunday and _is_sunday_peak_window(hour))),
+        peak=config.peak_mode and is_peak_period,
     )
 
     # Log warning if multiple conditions are active (potential strategy conflict)
@@ -451,10 +457,13 @@ def _is_sunday_peak_window(hour: int) -> bool:
     """
     Check if hour is in Sunday peak window.
 
-    Sunday often has different tariff structures. This defines
-    the window when Sunday peak tariffs apply.
-
-    Default: 17:00-20:00
+    NOTE: This function is no longer called by evaluate_discharge_permission.
+    Under both the TOU2024 and TOU2026 EVN schedules, Sunday has no peak
+    tariff period — the window was hardcoded to 17:00–20:00 which caused
+    erroneous discharge on Sunday hours 20 (TOU2024) and 17 (TOU2026).
+    The dispatch engine now relies solely on ``is_peak_period`` from the
+    tariff schedule, which correctly reflects Sunday as all-Standard/Off-Peak.
+    Kept for reference only.
     """
     return 17 <= hour <= 20
 
