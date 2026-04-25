@@ -82,6 +82,11 @@ def load_assumptions_from_json(json_path: Path) -> SystemAssumptions:
     kpp_110 = float(_nested_get(regulation, "Kpp_110kv"))
     kpp = kpp_110 if connection_voltage_kv >= 100 else kpp_22
 
+    tariff_version: str | None = None
+    raw_ts = data.get("tariff_schedule")
+    if isinstance(raw_ts, dict):
+        tariff_version = str(raw_ts["version"]) if "version" in raw_ts else None
+
     return SystemAssumptions(
         simulation_capacity_kwp=simulation_capacity_kwp,
         actual_capacity_kwp=actual_capacity_kwp,
@@ -197,6 +202,7 @@ def load_assumptions_from_json(json_path: Path) -> SystemAssumptions:
         fixed_ppa_tx_loss_pct=float(
             _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "transmission_loss_pct")
         ),
+        tariff_version=tariff_version,
     )
 
 
@@ -310,6 +316,73 @@ def load_degradation_from_json(
             raise InputValidationError(f"Degradation column '{col}' has values outside (0, 1].")
 
     return df.sort_values("year").reset_index(drop=True)
+
+
+def load_tariff_schedule_from_json(json_path: Path) -> dict[TimePeriod, list[int]] | None:
+    """
+    Load the tariff hour schedule from a project JSON file.
+
+    Reads the optional ``tariff_schedule.weekday`` block which maps period
+    names to lists of integer hours (0–23).  Returns ``None`` when the block
+    is absent so callers can fall back to a hard-coded default.
+
+    Expected JSON structure::
+
+        "tariff_schedule": {
+          "version": "2026",
+          "weekday": {
+            "off_peak": [0, 1, 2, 3, 4, 5],
+            "standard": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 23],
+            "peak": [18, 19, 20, 21, 22]
+          }
+        }
+    """
+    data = _load_json(Path(json_path))
+    raw = data.get("tariff_schedule")
+    if raw is None:
+        return None
+
+    if not isinstance(raw, dict):
+        raise InputValidationError("tariff_schedule must be an object")
+
+    weekday = raw.get("weekday")
+    if weekday is None:
+        raise InputValidationError("tariff_schedule.weekday is required")
+    if not isinstance(weekday, dict):
+        raise InputValidationError("tariff_schedule.weekday must be an object")
+
+    period_map = {
+        "off_peak": TimePeriod.OFF_PEAK,
+        "standard": TimePeriod.STANDARD,
+        "peak": TimePeriod.PEAK,
+    }
+
+    schedule: dict[TimePeriod, list[int]] = {
+        TimePeriod.OFF_PEAK: [],
+        TimePeriod.STANDARD: [],
+        TimePeriod.PEAK: [],
+    }
+
+    for key, period in period_map.items():
+        hours_raw = weekday.get(key, [])
+        if not isinstance(hours_raw, list):
+            raise InputValidationError(f"tariff_schedule.weekday.{key} must be a list")
+        hours = [int(h) for h in hours_raw]
+        if any(h < 0 or h > 23 for h in hours):
+            raise InputValidationError(
+                f"tariff_schedule.weekday.{key} contains hours outside 0–23"
+            )
+        schedule[period] = hours
+
+    all_hours = sorted(
+        h for hours in schedule.values() for h in hours
+    )
+    if all_hours != list(range(24)):
+        raise InputValidationError(
+            "tariff_schedule.weekday hours must cover exactly 0–23 with no gaps or duplicates"
+        )
+
+    return schedule
 
 
 def load_tariff_rates_from_json(json_path: Path) -> dict[TimePeriod, float]:

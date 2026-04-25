@@ -71,6 +71,9 @@ class SystemAssumptions(BaseModel):
     fixed_ppa_curtailment_pct: float = Field(ge=0.0, le=1.0, default=0.0)
     fixed_ppa_tx_loss_pct: float = Field(ge=0.0, le=1.0, default=0.0)
 
+    # Tariff version tag — e.g. "2024" or "2026" — for traceability across scenario runs
+    tariff_version: str | None = Field(default=None, description="EVN TOU tariff schedule version")
+
     @property
     def scale_factor(self) -> float:
         """Output scale factor to convert simulation to actual capacity."""

@@ -53,6 +53,7 @@ from re_storage.inputs.json_loader import (
     load_financial_params_from_json,
     load_hourly_data_from_csv,
     load_tariff_rates_from_json,
+    load_tariff_schedule_from_json,
 )
 from re_storage.inputs.loaders import (
     load_assumptions_from_cells,
@@ -1166,10 +1167,13 @@ def run_model_from_json(
     project_years = int(financial_params["project_years"])
     degradation_table = load_degradation_from_json(json_path, project_years=project_years)
 
-    schedule = {
-        TimePeriod.OFF_PEAK: list(range(0, 7)),
-        TimePeriod.STANDARD: list(range(7, 17)),
-        TimePeriod.PEAK: list(range(17, 24)),
+    # Load tariff schedule from JSON if present; fall back to TOU2024 default.
+    # The default below reflects the pre-April-2026 Vietnamese EVN TOU schedule
+    # (morning peak 10–11, afternoon peak 17–19) used before TOU2026 took effect.
+    schedule = load_tariff_schedule_from_json(json_path) or {
+        TimePeriod.OFF_PEAK: [0, 1, 2, 3, 22, 23],
+        TimePeriod.STANDARD: [4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 20, 21],
+        TimePeriod.PEAK: [10, 11, 17, 18, 19],
     }
 
     if tariff_rates is None:

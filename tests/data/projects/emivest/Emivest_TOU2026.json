@@ -1,0 +1,280 @@
+{
+  "project": "Saigon18",
+  "model": "Solar + BESS Techno-Economic Model",
+  "developer": "Allotrope Partners",
+
+  "tariff_schedule": {
+    "version": "2026",
+    "effective_date": "2026-04-22",
+    "note": "Vietnam EVN TOU tariff effective April 22 2026. See docs/tariff_schedules/vietnam_tou_2026.md.",
+    "weekday": {
+      "off_peak": [0, 1, 2, 3, 4, 5],
+      "standard": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 23],
+      "peak": [18, 19, 20, 21, 22]
+    }
+  },
+
+  "system_input": {
+    "actual_installation_capacity_kWp": 3221,
+    "simulation_capacity_kWp": 100,
+    "global_horizontal_irradiation_kWh_m2_pa": 1776.791,
+    "simulation_performance_ratio_pct": 0.74452500950316,
+    "simulation_energy_yield_kWh_pa": 132286.533616013,
+    "operation_performance_ratio_pct": 0.8,
+    "energy_yield_kWh_pa": 4578435.0488,
+    "specific_energy_kWh_kWp_pa": 1421.4328,
+    "bess_included": true
+  },
+
+  "bess_parameters": {
+    "standard_storage_capacity_kWh": 215,
+    "standard_power_output_kW": 100,
+    "system_quantity_sets": 10,
+    "total_bess_storage_capacity_kWh": 2150,
+    "total_bess_power_output_kW": 1000,
+    "depth_of_discharge_pct": 0.85,
+    "half_cycle_efficiency_pct": 0.95,
+    "degradation_rate_pct_pa": 0.03,
+    "system_availability_pct": 0.99
+  },
+
+  "bess_operation_strategy": {
+    "strategy_mode": 1,
+    "mode_description": "Energy Arbitrage",
+    "discharge": {
+      "peak_shaving": {
+        "demand_reduction_target_pct": 0,
+        "min_reserve_soc_kWh": 0,
+        "end_of_day_discharge_start_hour": 0
+      },
+      "energy_arbitrage": {
+        "after_sunset": false,
+        "when_needed": false,
+        "peak": true,
+        "optimize_mode_1": false,
+        "grid_support": false
+      },
+      "custom_option": {
+        "optimize_start_hour": 11,
+        "optimize_end_hour": 15,
+        "grid_charge_start_hour": 15,
+        "grid_charge_end_hour": 16.99
+      }
+    },
+    "charge": {
+      "grid_charge": {
+        "grid_charge_allowed": false,
+        "percentage_charge_by_grid_pct": 0.5
+      },
+      "solar_active_charging": {
+        "pv2bess_pre_charge_mode": 1,
+        "mode_description": "Fixed share in window",
+        "pre_charge_share_of_pv_1_pct": 0.3,
+        "pre_charge_start_hour_1": 10,
+        "pre_charge_end_hour_1": 16,
+        "min_pv_directly_to_load_pct": 0.1,
+        "precharge_target_soc_kWh_2": 1500,
+        "precharge_target_hour_2": 17
+      }
+    }
+  },
+
+  "financial_input": {
+    "exchange_rate_USD_VND": 26000,
+    "timing": {
+      "financial_close_excel_serial": 46022,
+      "commercial_operation_date_excel_serial": 46023,
+      "project_lifetime_years": 20
+    }
+  },
+
+  "grid_connection_and_tariff": {
+    "connection_voltage_level_kV": 22,
+    "tariff_structure": "1-component",
+    "evn_retail_tariff_VND": {
+      "Cp_demand": 0,
+      "Ca_normal": 1833,
+      "Ca_peak": 3398,
+      "Ca_offpeak": 1190
+    },
+    "current_applied_evn_tariff_USD_MWh": {
+      "standard": 70.5,
+      "peak": 130.692307692308,
+      "off_peak": 45.7692307692308,
+      "capacity": 0
+    }
+  },
+
+  "ppa_settings": {
+    "contract_duration_years": 20,
+    "active_ppa_option": 1,
+    "active_ppa_description": "Bundled Discount to EVN Tariff",
+    "option_1_corporate_buyer": {
+      "evn_price_escalation_pct_pa": 0.05,
+      "net_billing_USD_MWh": 38.4615384615385,
+      "pv_export_net_billing_share_pct": 0.2,
+      "bundled_discount_to_evn_tariff_pct": 0.15
+    },
+    "option_2_pv_bess_discount": {
+      "pv_discount_to_evn_tariff_pct": 0.05,
+      "bess_discount_to_evn_tariff_pct": 0.05
+    },
+    "option_3_dppa": {
+      "model_active": true,
+      "Q_ca_MWh": 0,
+      "strike_price_VND": 1800,
+      "connection_voltage_level_kV": 22,
+      "avg_sun_hours_market_price_descent_pct_pa": -0.05,
+      "curtailment_pct": 0.02,
+      "price_escalation_pct": 0.05,
+      "regulation_parameters": {
+        "k": 1.02,
+        "Kpp_22kv": 1.027263,
+        "Kpp_110kv": 1.008525,
+        "delta": 1,
+        "PCL_VND": 163.2,
+        "CDPPAdv_VND": 360.14
+      }
+    },
+    "option_4_ppa_with_evn": {
+      "all_in_fixed_price_USD_MWh": 70,
+      "curtailment_pct": 0.03,
+      "transmission_loss_pct": 0.01
+    }
+  },
+
+  "capex": {
+    "land_acquisition_USD": 0,
+    "solar_USD_per_MWp": 450000,
+    "bess_USD_per_MWh": 200000,
+    "bop_USD": 0,
+    "depreciation_tenor_years": 20,
+    "depreciation_method": "Straight line"
+  },
+
+  "opex": {
+    "solar_om_USD_per_MWp_pa": 6000,
+    "bess_om_USD_per_MWh_pa": 2000,
+    "insurance_solar_pct_total_capex": 0.0025,
+    "insurance_bess_pct_total_capex": 0.0025,
+    "other_opex_USD_per_MWp_pa": 1000,
+    "asset_management_USD_per_MWp_pa": 3000,
+    "land_lease_pct_of_revenue": 0.005,
+    "opex_escalation_cpi_pct_pa": 0.04,
+    "pv_maintenance_flag_year": 11,
+    "bess_maintenance_flag_year": 11
+  },
+
+  "financial_assumptions": {
+    "debt_sizing": {
+      "maximum_leverage_pct": 0.7,
+      "maximum_debt_tenor_years": 10,
+      "target_dscr_x": 1.3
+    },
+    "interest_rate": {
+      "base_rate_floating": 0.065,
+      "debt_margin_pct": 0.02,
+      "hedging_ratio_pct": 0.5,
+      "fixed_swap_rate_pct": 0.065
+    },
+    "tax": {
+      "corporate_tax_rate_pct": 0.2,
+      "tax_holiday_years": 5,
+      "tax_holiday_rate": 0,
+      "first_discount_year": 13,
+      "first_discount_rate": 0.13,
+      "second_discount_year": 15,
+      "second_discount_rate": 0.15,
+      "vat_pct": 0.1
+    },
+    "return_expectations": {
+      "target_minimum_equity_irr_pct": 0.1
+    }
+  },
+
+  "degradation_and_loss": {
+    "note": "Battery replacement triggered at year 11 (Loss!F1 = 11). Battery loss resets at replacement years.",
+    "annual_table": [
+      { "year": 1,  "battery_loss_cumulative": null,   "battery_retention": 1.0,      "pv_loss_annual": null,                    "pv_retention": 1.0,      "battery_with_replacement": 1.0 },
+      { "year": 2,  "battery_loss_cumulative": 0.0255, "battery_retention": 0.9745,   "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.98,     "battery_with_replacement": 0.9745 },
+      { "year": 3,  "battery_loss_cumulative": 0.037,  "battery_retention": 0.9375,   "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.9745,   "battery_with_replacement": 0.9384435 },
+      { "year": 4,  "battery_loss_cumulative": 0.0218, "battery_retention": 0.9157,   "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.969,    "battery_with_replacement": 0.9179854317 },
+      { "year": 5,  "battery_loss_cumulative": 0.02065,"battery_retention": 0.89505,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.9635,   "battery_with_replacement": 0.899029032535395 },
+      { "year": 6,  "battery_loss_cumulative": 0.0207, "battery_retention": 0.87435,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.958,    "battery_with_replacement": 0.880419131561912 },
+      { "year": 7,  "battery_loss_cumulative": 0.0207, "battery_retention": 0.85365,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.9525,   "battery_with_replacement": 0.862194455538581 },
+      { "year": 8,  "battery_loss_cumulative": 0.0207, "battery_retention": 0.83295,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.947,    "battery_with_replacement": 0.844347030308932 },
+      { "year": 9,  "battery_loss_cumulative": 0.0207, "battery_retention": 0.81225,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.9415,   "battery_with_replacement": 0.826869046781537 },
+      { "year": 10, "battery_loss_cumulative": 0.0207, "battery_retention": 0.79155,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.936,    "battery_with_replacement": 0.809752857513159 },
+      { "year": 11, "battery_loss_cumulative": 0.02065,"battery_retention": 0.7709,   "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.9305,   "battery_with_replacement": 0.9745 },
+      { "year": 12, "battery_loss_cumulative": 0.02065,"battery_retention": 0.75025,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.925,    "battery_with_replacement": 0.954376575 },
+      { "year": 13, "battery_loss_cumulative": 0.0212, "battery_retention": 0.72905,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.9195,   "battery_with_replacement": 0.93414379161 },
+      { "year": 14, "battery_loss_cumulative": 0.0202, "battery_retention": 0.70885,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.914,    "battery_with_replacement": 0.915274087019478 },
+      { "year": 15, "battery_loss_cumulative": 0.0207, "battery_retention": 0.68815,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.9085,   "battery_with_replacement": 0.896327913418175 },
+      { "year": 16, "battery_loss_cumulative": 0.0207, "battery_retention": 0.66745,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.903,    "battery_with_replacement": 0.877773925610419 },
+      { "year": 17, "battery_loss_cumulative": 0.0207, "battery_retention": 0.64675,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.8975,   "battery_with_replacement": 0.859604005350283 },
+      { "year": 18, "battery_loss_cumulative": 0.0207, "battery_retention": 0.62605,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.892,    "battery_with_replacement": 0.841810202439532 },
+      { "year": 19, "battery_loss_cumulative": 0.0205, "battery_retention": 0.60555,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.8865,   "battery_with_replacement": 0.824553093289521 },
+      { "year": 20, "battery_loss_cumulative": 0.0203, "battery_retention": 0.58525,  "pv_loss_annual": 0.0054999999999999995,   "pv_retention": 0.881,    "battery_with_replacement": 0.807814665495744 }
+    ]
+  },
+
+  "retail_tariff_matrix": {
+    "note": "All tariff values in VND",
+    "tariff_options": [
+      {
+        "voltage_level": "110kV-2-component",
+        "Cp_demand": 209459,
+        "Ca_normal": 1253,
+        "Ca_peak": 2162,
+        "Ca_offpeak": 843
+      },
+      {
+        "voltage_level": "22kV-2-component",
+        "Cp_demand": 235414,
+        "Ca_normal": 1275,
+        "Ca_peak": 2182,
+        "Ca_offpeak": 859
+      },
+      {
+        "voltage_level": "110kV-1-component",
+        "Cp_demand": 0,
+        "Ca_normal": 1811,
+        "Ca_peak": 3266,
+        "Ca_offpeak": 1146
+      },
+      {
+        "voltage_level": "22kV-1-component",
+        "Cp_demand": 0,
+        "Ca_normal": 1833,
+        "Ca_peak": 3398,
+        "Ca_offpeak": 1190,
+        "active": true
+      }
+    ],
+    "mra_buildup_assumption": [
+      { "year": 0, "pct": 0.1 },
+      { "year": 1, "pct": 0.3 },
+      { "year": 2, "pct": 0.3 },
+      { "year": 3, "pct": 0.3 }
+    ]
+  },
+
+  "monthly_demand_baseline": {
+    "note": "November value (41,779.7 kW) is a significant outlier vs all other months (~1,800–2,400 kW) — recommend verifying source data.",
+    "unit": "kW",
+    "months": [
+      { "month": 1,  "month_name": "January",   "baseline_peak_kW": 2428.0 },
+      { "month": 2,  "month_name": "February",  "baseline_peak_kW": 1959.966 },
+      { "month": 3,  "month_name": "March",     "baseline_peak_kW": 2116.262 },
+      { "month": 4,  "month_name": "April",     "baseline_peak_kW": 2138.256 },
+      { "month": 5,  "month_name": "May",       "baseline_peak_kW": 2112.8 },
+      { "month": 6,  "month_name": "June",      "baseline_peak_kW": 1889.88004168848 },
+      { "month": 7,  "month_name": "July",      "baseline_peak_kW": 1788.72109260548 },
+      { "month": 8,  "month_name": "August",    "baseline_peak_kW": 2418.55577048677 },
+      { "month": 9,  "month_name": "September", "baseline_peak_kW": 2137.60798932568 },
+      { "month": 10, "month_name": "October",   "baseline_peak_kW": 2076.61590866359 },
+      { "month": 11, "month_name": "November",  "baseline_peak_kW": 41779.6543244724 },
+      { "month": 12, "month_name": "December",  "baseline_peak_kW": 2055.558 }
+    ]
+  }
+}
