@@ -191,11 +191,23 @@ def load_assumptions_from_cells(path: Path) -> SystemAssumptions:
     actual_capacity_kwp = _float(ce_map, "Actual installation capacity")
     total_bess_kwh = _float(ce_map, "Total BESS Storage Capacity")
     total_bess_kw = _float(ce_map, "Total BESS Power Output")
+    if total_bess_kwh <= 0:
+        total_bess_kwh = _float(ce_map, "Standard Storage Capacity", 0.0) * _float(
+            ce_map, "System Qunatity", 0.0
+        )
+    if total_bess_kw <= 0:
+        total_bess_kw = _float(ce_map, "Standard Power Output", 0.0) * _float(
+            ce_map, "System Qunatity", 0.0
+        )
     dod = _float(ce_map, "DoD", 0.85)
     half_cycle_eff = _float(ce_map, "HalfCycle Efficiency", 0.95)
     strategy_mode = _int_val(ce_map, "Strategy mode", 1)
     bess_enabled = _bool_val(ce_map, "Does BESS System include", True)
     demand_reduction_target = _float(ce_map, "Demand Reduction Target", 0.2)
+    after_sunset = _bool_val(ce_map, "After Sunset", False)
+    when_needed = _bool_val(ce_map, "When Needed", True)
+    peak_mode = _bool_val(ce_map, "Peak", True)
+    optimize_mode = _bool_val(ce_map, "Optimize mode 1", False)
 
     # Charging parameters
     # PV2BESS Pre-Charge Mode: 0=Off (use time window), 1=Time Window, 2=Precharge
@@ -279,6 +291,10 @@ def load_assumptions_from_cells(path: Path) -> SystemAssumptions:
             kpp=kpp,
             bess_enabled=bess_enabled,
             dppa_enabled=dppa_enabled,
+            when_needed=when_needed,
+            after_sunset=after_sunset,
+            optimize_mode=optimize_mode,
+            peak_mode=peak_mode,
         )
     except ValidationError as exc:
         raise InputValidationError(f"Assumptions validation failed: {exc}") from exc
@@ -348,11 +364,73 @@ def load_tariff_rates_from_cells(path: Path) -> dict[TimePeriod, float]:
 
     exchange_rate = _find_exchange_rate()
 
-    def _find_value(*label_options: str) -> float:
+    tariff_structure_label = None
+    connection_voltage = None
+    for label, raw_value in oq_map.items():
+        normalized_label = label.strip().lower()
+        if tariff_structure_label is None and "tariff structure" in normalized_label:
+            tariff_structure_label = (
+                str(raw_value).strip().lower() if raw_value is not None else None
+            )
+        if connection_voltage is None and "connection voltage level" in normalized_label:
+            try:
+                connection_voltage = float(raw_value)
+            except (TypeError, ValueError):
+                connection_voltage = None
+
+    def _fallback_other_input_rate(target_label: str) -> tuple[float, str] | None:
+        try:
+            wb_other = load_workbook(str(path), data_only=True, read_only=True)
+        except (FileNotFoundError, OSError):
+            return None
+
+        if OTHER_INPUT_SHEET not in wb_other.sheetnames:
+            wb_other.close()
+            return None
+
+        ws_other = wb_other[OTHER_INPUT_SHEET]
+        try:
+            structure = tariff_structure_label or "1-component"
+            use_two_component = "2-component" in structure
+            if target_label == "cp_demand":
+                column = 4 if use_two_component and (connection_voltage or 0.0) < 100 else 3
+                if not use_two_component:
+                    column = 5
+            else:
+                if use_two_component:
+                    column = 4 if (connection_voltage or 0.0) < 100 else 3
+                else:
+                    column = 5
+
+            for row in range(1, (ws_other.max_row or 1) + 1):
+                label = ws_other.cell(row=row, column=2).value
+                if not isinstance(label, str):
+                    continue
+                normalized_label = label.strip().lower()
+                if target_label not in normalized_label:
+                    continue
+                raw_value = ws_other.cell(row=row, column=column).value
+                if raw_value is None or raw_value == "":
+                    return None
+                return float(raw_value), normalized_label
+        except (TypeError, ValueError):
+            return None
+        finally:
+            wb_other.close()
+
+        return None
+
+    def _find_value(*label_options: str) -> tuple[float, str]:
         normalized_options = tuple(option.strip().lower() for option in label_options)
         for label, raw_value in oq_map.items():
             normalized_label = label.strip().lower()
             if any(option in normalized_label for option in normalized_options):
+                if raw_value is None or raw_value == "":
+                    if normalized_label in {"cp_demand", "ca_normal", "ca_peak", "ca_offpeak"}:
+                        fallback = _fallback_other_input_rate(normalized_label)
+                        if fallback is not None:
+                            return fallback
+                    continue
                 try:
                     value = float(raw_value)
                 except (TypeError, ValueError) as exc:
@@ -456,6 +534,12 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
             if end_row is not None and row >= end_row:
                 continue
             if key in label.lower():
+                if raw_value is None or raw_value == "":
+                    if default is not None:
+                        return default
+                    raise InputValidationError(
+                        f"Financial label '{label}' has non-numeric value {raw_value!r}."
+                    )
                 try:
                     return float(raw_value)
                 except (TypeError, ValueError) as exc:
@@ -1026,6 +1110,88 @@ def _read_loss_sheet(path: Path) -> pd.DataFrame:
         df = df.loc[year_numeric.notna()].copy()
         df["year"] = year_numeric.loc[df.index].astype(int)
 
+    battery_loss_col = None
+    pv_loss_col = None
+    for col in df.columns:
+        normalized = str(col).strip().lower()
+        if normalized == "battery's loss":
+            battery_loss_col = col
+        elif normalized == "pv loss":
+            pv_loss_col = col
+
+    if "battery_factor_no_replacement" in df.columns:
+        battery_factor = pd.to_numeric(df["battery_factor_no_replacement"], errors="coerce")
+        if battery_factor.isna().any() and battery_loss_col is not None:
+            battery_loss = pd.to_numeric(df[battery_loss_col], errors="coerce").fillna(0.0)
+            reconstructed = []
+            current = 1.0
+            for idx, loss in enumerate(battery_loss.tolist()):
+                if idx == 0:
+                    current = battery_factor.iloc[0] if pd.notna(battery_factor.iloc[0]) else 1.0
+                else:
+                    current = max(current - float(loss), 0.0)
+                reconstructed.append(current)
+            df["battery_factor_no_replacement"] = battery_factor.fillna(
+                pd.Series(reconstructed, index=df.index)
+            )
+
+    if "pv_factor" in df.columns:
+        pv_factor = pd.to_numeric(df["pv_factor"], errors="coerce")
+        if pv_factor.isna().any() and pv_loss_col is not None:
+            pv_loss = pd.to_numeric(df[pv_loss_col], errors="coerce").fillna(0.0)
+            reconstructed = []
+            current = 1.0
+            for idx, loss in enumerate(pv_loss.tolist()):
+                if idx == 0:
+                    current = pv_factor.iloc[0] if pd.notna(pv_factor.iloc[0]) else 1.0
+                else:
+                    current = max(current - float(loss), 0.0)
+                reconstructed.append(current)
+            df["pv_factor"] = pv_factor.fillna(pd.Series(reconstructed, index=df.index))
+
+    if "battery_factor_with_replacement" in df.columns:
+        replacement_factor = pd.to_numeric(df["battery_factor_with_replacement"], errors="coerce")
+        if replacement_factor.isna().any() and "battery_factor_no_replacement" in df.columns:
+            replacement_cycle_raw = df.columns[5] if len(df.columns) > 5 else None
+            replacement_cycle = None
+            try:
+                wb = load_workbook(str(path), data_only=True, read_only=True)
+                ws = wb[LOSS_SHEET]
+                raw_cycle = ws.cell(row=1, column=6).value
+                wb.close()
+                if raw_cycle is not None:
+                    replacement_cycle = int(float(raw_cycle))
+            except (FileNotFoundError, OSError, ValueError, TypeError):
+                replacement_cycle = None
+
+            base_factor = pd.to_numeric(
+                df["battery_factor_no_replacement"], errors="coerce"
+            ).fillna(1.0)
+            reconstructed = []
+            current = float(base_factor.iloc[0]) if not base_factor.empty else 1.0
+            for idx, year in enumerate(df["year"].tolist()):
+                if idx == 0:
+                    current = float(base_factor.iloc[0]) if pd.notna(base_factor.iloc[0]) else 1.0
+                elif replacement_cycle and year % replacement_cycle == 0:
+                    current = (
+                        float(base_factor.iloc[1])
+                        if len(base_factor) > 1 and pd.notna(base_factor.iloc[1])
+                        else 1.0
+                    )
+                else:
+                    current = current * (
+                        1.0
+                        - float(
+                            pd.to_numeric(df[battery_loss_col], errors="coerce")
+                            .fillna(0.0)
+                            .iloc[idx]
+                        )
+                    )
+                reconstructed.append(current)
+            df["battery_factor_with_replacement"] = replacement_factor.fillna(
+                pd.Series(reconstructed, index=df.index)
+            )
+
     return df
 
 
@@ -1089,7 +1255,10 @@ def load_tariff_schedule_from_calc(path: Path) -> dict[TimePeriod, list[int]]:
     return schedule
 
 
-def load_tariff_schedule(path: Path) -> dict[TimePeriod, list[int]]:
+def load_tariff_schedule(
+    path: Path,
+    sheet_name: str = TARIFF_SHEET,
+) -> dict[TimePeriod, list[int]]:
     """
     Load tariff schedule defining peak/off-peak hours.
 
@@ -1102,7 +1271,7 @@ def load_tariff_schedule(path: Path) -> dict[TimePeriod, list[int]]:
     Raises:
         InputValidationError: If the schedule contains invalid hours or periods.
     """
-    df = _read_sheet(path, TARIFF_SHEET)
+    df = _read_sheet(path, sheet_name)
 
     if _missing_columns(df, {"hour", "period"}):
         raise InputValidationError("Tariff schedule must contain 'hour' and 'period'.")

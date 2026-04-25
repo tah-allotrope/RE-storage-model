@@ -5,11 +5,16 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from re_storage.core.types import TimePeriod
+from re_storage.inputs.loaders import load_tariff_schedule
 from re_storage.pipeline import (
+    _build_battery_config,
+    _run_physics,
     _build_dppa_net_generation,
     _normalize_hourly_price_columns_to_usd,
     _run_financial,
 )
+from re_storage.inputs.schemas import SystemAssumptions
 
 
 def test_build_dppa_net_generation_includes_discharge() -> None:
@@ -104,3 +109,120 @@ def test_run_financial_aligns_year_indexed_lifetime_and_opex() -> None:
 
     assert result["year1_ebitda_usd"] == pytest.approx(1300.0)
     assert result["year1_opex_usd"] == pytest.approx(0.0)
+
+
+def test_load_tariff_schedule_can_select_alternate_sheet(tmp_path) -> None:
+    """Excel tariff loading should support explicit TOU2026 sheet selection."""
+    workbook = tmp_path / "tariffs.xlsx"
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
+        pd.DataFrame(
+            {
+                "hour": list(range(24)),
+                "period": ["off_peak"] * 6 + ["standard"] * 12 + ["peak"] * 6,
+            }
+        ).to_excel(writer, sheet_name="Tariff Schedule", index=False)
+        pd.DataFrame(
+            {
+                "hour": list(range(24)),
+                "period": ["off_peak"] * 6 + ["standard"] * 12 + ["peak"] * 5 + ["standard"],
+            }
+        ).to_excel(writer, sheet_name="Tariff Schedule 2026", index=False)
+
+    default_schedule = load_tariff_schedule(workbook)
+    tou2026_schedule = load_tariff_schedule(workbook, sheet_name="Tariff Schedule 2026")
+
+    assert default_schedule[TimePeriod.PEAK] == [18, 19, 20, 21, 22, 23]
+    assert tou2026_schedule[TimePeriod.PEAK] == [18, 19, 20, 21, 22]
+    assert tou2026_schedule[TimePeriod.STANDARD][-1] == 23
+
+
+def test_build_battery_config_uses_dispatch_flags() -> None:
+    """Pipeline battery config should preserve dispatch flags from assumptions."""
+    assumptions = SystemAssumptions(
+        simulation_capacity_kwp=100.0,
+        actual_capacity_kwp=100.0,
+        usable_bess_capacity_kwh=500.0,
+        bess_power_rating_kw=250.0,
+        charge_efficiency=0.95,
+        discharge_efficiency=0.95,
+        strategy_mode=1,
+        charging_mode=1,
+        charge_start_hour=0,
+        charge_end_hour=5,
+        precharge_target_hour=18,
+        precharge_target_soc_kwh=500.0,
+        min_direct_pv_share=0.0,
+        active_pv2bess_share=1.0,
+        demand_reduction_target=0.0,
+        strike_price_usd_per_kwh=0.05,
+        k_factor=1.0,
+        kpp=1.0,
+        bess_enabled=True,
+        dppa_enabled=True,
+        when_needed=False,
+        after_sunset=True,
+        optimize_mode=True,
+        peak_mode=False,
+        max_cycles_per_day=1,
+    )
+
+    config = _build_battery_config(assumptions)
+
+    assert config.when_needed is False
+    assert config.after_sunset is True
+    assert config.optimize_mode is True
+    assert config.peak_mode is False
+    assert config.max_cycles_per_day == 1
+
+
+def test_run_physics_honors_cycle_cap() -> None:
+    """A max_cycles_per_day override should suppress a second discharge start."""
+    hourly = pd.DataFrame(
+        {
+            "datetime": pd.date_range("2026-01-01", periods=24, freq="h"),
+            "simulation_profile_kw": [
+                8.0 if h in {0, 1, 2, 12, 13, 14} else 0.0 for h in range(24)
+            ],
+            "irradiation_wh_m2": [0.0] * 24,
+            "load_kw": [2.0] * 24,
+            "fmp_usd_per_kwh": [0.05] * 24,
+            "cfmp_usd_per_kwh": [0.05] * 24,
+        }
+    )
+    assumptions = SystemAssumptions(
+        simulation_capacity_kwp=1.0,
+        actual_capacity_kwp=100.0,
+        usable_bess_capacity_kwh=500.0,
+        bess_power_rating_kw=250.0,
+        charge_efficiency=0.95,
+        discharge_efficiency=0.95,
+        strategy_mode=1,
+        charging_mode=1,
+        charge_start_hour=0,
+        charge_end_hour=23,
+        precharge_target_hour=18,
+        precharge_target_soc_kwh=500.0,
+        min_direct_pv_share=0.0,
+        active_pv2bess_share=1.0,
+        demand_reduction_target=0.0,
+        strike_price_usd_per_kwh=0.05,
+        k_factor=1.0,
+        kpp=1.0,
+        bess_enabled=True,
+        dppa_enabled=True,
+        when_needed=False,
+        after_sunset=False,
+        optimize_mode=False,
+        peak_mode=True,
+        max_cycles_per_day=1,
+    )
+    schedule = {
+        TimePeriod.OFF_PEAK: [0, 1, 2, 3, 4, 5],
+        TimePeriod.STANDARD: [6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 21, 22, 23],
+        TimePeriod.PEAK: [10, 11, 18, 19, 20],
+    }
+
+    result = _run_physics(hourly, assumptions, schedule)
+    discharge_hours = result.index[result["discharged_kw"] > 0].tolist()
+
+    assert discharge_hours == [10, 11]

@@ -1,0 +1,21 @@
+{
+  "year1_opex_usd": 169571.09055564235,
+  "year1_ebitda_usd": 386497.02057282685,
+  "project_irr": 0.25315893033444187,
+  "equity_irr": 0.24240344515306925,
+  "unlevered_irr": 0.7439875955967961,
+  "after_tax_project_irr": 0.24240344515306925,
+  "npv_usd": 4687907.634103536,
+  "after_tax_npv_usd": 2355868.6932726884,
+  "dscr_min": 1.927571117316868,
+  "dscr_avg": 2.412557427295659,
+  "debt_amount_usd": 1315615.0,
+  "calc_solar_gen_sum_kwh": 4260949.247771779,
+  "calc_soc_min_kwh": 0.0,
+  "calc_soc_max_kwh": 1827.5,
+  "year1_solar_generation_mwh": 4260.9492477717795,
+  "year1_dppa_revenue_usd": 286425.26938446675,
+  "year1_grid_savings_usd": 269642.8417440025,
+  "ppa_option": 4,
+  "ppa_label": "Fixed EVN PPA"
+}

@@ -21,6 +21,7 @@ from re_storage.core.exceptions import DegradationTableError, InputValidationErr
 from re_storage.core.types import HOURS_PER_LEAP_YEAR, HOURS_PER_YEAR, TimePeriod
 from re_storage.inputs.loaders import (
     load_assumptions,
+    load_assumptions_from_cells,
     load_degradation_table,
     load_financial_params_from_cells,
     load_hourly_data,
@@ -365,6 +366,42 @@ class TestLoadDegradationTable:
             "battery_factor_with_replacement",
         }.issubset(df.columns)
 
+    def test_load_degradation_table_reconstructs_uncached_formula_columns(
+        self, tmp_path: Path
+    ) -> None:
+        """Loss loader should rebuild retention factors when cached formula cells are blank."""
+        from openpyxl import Workbook
+
+        path = tmp_path / "loss_formulas.xlsx"
+        wb = Workbook()
+        ws = wb.active
+        if ws is None:
+            raise RuntimeError("Workbook active sheet unavailable")
+        ws.title = "Loss"
+
+        ws["A1"] = "Loss Table"
+        ws["F1"] = 11
+        ws["A2"] = "Year"
+        ws["B2"] = "Battery's Loss"
+        ws["C2"] = "Battery"
+        ws["D2"] = "PV Loss"
+        ws["E2"] = "PV"
+        ws["F2"] = "Battery wt Replacement"
+        ws.append([1, None, 1.0, None, 1.0, 1.0])
+        ws.append([2, 0.0255, None, 0.02, None, None])
+        ws.append([3, 0.0370, None, 0.0055, None, None])
+
+        wb.save(path)
+        wb.close()
+
+        df = load_degradation_table(path, project_years=3)
+
+        assert df["pv_factor"].tolist() == pytest.approx([1.0, 0.98, 0.9745])
+        assert df["battery_factor_no_replacement"].tolist() == pytest.approx([1.0, 0.9745, 0.9375])
+        assert df["battery_factor_with_replacement"].tolist() == pytest.approx(
+            [1.0, 0.9745, 0.9384435]
+        )
+
 
 class TestLoadTariffSchedule:
     """Tests for load_tariff_schedule."""
@@ -444,3 +481,192 @@ class TestLoadTariffAndFinancialFromCells:
         assert rates[TimePeriod.STANDARD] == pytest.approx(1811 / 26000)
         assert rates[TimePeriod.PEAK] == pytest.approx(3266 / 26000)
         assert rates[TimePeriod.OFF_PEAK] == pytest.approx(1146 / 26000)
+
+    def test_load_tariff_rates_from_cells_falls_back_to_other_input_table(
+        self, tmp_path: Path
+    ) -> None:
+        from openpyxl import Workbook
+
+        path = tmp_path / "other_input_tariffs.xlsx"
+        wb = Workbook()
+        ws = wb.active
+        if ws is None:
+            raise RuntimeError("Workbook active sheet unavailable")
+        ws.title = "Assumption"
+        ws["O2"] = "Connection Voltage Level"
+        ws["Q2"] = 110
+        ws["O3"] = "Tariff Structure"
+        ws["Q3"] = "2-component"
+        ws["O4"] = "Ca_normal"
+        ws["Q4"] = None
+        ws["O5"] = "Ca_peak"
+        ws["Q5"] = None
+        ws["O6"] = "Ca_offpeak"
+        ws["Q6"] = None
+        ws["I2"] = "USD/VND"
+        ws["K2"] = 26000
+
+        other = wb.create_sheet("Other Input")
+        other["B10"] = "Cp_demand"
+        other["C10"] = 209459
+        other["D10"] = 235414
+        other["E10"] = 0
+        other["B11"] = "Ca_normal"
+        other["C11"] = 1253
+        other["D11"] = 1275
+        other["E11"] = 1811
+        other["B12"] = "Ca_peak"
+        other["C12"] = 2162
+        other["D12"] = 2182
+        other["E12"] = 3266
+        other["B13"] = "Ca_offpeak"
+        other["C13"] = 843
+        other["D13"] = 859
+        other["E13"] = 1146
+
+        wb.save(path)
+        wb.close()
+
+        rates = load_tariff_rates_from_cells(path)
+
+        assert rates[TimePeriod.STANDARD] == pytest.approx(1253 / 26000)
+        assert rates[TimePeriod.PEAK] == pytest.approx(2162 / 26000)
+        assert rates[TimePeriod.OFF_PEAK] == pytest.approx(843 / 26000)
+
+
+def test_load_assumptions_from_cells_reads_dispatch_flags(tmp_path: Path) -> None:
+    """Workbook dispatch toggles should populate the SystemAssumptions flags."""
+    from openpyxl import Workbook
+
+    path = tmp_path / "dispatch_flags.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        raise RuntimeError("Workbook active sheet unavailable")
+    ws.title = "Assumption"
+
+    ws["C2"] = "Simulation Capacity"
+    ws["E2"] = 100
+    ws["C3"] = "Actual installation capacity"
+    ws["E3"] = 200
+    ws["C4"] = "Total BESS Storage Capacity"
+    ws["E4"] = 500
+    ws["C5"] = "Total BESS Power Output"
+    ws["E5"] = 250
+    ws["C6"] = "DoD"
+    ws["E6"] = 0.8
+    ws["C7"] = "HalfCycle Efficiency"
+    ws["E7"] = 0.95
+    ws["C8"] = "Strategy mode"
+    ws["E8"] = 1
+    ws["C9"] = "Does BESS System include"
+    ws["E9"] = 1
+    ws["C10"] = "Demand Reduction Target"
+    ws["E10"] = 0.2
+    ws["C11"] = "PV2BESS Pre-Charge Mode"
+    ws["E11"] = 1
+    ws["C12"] = "Pre-Charge_StartHour"
+    ws["E12"] = 0
+    ws["C13"] = "Pre-Charge_EndHour"
+    ws["E13"] = 5
+    ws["C14"] = "Min PV directly to load"
+    ws["E14"] = 0.1
+    ws["C15"] = "Pre-Charge Share of PV"
+    ws["E15"] = 0.3
+    ws["C16"] = "Precharge_TargetSoC_kWh"
+    ws["E16"] = 400
+    ws["C17"] = "Precharge_TargetHour"
+    ws["E17"] = 18
+    ws["C18"] = "After Sunset"
+    ws["E18"] = 0
+    ws["C19"] = "When Needed"
+    ws["E19"] = 0
+    ws["C20"] = "Peak"
+    ws["E20"] = 1
+    ws["C21"] = "Optimize mode 1"
+    ws["E21"] = 0
+
+    ws["I2"] = "USD/VND"
+    ws["K2"] = 26000
+    ws["O2"] = "Does model is actived"
+    ws["Q2"] = 1
+    ws["O3"] = "Strike Price"
+    ws["Q3"] = 1800
+    ws["O4"] = "k"
+    ws["Q4"] = 1.02
+    ws["O5"] = "Kpp_22kv"
+    ws["Q5"] = 1.027263
+    ws["O6"] = "Kpp_110kv"
+    ws["Q6"] = 1.008525
+    ws["O7"] = "Connection Voltage Level"
+    ws["Q7"] = 22
+
+    wb.save(path)
+    wb.close()
+
+    assumptions = load_assumptions_from_cells(path)
+
+    assert assumptions.when_needed is False
+    assert assumptions.after_sunset is False
+    assert assumptions.peak_mode is True
+    assert assumptions.optimize_mode is False
+
+
+def test_load_assumptions_from_cells_derives_bess_totals_from_standard_size(tmp_path: Path) -> None:
+    """Blank total BESS cells should fall back to standard size × quantity."""
+    from openpyxl import Workbook
+
+    path = tmp_path / "derived_bess_totals.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        raise RuntimeError("Workbook active sheet unavailable")
+    ws.title = "Assumption"
+
+    ws["C2"] = "Simulation Capacity"
+    ws["E2"] = 100
+    ws["C3"] = "Actual installation capacity"
+    ws["E3"] = 100
+    ws["C4"] = "Standard Storage Capacity"
+    ws["E4"] = 330
+    ws["C5"] = "Standard Power Output"
+    ws["E5"] = 100
+    ws["C6"] = "System Qunatity"
+    ws["E6"] = 200
+    ws["C7"] = "Total BESS Storage Capacity"
+    ws["E7"] = None
+    ws["C8"] = "Total BESS Power Output"
+    ws["E8"] = None
+    ws["C9"] = "DoD"
+    ws["E9"] = 0.85
+    ws["C10"] = "HalfCycle Efficiency"
+    ws["E10"] = 0.95
+    ws["C11"] = "Strategy mode"
+    ws["E11"] = 1
+    ws["C12"] = "Does BESS System include"
+    ws["E12"] = 1
+    ws["C13"] = "PV2BESS Pre-Charge Mode"
+    ws["E13"] = 0
+
+    ws["I2"] = "USD/VND"
+    ws["K2"] = 26000
+    ws["O2"] = "Does model is actived"
+    ws["Q2"] = 1
+    ws["O3"] = "Strike Price"
+    ws["Q3"] = 1800
+    ws["O4"] = "k"
+    ws["Q4"] = 1.02
+    ws["O5"] = "Kpp_22kv"
+    ws["Q5"] = 1.027263
+    ws["O6"] = "Kpp_110kv"
+    ws["Q6"] = 1.008525
+    ws["O7"] = "Connection Voltage Level"
+    ws["Q7"] = 110
+
+    wb.save(path)
+    wb.close()
+
+    assumptions = load_assumptions_from_cells(path)
+
+    assert assumptions.usable_bess_capacity_kwh == pytest.approx(330 * 200 * 0.85)
+    assert assumptions.bess_power_rating_kw == pytest.approx(100 * 200)

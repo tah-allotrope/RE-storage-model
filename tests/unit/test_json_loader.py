@@ -46,6 +46,11 @@ def test_load_assumptions_from_json_returns_valid_schema() -> None:
     assert assumptions.kpp == 1.027263
     assert assumptions.bess_enabled is True
     assert assumptions.dppa_enabled is True
+    assert assumptions.when_needed is False
+    assert assumptions.after_sunset is False
+    assert assumptions.optimize_mode is False
+    assert assumptions.peak_mode is True
+    assert assumptions.max_cycles_per_day is None
     assert assumptions.scale_factor == pytest.approx(32.21)
 
 

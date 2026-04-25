@@ -142,6 +142,7 @@ _FINANCIAL_OVERRIDE_KEYS = {
     "target_dscr",
     "tax_holiday_years",
     "tax_rate",
+    "tariff_schedule_sheet",
     "tenor_years",
     "mra_buildup_schedule",
 }
@@ -297,6 +298,11 @@ def _build_battery_config(assumptions: SystemAssumptions) -> BatteryConfig:
         demand_target_kw=0.0,  # Computed per-month from demand_reduction_target
         grid_charge_mode=GridChargeMode.DISABLED,
         grid_charge_capacity_kw=0.0,
+        when_needed=assumptions.when_needed,
+        after_sunset=assumptions.after_sunset,
+        optimize_mode=assumptions.optimize_mode,
+        peak_mode=assumptions.peak_mode,
+        max_cycles_per_day=assumptions.max_cycles_per_day,
     )
 
 
@@ -381,6 +387,9 @@ def _run_physics(
     discharged_kw = np.zeros(n_hours)
 
     previous_soc = 0.0  # Start with empty battery
+    cycles_used_today = 0
+    previous_discharge_active = False
+    previous_day_key: tuple[int, int, int] | None = None
 
     datetimes = pd.to_datetime(result["datetime"])
     hours = datetimes.dt.hour.to_numpy()
@@ -390,6 +399,16 @@ def _run_physics(
 
     if assumptions.bess_enabled and assumptions.usable_bess_capacity_kwh > 0:
         for i in range(n_hours):
+            day_key = (
+                int(datetimes.iloc[i].year),
+                int(datetimes.iloc[i].month),
+                int(datetimes.iloc[i].day),
+            )
+            if previous_day_key != day_key:
+                cycles_used_today = 0
+                previous_discharge_active = False
+                previous_day_key = day_key
+
             state = dispatch_single_timestep(
                 solar_gen_kw=float(solar_gen_kw[i]),
                 load_kw=float(load_kw_arr[i]),
@@ -400,12 +419,18 @@ def _run_physics(
                 is_sunday=(int(weekdays[i]) == 6),
                 step_hours=1.0,
                 timestep=i,
+                cycles_used_today=cycles_used_today,
+                previous_discharge_active=previous_discharge_active,
             )
             soc_kwh[i] = state.soc_kwh
             pv_charged_kw[i] = state.pv_charged_kw
             grid_charged_kw[i] = state.grid_charged_kw
             discharged_kw[i] = state.discharged_kw
             previous_soc = state.soc_kwh
+            discharge_active = state.discharged_kw > 0
+            if discharge_active and not previous_discharge_active:
+                cycles_used_today += 1
+            previous_discharge_active = discharge_active
 
     result["soc_kwh"] = soc_kwh
     result["pv_charged_kw"] = pv_charged_kw
@@ -997,7 +1022,10 @@ def run_full_model(
     )
 
     try:
-        schedule = load_tariff_schedule(excel_path)
+        schedule = load_tariff_schedule(
+            excel_path,
+            sheet_name=str(financial_params.get("tariff_schedule_sheet", "Tariff Schedule")),
+        )
     except Exception:
         try:
             schedule = load_tariff_schedule_from_calc(excel_path)

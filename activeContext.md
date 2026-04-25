@@ -1037,6 +1037,31 @@ Implement the Emivest JSON parity fixes from `plans/next-session-emivest-parity.
 - Updated Emivest KPI snapshot after the fixes:
   - `project_irr ~ 0.2293`
   - `equity_irr ~ 0.2957`
+
+---
+
+## ISSUE-10 Objective (Current Session)
+
+Review `plans/vietnam_tou2026_analysis_plan.md` against the current repo state, identify which phases are already implemented, then implement the next two incomplete phases with verification artifacts and git delivery.
+
+### Scope
+
+- [in_progress] Audit the repo against Phases 1-6 of `plans/vietnam_tou2026_analysis_plan.md`
+- [x] Capture a concise implemented-vs-missing status summary in the review results
+- [x] Implement Phase 3 baseline snapshot artifacts for Emivest and Ecoplexus under `results/baseline/`
+- [x] Implement Phase 4 new tariff scenario runs, including Emivest PPA options and cycle-cap sensitivity outputs under `results/new_tariff/`
+- [x] Run targeted tests and scenario commands to verify the new artifacts are reproducible
+- [pending] Commit the relevant changes and push the branch
+
+### Review / Results
+
+- Review against `plans/vietnam_tou2026_analysis_plan.md` found Phase 1 and most of Phase 2 already present before this session: TOU2026 JSON/excel codification, `tariff_version`, dispatch audit tests, and the Sunday peak-window fix were already implemented.
+- The review also exposed two gaps that would have made Phase 3/4 results misleading: dispatch flags from JSON/Excel inputs were not being carried into `BatteryConfig`, and the Excel path could not select the new `Tariff Schedule 2026` sheet via a reproducible override.
+- Implemented those missing runtime pieces in `src/re_storage/inputs/schemas.py`, `src/re_storage/inputs/json_loader.py`, `src/re_storage/inputs/loaders.py`, `src/re_storage/physics/battery.py`, and `src/re_storage/pipeline.py`, including optional `max_cycles_per_day` support for the Phase 4 paired sensitivity runs.
+- Hardened workbook loading for Ecoplexus by adding fallbacks for blank Assumption-sheet tariff cells (`Other Input` tariff table), blank total-BESS cells (derive from standard size × quantity), and uncached Loss-sheet retention formulas (reconstruct cumulative factors from annual-loss columns).
+- Added/updated regression coverage in `tests/unit/test_json_loader.py`, `tests/unit/test_inputs_loaders.py`, `tests/unit/test_tou2026_dispatch.py`, and `tests/unit/test_pipeline_helpers.py`; targeted verification passed with `49` green tests.
+- Completed Phase 3 artifacts under `results/baseline/` (`emivest_tou2024.json`, `ecoplexus_tou2024.json`) and Phase 4 artifacts under `results/new_tariff/` for Emivest option 1-4 plus cycle-cap variants and Ecoplexus TOU2026 plus cycle-cap variant; added reproducibility script `scripts/run_vietnam_tou2026_analysis.py`.
+
   - `npv_usd ~ 2.03M`
   - `dscr_min ~ 2.0616`
   - `year1_solar_generation_mwh ~ 4260.95`

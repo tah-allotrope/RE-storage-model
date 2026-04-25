@@ -77,6 +77,13 @@ def load_assumptions_from_json(json_path: Path) -> SystemAssumptions:
     exchange_rate = float(_nested_get(data, "financial_input", "exchange_rate_USD_VND"))
     strike_price_vnd = float(_nested_get(data, "ppa_settings", "option_3_dppa", "strike_price_VND"))
     active_ppa_option = int(_nested_get(data, "ppa_settings", "active_ppa_option"))
+    discharge_settings = _nested_get(
+        data, "bess_operation_strategy", "discharge", "energy_arbitrage"
+    )
+    if not isinstance(discharge_settings, dict):
+        raise InputValidationError(
+            "bess_operation_strategy.discharge.energy_arbitrage must be an object"
+        )
 
     kpp_22 = float(_nested_get(regulation, "Kpp_22kv"))
     kpp_110 = float(_nested_get(regulation, "Kpp_110kv"))
@@ -202,6 +209,10 @@ def load_assumptions_from_json(json_path: Path) -> SystemAssumptions:
         fixed_ppa_tx_loss_pct=float(
             _nested_get(data, "ppa_settings", "option_4_ppa_with_evn", "transmission_loss_pct")
         ),
+        when_needed=bool(_nested_get(discharge_settings, "when_needed")),
+        after_sunset=bool(_nested_get(discharge_settings, "after_sunset")),
+        optimize_mode=bool(_nested_get(discharge_settings, "optimize_mode_1")),
+        peak_mode=bool(_nested_get(discharge_settings, "peak")),
         tariff_version=tariff_version,
     )
 
@@ -369,14 +380,10 @@ def load_tariff_schedule_from_json(json_path: Path) -> dict[TimePeriod, list[int
             raise InputValidationError(f"tariff_schedule.weekday.{key} must be a list")
         hours = [int(h) for h in hours_raw]
         if any(h < 0 or h > 23 for h in hours):
-            raise InputValidationError(
-                f"tariff_schedule.weekday.{key} contains hours outside 0–23"
-            )
+            raise InputValidationError(f"tariff_schedule.weekday.{key} contains hours outside 0–23")
         schedule[period] = hours
 
-    all_hours = sorted(
-        h for hours in schedule.values() for h in hours
-    )
+    all_hours = sorted(h for hours in schedule.values() for h in hours)
     if all_hours != list(range(24)):
         raise InputValidationError(
             "tariff_schedule.weekday hours must cover exactly 0–23 with no gaps or duplicates"

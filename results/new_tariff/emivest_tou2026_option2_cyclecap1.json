@@ -1,0 +1,21 @@
+{
+  "year1_opex_usd": 169419.32241874046,
+  "year1_ebitda_usd": 356295.16132935043,
+  "project_irr": 0.23606651994109984,
+  "equity_irr": 0.2253862193190363,
+  "unlevered_irr": 0.695329557543935,
+  "after_tax_project_irr": 0.2253862193190363,
+  "npv_usd": 4310113.405370519,
+  "after_tax_npv_usd": 2044623.5303128448,
+  "dscr_min": 1.7769458124161668,
+  "dscr_avg": 2.243857720372868,
+  "debt_amount_usd": 1315615.0,
+  "calc_solar_gen_sum_kwh": 4260949.247771779,
+  "calc_soc_min_kwh": 0.0,
+  "calc_soc_max_kwh": 1827.5,
+  "year1_solar_generation_mwh": 4260.9492477717795,
+  "year1_dppa_revenue_usd": 256117.31259522375,
+  "year1_grid_savings_usd": 269597.17115286714,
+  "ppa_option": 2,
+  "ppa_label": "Separate PV+BESS"
+}

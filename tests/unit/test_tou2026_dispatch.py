@@ -58,6 +58,7 @@ TOU2026_PEAK_HOURS: frozenset[int] = frozenset([18, 19, 20, 21, 22])
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_config(
     capacity_kwh: float = 500.0,
     power_kw: float = 250.0,
@@ -65,6 +66,7 @@ def _make_config(
     charge_end: int = 5,
     when_needed: bool = False,
     peak_mode: bool = True,
+    max_cycles_per_day: int | None = None,
     grid_charge_mode: GridChargeMode = GridChargeMode.DISABLED,
     grid_charge_capacity_kw: float = 0.0,
     charging_mode: ChargingMode = ChargingMode.TIME_WINDOW,
@@ -87,6 +89,7 @@ def _make_config(
         grid_charge_capacity_kw=grid_charge_capacity_kw,
         when_needed=when_needed,
         peak_mode=peak_mode,
+        max_cycles_per_day=max_cycles_per_day,
     )
 
 
@@ -216,11 +219,13 @@ def test_tou2026_single_charge_discharge_cycle() -> None:
 
     # Count transitions: a cycle starts when pv_charged_kw goes from 0 → >0
     charge_transitions = sum(
-        1 for h in range(1, 24)
+        1
+        for h in range(1, 24)
         if (states[h].pv_charged_kw > 0) and (states[h - 1].pv_charged_kw == 0)
     )
     discharge_transitions = sum(
-        1 for h in range(1, 24)
+        1
+        for h in range(1, 24)
         if (states[h].discharged_kw > 0) and (states[h - 1].discharged_kw == 0)
     )
 
@@ -265,6 +270,49 @@ def test_tou2026_no_max_cycles_needed() -> None:
     )
 
 
+def test_cycle_cap_blocks_second_discharge_window() -> None:
+    """An explicit daily cycle cap should block a second discharge start within the same day."""
+    config = _make_config(
+        capacity_kwh=600.0,
+        power_kw=300.0,
+        charge_start=0,
+        charge_end=23,
+        when_needed=False,
+        peak_mode=True,
+        max_cycles_per_day=1,
+    )
+
+    soc = 0.0
+    discharge_hours: list[int] = []
+    cycles_used_today = 0
+    previous_discharge_active = False
+    for hour in range(24):
+        solar = 800.0 if hour in {0, 1, 2, 12, 13, 14} else 0.0
+        is_peak = hour in {10, 11, 18, 19, 20}
+        state = dispatch_single_timestep(
+            solar_gen_kw=solar,
+            load_kw=200.0,
+            previous_soc_kwh=soc,
+            hour=hour,
+            config=config,
+            is_peak_period=is_peak,
+            timestep=hour,
+            cycles_used_today=cycles_used_today,
+            previous_discharge_active=previous_discharge_active,
+        )
+        if state.discharged_kw > 0:
+            discharge_hours.append(hour)
+        discharge_active = state.discharged_kw > 0
+        if discharge_active and not previous_discharge_active:
+            cycles_used_today += 1
+        previous_discharge_active = discharge_active
+        soc = state.soc_kwh
+
+    assert discharge_hours == [10, 11], (
+        f"Expected the second peak window to be blocked by max_cycles_per_day=1, got {discharge_hours}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 2.3d — when_needed flag behaviour under TOU2026
 # ---------------------------------------------------------------------------
@@ -284,7 +332,7 @@ def test_tou2026_when_needed_may_discharge_outside_peak() -> None:
         capacity_kwh=500.0,
         charge_start=0,
         charge_end=5,
-        when_needed=True,   # Default — battery discharges when load > solar
+        when_needed=True,  # Default — battery discharges when load > solar
         peak_mode=True,
     )
     solar = {h: 700.0 for h in range(6)}  # Charge during 0–5
@@ -292,8 +340,7 @@ def test_tou2026_when_needed_may_discharge_outside_peak() -> None:
     states = _run_24h(config, solar, load_kw=300.0, initial_soc=0.0)
 
     standard_discharge = [
-        h for h, s in enumerate(states)
-        if s.discharged_kw > 0 and h in TOU2026_STANDARD_HOURS
+        h for h, s in enumerate(states) if s.discharged_kw > 0 and h in TOU2026_STANDARD_HOURS
     ]
     # when_needed=True means this CAN occur — we document not prohibit it
     # The test just verifies the scenario is actually reachable (not dead code)

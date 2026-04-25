@@ -71,6 +71,13 @@ class SystemAssumptions(BaseModel):
     fixed_ppa_curtailment_pct: float = Field(ge=0.0, le=1.0, default=0.0)
     fixed_ppa_tx_loss_pct: float = Field(ge=0.0, le=1.0, default=0.0)
 
+    # Dispatch toggles
+    when_needed: bool = Field(default=True)
+    after_sunset: bool = Field(default=False)
+    optimize_mode: bool = Field(default=False)
+    peak_mode: bool = Field(default=True)
+    max_cycles_per_day: int | None = Field(default=None, ge=1)
+
     # Tariff version tag — e.g. "2024" or "2026" — for traceability across scenario runs
     tariff_version: str | None = Field(default=None, description="EVN TOU tariff schedule version")
 

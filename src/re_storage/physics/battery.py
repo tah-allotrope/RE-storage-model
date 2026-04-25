@@ -110,6 +110,7 @@ class BatteryConfig:
     after_sunset: bool = False
     optimize_mode: bool = False
     peak_mode: bool = True
+    max_cycles_per_day: int | None = None
 
     def __post_init__(self) -> None:
         """Validate configuration parameters."""
@@ -120,8 +121,10 @@ class BatteryConfig:
         if not 0 < self.charge_efficiency <= 1:
             raise ValueError(f"charge_efficiency must be in (0, 1]: {self.charge_efficiency}")
         if not 0 < self.discharge_efficiency <= 1:
+            raise ValueError(f"discharge_efficiency must be in (0, 1]: {self.discharge_efficiency}")
+        if self.max_cycles_per_day is not None and self.max_cycles_per_day <= 0:
             raise ValueError(
-                f"discharge_efficiency must be in (0, 1]: {self.discharge_efficiency}"
+                f"max_cycles_per_day must be positive when set: {self.max_cycles_per_day}"
             )
 
 
@@ -425,8 +428,7 @@ def evaluate_discharge_permission(
     conditions = DischargeConditions(
         when_needed=config.when_needed and (load_kw > solar_gen_kw),
         after_sunset=config.after_sunset and (hour >= 17),
-        optimize=config.optimize_mode
-        and (_is_in_optimization_window(hour) or is_peak_period),
+        optimize=config.optimize_mode and (_is_in_optimization_window(hour) or is_peak_period),
         peak=config.peak_mode and is_peak_period,
     )
 
@@ -682,6 +684,8 @@ def dispatch_single_timestep(
     is_sunday: bool = False,
     step_hours: float = 1.0,
     timestep: int | None = None,
+    cycles_used_today: int = 0,
+    previous_discharge_active: bool = False,
 ) -> BatteryState:
     """
     Execute battery dispatch for a single timestep.
@@ -703,6 +707,8 @@ def dispatch_single_timestep(
         is_sunday: Whether this is a Sunday.
         step_hours: Timestep duration in hours.
         timestep: Optional timestep index for logging/errors.
+        cycles_used_today: Number of discharge-start cycles already used today.
+        previous_discharge_active: Whether the prior timestep was already discharging.
 
     Returns:
         BatteryState with all power flows and resulting SoC.
@@ -745,6 +751,14 @@ def dispatch_single_timestep(
         is_peak_period=is_peak_period,
         is_sunday=is_sunday,
     )
+
+    if (
+        config.max_cycles_per_day is not None
+        and cycles_used_today >= config.max_cycles_per_day
+        and conditions.any_active()
+        and not previous_discharge_active
+    ):
+        conditions = DischargeConditions()
 
     # Step 5: Calculate discharge power
     discharge_kw = calculate_discharge_power(
