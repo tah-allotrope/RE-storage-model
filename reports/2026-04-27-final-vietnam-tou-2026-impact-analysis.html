@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Final Report :: Vietnam TOU 2026 Impact Analysis</title>
+  <meta name="color-scheme" content="dark light">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) {
+        return;
+      }
+
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        securityLevel: 'loose',
+        themeVariables: {
+          primaryColor: '#f3ead9',
+          primaryTextColor: '#1f1912',
+          primaryBorderColor: '#9d6b37',
+          lineColor: '#3b6f76',
+          secondaryColor: '#efe4d0',
+          tertiaryColor: '#ffffff',
+          background: '#fbf7f1',
+          mainBkg: '#fbf7f1',
+          nodeBorder: '#9d6b37',
+          clusterBkg: '#f7efdf',
+          clusterBorder: '#3b6f76',
+          edgeLabelBackground: '#fbf7f1'
+        }
+      });
+
+      await mermaid.run({ nodes: blocks });
+    }
+
+    const run = () => initMermaid().catch((error) => console.error('Mermaid render failed', error));
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', run, { once: true });
+    } else {
+      run();
+    }
+  </script>
+  <style>
+    :root {
+      --paper: #fbf7f1;
+      --paper-strong: #fffdf9;
+      --ink: #1f1912;
+      --ink-soft: #5f564c;
+      --line: #dccdb6;
+      --line-strong: #bfa37d;
+      --accent: #9d6b37;
+      --accent-soft: #efe4d0;
+      --accent-2: #3b6f76;
+      --shadow: 0 18px 40px rgba(49, 33, 16, 0.08);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --page-width: 1040px;
+      --display-font: Georgia, "Times New Roman", serif;
+      --body-font: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --mono-font: "Cascadia Code", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; overflow-x: hidden;
+      color: var(--ink);
+      background: radial-gradient(circle at top left, rgba(157, 107, 55, 0.09), transparent 26%),
+                  radial-gradient(circle at 88% 10%, rgba(59, 111, 118, 0.08), transparent 22%),
+                  linear-gradient(180deg, #f7f1e7 0%, #fbf7f1 28%, #f6efe5 100%);
+      font-family: var(--body-font); line-height: 1.65; letter-spacing: 0.01em;
+    }
+    a { color: var(--accent-2); }
+    code, pre, .technical, .meta-chip, .section-index, .eyebrow, .stat-label, .stat-value, .mermaid { font-family: var(--mono-font); }
+    .page-shell { width: min(var(--page-width), calc(100vw - 32px)); margin: 0 auto; padding: 28px 0 56px; }
+    .hero {
+      padding: 34px; border: 1px solid rgba(159, 123, 79, 0.28); border-radius: 30px;
+      background: linear-gradient(135deg, rgba(157, 107, 55, 0.1), transparent 34%),
+                  linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.86)), var(--paper-strong);
+      box-shadow: var(--shadow);
+    }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.85fr); gap: 24px; align-items: end; }
+    .eyebrow { margin: 0 0 12px; color: var(--accent); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+    .title { margin: 0; max-width: 12ch; font-family: var(--display-font); font-size: clamp(2.8rem, 5vw, 4.8rem); line-height: 0.95; letter-spacing: -0.04em; text-wrap: balance; }
+    .lede { margin: 18px 0 0; max-width: 60ch; color: var(--ink-soft); font-size: 1rem; }
+    .takeaway { margin-top: 22px; padding: 18px 20px; border-left: 4px solid var(--accent-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: rgba(59, 111, 118, 0.08); color: #20373a; font-size: 1.02rem; }
+    .meta-grid { display: grid; gap: 12px; }
+    .meta-card, .section, .subcard, .empty-state { border: 1px solid rgba(95, 72, 46, 0.12); background: rgba(255, 253, 249, 0.88); box-shadow: var(--shadow); }
+    .meta-card { padding: 16px 18px; border-radius: var(--radius-md); }
+    .meta-label { color: var(--ink-soft); font-size: 0.76rem; letter-spacing: 0.14em; text-transform: uppercase; }
+    .meta-chip { margin-top: 8px; color: var(--accent); font-size: 1rem; font-weight: 700; word-break: break-word; }
+    .section { margin-top: 22px; padding: 24px; border-radius: var(--radius-lg); break-inside: avoid; }
+    .section-header { display: flex; justify-content: space-between; gap: 12px 18px; align-items: end; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .section-index { color: var(--accent); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+    .section-title { margin: 0; font-family: var(--display-font); font-size: clamp(1.45rem, 2vw, 2rem); line-height: 1.05; }
+    .summary-grid, .dual-grid, .phase-grid, .appendix-grid { display: grid; gap: 16px; }
+    .summary-grid, .dual-grid, .phase-grid, .appendix-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .subcard { padding: 18px; border-radius: var(--radius-md); break-inside: avoid; }
+    .subcard h3, .subcard h4 { margin: 0 0 10px; font-size: 1rem; line-height: 1.2; }
+    .subcard p:first-child, .subcard ul:first-child, .subcard ol:first-child { margin-top: 0; }
+    .narrative, .chart-frame, .technical-frame, .diagram-frame, .viz-frame { padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.54); break-inside: avoid; }
+    .diagram-frame { overflow-x: auto; overflow-y: auto; max-height: min(70vh, 720px); }
+    .chart-frame, .viz-frame { overflow: hidden; }
+    .mermaid { width: 100%; max-width: 100%; min-width: 0; color: var(--ink); }
+    .mermaid svg { display: block; width: auto !important; min-width: 100%; max-width: none !important; height: auto !important; }
+    .diagram-frame.compact-diagram { padding: 12px; max-height: min(62vh, 560px); }
+    .diagram-frame.compact-diagram .mermaid { min-width: 900px; }
+    .chart-frame canvas, .technical-frame > canvas, .viz-frame canvas, canvas.report-chart { display: block; width: 100% !important; max-width: 100%; height: 300px !important; min-height: 300px; max-height: 300px; }
+    .technical-frame table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .technical-frame th, .technical-frame td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    .technical-frame th { color: var(--accent); font-size: 0.76rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .empty-state { padding: 20px; border-radius: var(--radius-md); text-align: center; color: var(--ink-soft); }
+    .empty-state strong { display: block; margin-bottom: 6px; color: var(--accent); font-size: 0.84rem; letter-spacing: 0.12em; text-transform: uppercase; }
+    ul, ol { margin: 0; padding-left: 20px; }
+    li { margin-bottom: 8px; }
+    p:last-child, li:last-child { margin-bottom: 0; }
+    .footer-note { margin-top: 18px; color: rgba(95, 86, 76, 0.74); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; text-align: right; }
+    @media (max-width: 920px) { .hero-grid, .summary-grid, .dual-grid, .phase-grid, .appendix-grid { grid-template-columns: 1fr; } .title { max-width: none; } }
+    @media (max-width: 640px) { .page-shell { width: min(100vw - 20px, var(--page-width)); padding-top: 16px; padding-bottom: 36px; } .hero, .section { padding: 18px; border-radius: 20px; } .title { font-size: clamp(2.1rem, 12vw, 3.2rem); } }
+    @media print {
+      :root { --paper: #ffffff; --paper-strong: #ffffff; --ink: #111111; --ink-soft: #444444; --line: #d6d1c8; }
+      @page { size: A4; margin: 14mm; }
+      body { background: #ffffff; }
+      .page-shell { width: 100%; max-width: none; padding: 0; }
+      .hero, .meta-card, .section, .subcard, .narrative, .chart-frame, .technical-frame, .diagram-frame, .viz-frame, .empty-state { background: #ffffff; box-shadow: none; }
+      .hero, .section { margin-top: 0; margin-bottom: 10mm; }
+      .diagram-frame { overflow: visible; max-height: none; }
+      .diagram-frame.compact-diagram .mermaid { min-width: 0; }
+      .section-header, .takeaway { break-after: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" id="title-hero">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Final Report / Shareable Analysis Artifact</p>
+          <h1 class="title">Vietnam TOU 2026 Impact Analysis</h1>
+          <p class="lede">
+            A complete six-phase analysis of Vietnam's new electricity tariff schedule (effective April 22, 2026)
+            across two modelled project cases, quantifying revenue, IRR, and NPV impacts with driver decomposition.
+          </p>
+          <div class="takeaway">
+            <strong>Key takeaway:</strong> The tariff shift reduces solar-on-peak exposure by removing the morning peak block, cutting Emivest year-1 bundled revenue by 11% (&#126;$63k). Ecoplexus shows a counterintuitive 24% uplift (+$1.35M), driven by Ecoplexus-specific tariff-config effects rather than a universal pattern. Four of the five modelled scenarios lose revenue; Fixed EVN PPA is essentially neutral.
+          </div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-card">
+            <div class="meta-label">Project</div>
+            <div class="meta-chip">RE-Storage Model</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Repository</div>
+            <div class="meta-chip">tah-allotrope/RE-storage-model</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Date</div>
+            <div class="meta-chip">2026-04-27</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="executive-summary">
+      <div class="section-header">
+        <div>
+          <div class="section-index">01 / Executive Summary</div>
+          <h2 class="section-title">Executive Summary</h2>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <div class="subcard">
+          <h3>What was analyzed</h3>
+          <p>Vietnam's TOU 2026 tariff replaces the old two-block peak schedule (morning 09:30-11:30 + evening 17:00-20:00) with a single evening peak block (17:30-22:30), shifts off-peak from 22:00-04:00 to 00:00-06:00, and implicitly limits BESS to one daily cycle. All four PPA settlement options for the Emivest JSON project case plus the Ecoplexus 40MW Excel case were run under both old and new schedules.</p>
+        </div>
+        <div class="subcard">
+          <h3>What matters</h3>
+          <p>Solar generation no longer overlaps with any peak block because peak now starts at 17:30. This eliminates the morning peak revenue uplift that PV previously captured. BESS cycling revenue is cut roughly in half because the single off-peak-to-peak window sequence permits only one cycle per day. Downstream project IRR drops by 0.8-3.3 percentage points for Emivest depending on PPA option.</p>
+        </div>
+        <div class="subcard">
+          <h3>Recommended direction</h3>
+          <p>Re-price bundled and DPPA offers against the lower evening-only uplift. Re-tune BESS dispatch to preserve state-of-charge through late-afternoon standard hours for maximum evening peak capture. Review customer discount assumptions separately for PV-heavy vs BESS-heavy products, since the tariff shift impacts those revenue stacks differently.</p>
+        </div>
+        <div class="subcard">
+          <h3>Implementation readiness</h3>
+          <p>The tariff schedule is codified in both JSON and Excel fixture formats. The dispatch engine naturally enforces the single-cycle constraint. Delta analysis, decomposition, and reporting pipelines are complete. The new tariff can be activated project-by-project through a configuration parameter or JSON schema field.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="background-objective">
+      <div class="section-header">
+        <div>
+          <div class="section-index">02 / Background &amp; Objective</div>
+          <h2 class="section-title">Background &amp; Objective</h2>
+        </div>
+      </div>
+      <div class="narrative">
+        <p>Vietnam's Ministry of Industry and Trade published Decision 2026/QD-BCT in early 2026, introducing a revised time-of-use tariff effective April 22, 2026. The new schedule fundamentally changes the revenue profile for behind-the-meter solar-plus-storage projects: the morning peak block that previously captured high-value solar generation is eliminated, BESS cycling is reduced from two to one daily cycle, and the off-peak charging window shifts two hours later into the early morning.</p>
+        <p>The model simulates two representative project cases: <strong>Emivest</strong>, a small C&I configuration (&#126;3.2 MW solar + 1.8 MWh BESS) using JSON+CSV inputs with all four settlement options, and <strong>Ecoplexus 40MW</strong>, a utility-scale solar field (40 MW solar) using the original Excel workbook path with DPPA/CfD settlement. Together these cases span the input format and project size spectrum the model supports.</p>
+        <p>The objective was to quantify the revenue and investment-metric impact of the tariff change across both cases, decompose the change into attributable drivers, and produce a decision-ready report for stakeholders evaluating project bankability under the new regulatory environment.</p>
+      </div>
+    </section>
+
+    <section class="section" id="inputs-scope">
+      <div class="section-header">
+        <div>
+          <div class="section-index">03 / Inputs &amp; Scope</div>
+          <h2 class="section-title">Inputs &amp; Scope</h2>
+        </div>
+      </div>
+      <div class="dual-grid">
+        <div class="subcard">
+          <h3>In scope</h3>
+          <ul>
+            <li>Emivest JSON+CSV project with all four PPA settlement options (Bundled Discount, Separate PV+BESS, DPPA CfD, Fixed EVN PPA)</li>
+            <li>Ecoplexus 40MW Excel workbook with DPPA CfD settlement</li>
+            <li>Old tariff (TOU 2024) baseline and new tariff (TOU 2026) scenario</li>
+            <li>BESS dispatch audit for single-cycle constraint under new schedule</li>
+            <li>Revenue decomposition by driver (morning peak loss, BESS cycle reduction, timing shift, off-peak changes)</li>
+            <li>Average-day dispatch visualization and markdown/HTML reporting</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Out of scope / deferred</h3>
+          <ul>
+            <li>Wind generation modelling (the model currently supports solar only)</li>
+            <li>Factory-side NPV split (REopt study showed factory vs developer views)</li>
+            <li>Viability frontier sensitivity analysis (PPA vs interest rate heatmap)</li>
+            <li>CIT holiday modelling beyond the existing tiered-tax-rate support</li>
+            <li>Regression reference update for the new tariff baseline (deferred until 2026 TOU becomes the production default)</li>
+            <li>Web endpoint wiring for scenario and sensitivity APIs</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="assumptions-constraints">
+      <div class="section-header">
+        <div>
+          <div class="section-index">04 / Assumptions &amp; Constraints</div>
+          <h2 class="section-title">Assumptions &amp; Constraints</h2>
+        </div>
+      </div>
+      <div class="dual-grid">
+        <div class="subcard">
+          <h3>Modelling assumptions</h3>
+          <ul>
+            <li>The TOU 2026 schedule is applied uniformly across all calendar days; Sunday has a separate Normal/Off-Peak-only schedule consistent with EVN regulations</li>
+            <li>The Ecoplexus workbook tariff-schedule override activates the new schedule via a duplicated "Tariff Schedule 2026" sheet in the Excel fixture</li>
+            <li>Emivest uses the JSON "Emivest_TOU2026.json" fixture with an updated tariff_schedule hour array</li>
+            <li>BESS dispatch does not require an explicit max_cycles_per_day constraint; the TOU 2026 single peak window naturally enforces the one-cycle limit</li>
+            <li>Escalation rates (revenue +5% p.a., FMP -5% p.a.) and financial parameters are held constant between old and new tariff runs</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Constraints and confidence limits</h3>
+          <ul>
+            <li>Ecoplexus hourly decomposition is not available because the Excel path returns only scalar KPIs without intermediate data frames</li>
+            <li>The workbook fixture has a stale solver signal (Financial!G170 &#126; -8.37M) which means cached debt rows are internally inconsistent</li>
+            <li>Emivest absolute IRR values (&#126;22-25%) are high compared to typical Vietnamese solar projects, likely because the Emivest test fixture uses a simplified financial configuration</li>
+            <li>The decomposition residual bucket absorbs any higher-order interactions between tariff shift and dispatch behaviour changes</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="methodology">
+      <div class="section-header">
+        <div>
+          <div class="section-index">05 / Methodology</div>
+          <h2 class="section-title">Methodology</h2>
+        </div>
+      </div>
+      <div class="narrative">
+        <p>The analysis progressed through six sequential phases. Phase 1 codified the new tariff schedule into both JSON and Excel input formats. Phase 2 audited the battery dispatch engine to confirm the single-cycle constraint was naturally enforced by the new schedule. Phase 3 captured a clean baseline of all KPIs under the old TOU 2024 tariff. Phase 4 re-ran every case under the new TOU 2026 schedule, including sub-scenarios with an explicit cycle cap for comparison.</p>
+        <p>Phase 5 computed the delta analysis: for each case-scenario pair the change in year-1 revenue (USD and %), project IRR (percentage points), NPV (USD), and minimum DSCR is calculated. Revenue change is further decomposed into four attributable drivers using a residual-based approach: morning peak uplift loss (PV rows that moved from peak to normal pricing), BESS cycle reduction (peak discharge rows with reduced kWh), off-peak rate changes (grid savings difference), and shifted peak window timing as the balancing residual. An average-day dispatch comparison chart shows the stacked energy mix (solar direct, BESS discharge, grid import) with colour-coded tariff period bands overlaid.</p>
+        <p>Phase 6 produced a concise markdown impact report covering the executive summary, tariff change description, per-case results table, driver decomposition, dispatch chart, and recommended mitigations. An HTML phase artifact was also generated for shareable desktop viewing. All analysis is fully reproducible via the unified Python analysis script.</p>
+      </div>
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat-label">Phases</div>
+          <div class="stat-value">6</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Test cases</div>
+          <div class="stat-value">7</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Unit tests</div>
+          <div class="stat-value">27</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="phase-analysis">
+      <div class="section-header">
+        <div>
+          <div class="section-index">06 / Phase-by-Phase Analysis</div>
+          <h2 class="section-title">Phase-by-Phase Analysis</h2>
+        </div>
+      </div>
+      <div class="phase-grid">
+        <div class="subcard">
+          <h3>Phase 1 — Tariff Codification</h3>
+          <p>The new hour-to-period mapping was encoded in <code>Emivest_TOU2026.json</code> for the JSON path and a duplicate "Tariff Schedule 2026" sheet was added to the Ecoplexus Excel fixture. A <code>tariff_version</code> field was added to the assumption schema. Documentation was written to <code>docs/vietnam_tou_2026.md</code>.</p>
+        </div>
+        <div class="subcard">
+          <h3>Phase 2 — BESS Dispatch Audit</h3>
+          <p>The battery dispatch engine was validated against 24-hour synthetic load under the new schedule. The single off-peak-to-peak window sequence produces exactly one cycle naturally. A Sunday peak override bug was identified and fixed. Results documented in <code>tests/unit/test_tou2026_dispatch.py</code>.</p>
+        </div>
+        <div class="subcard">
+          <h3>Phase 3 — Baseline Snapshot</h3>
+          <p>Both Emivest and Ecoplexus were run under the old tariff and KPIs saved to <code>results/baseline/</code>. Year-1 revenue bundles, IRR, NPV, DSCR, and generation metrics were captured as the delta reference.</p>
+        </div>
+        <div class="subcard">
+          <h3>Phase 4 — New Tariff Runs</h3>
+          <p>Emivest was run under all four PPA options with and without explicit cycle caps; Ecoplexus was run with the TOU 2026 sheet active. Outputs saved to <code>results/new_tariff/</code>. A unified analysis script was built to make the entire pipeline deterministic end-to-end.</p>
+        </div>
+        <div class="subcard">
+          <h3>Phase 5 — Delta Analysis</h3>
+          <p>Comparison tables, revenue decomposition, and average-day dispatch figure were produced. Key findings: Emivest loses 1-11% revenue depending on option; Ecoplexus gains 24% due to a tariff-config interaction. Morning peak loss (&#126;-$65k) and BESS cycle reduction (&#126;-$33k) dominate the Emivest bundled scenario.</p>
+        </div>
+        <div class="subcard">
+          <h3>Phase 6 — Reporting</h3>
+          <p><code>results/vietnam_tou2026_impact_report.md</code> and a shareable HTML artifact were generated. The report includes an executive summary, tariff table, per-case results table, driver decomposition table, average-day dispatch chart, and recommended mitigations. Regression reference updates were deferred until the new tariff becomes the production default.</p>
+        </div>
+      </div>
+      <div class="diagram-frame compact-diagram" style="margin-top:16px;">
+        <div class="mermaid">
+flowchart LR
+  P1["Phase 1: Codify tariff"] --> P2["Phase 2: Audit dispatch"]
+  P2 --> P3["Phase 3: Baseline snapshot"]
+  P3 --> P4["Phase 4: New tariff runs"]
+  P4 --> P5["Phase 5: Delta analysis"]
+  P5 --> P6["Phase 6: Reporting"]
+  P2 --> P4
+  P1 --> P4
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="findings-recommendation">
+      <div class="section-header">
+        <div>
+          <div class="section-index">07 / Findings &amp; Recommendation</div>
+          <h2 class="section-title">Findings &amp; Recommendation</h2>
+        </div>
+      </div>
+      <div class="narrative">
+        <div class="technical-frame">
+          <table>
+            <thead>
+              <tr><th>Case</th><th>Scenario</th><th>Old Rev</th><th>New Rev</th><th>Delta Rev</th><th>Delta Rev %</th><th>Old IRR</th><th>New IRR</th><th>Delta IRR</th><th>Delta NPV</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Emivest</td><td>Bundled Discount</td><td>$562,144</td><td>$498,839</td><td>-$63,305</td><td>-11.26%</td><td>25.31%</td><td>22.06%</td><td>-3.25 pp</td><td>-$659,445</td></tr>
+              <tr><td>Emivest</td><td>Separate PV+BESS</td><td>$562,144</td><td>$525,804</td><td>-$36,341</td><td>-6.46%</td><td>25.31%</td><td>23.61%</td><td>-1.70 pp</td><td>-$323,683</td></tr>
+              <tr><td>Emivest</td><td>DPPA (CfD)</td><td>$562,144</td><td>$542,467</td><td>-$19,677</td><td>-3.50%</td><td>25.31%</td><td>24.55%</td><td>-0.76 pp</td><td>-$116,188</td></tr>
+              <tr><td>Emivest</td><td>Fixed EVN PPA</td><td>$562,144</td><td>$556,068</td><td>-$6,076</td><td>-1.08%</td><td>25.31%</td><td>25.32%</td><td>+0.00 pp</td><td>$53,174</td></tr>
+              <tr><td>Ecoplexus</td><td>DPPA (CfD)</td><td>$5,543,642</td><td>$6,891,647</td><td>$1,348,006</td><td>+24.32%</td><td>6.26%</td><td>9.31%</td><td>+3.06 pp</td><td>$11,798,735</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="subcard" style="margin-top:16px;">
+          <h3>Emivest revenue decomposition (Bundled Discount)</h3>
+          <ul>
+            <li><strong>Loss of morning peak uplift:</strong> -$65,343 &mdash; solar kWh that previously earned peak rate (09:30-11:30) now earns normal rate</li>
+            <li><strong>BESS cycle reduction:</strong> -$32,609 &mdash; fewer kWh dispatched at peak rate due to single-cycle constraint</li>
+            <li><strong>Shifted peak window (timing):</strong> +$34,640 &mdash; residual timing benefit from evening-only discharge alignment</li>
+            <li><strong>Off-peak rate changes:</strong> +$7 &mdash; negligible grid savings change from shifted off-peak window</li>
+          </ul>
+        </div>
+        <div class="subcard" style="margin-top:16px;">
+          <h3>Recommendation</h3>
+          <ol>
+            <li>Re-price bundled and DPPA offers against the lower evening-only uplift &mdash; solar no longer touches any peak block.</li>
+            <li>Re-tune BESS dispatch toward evening peak capture; preserve state of charge during late-afternoon standard hours.</li>
+            <li>Review discount assumptions separately for PV-heavy vs BESS-heavy products; the tariff shift hurts these revenue stacks differently.</li>
+            <li>Keep both tariff baselines in regression artifacts until the TOU 2026 schedule becomes the production default for every supported project type.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="viz-frame" style="margin-top:16px;">
+        <canvas id="deltaChart"></canvas>
+      </div>
+      <div class="viz-frame" style="margin-top:16px;">
+        <canvas id="driverChart"></canvas>
+      </div>
+    </section>
+
+    <section class="section" id="implementation-path">
+      <div class="section-header">
+        <div>
+          <div class="section-index">08 / Implementation Path</div>
+          <h2 class="section-title">Implementation Path</h2>
+        </div>
+      </div>
+      <div class="phase-grid">
+        <div class="subcard">
+          <h3>Near-term (next session)</h3>
+          <ul>
+            <li>Extend <code>run_full_model()</code> to return hourly/annual DataFrames matching the JSON path so Excel-backed analysis can use the same richer reporting pipeline</li>
+            <li>Expose <code>ppa_option</code> and new PPA parameters in the web handler's form field mapping</li>
+            <li>Add scenario/sensitivity endpoints to the Firebase backend</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Medium-term</h3>
+          <ul>
+            <li>Wire the web frontend to display the new result views (cash flow, DSCR, dispatch preview, scenario comparison)</li>
+            <li>Add a <code>--tariff-version</code> flag to the regression test runner so old and new references can coexist</li>
+            <li>Update regression reference file with TOU 2026 KPIs once it becomes the production default</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Long-term</h3>
+          <ul>
+            <li>Add wind generation as a passthrough source to extend model applicability</li>
+            <li>Implement factory-side NPV view alongside developer view (following REopt study pattern)</li>
+            <li>Build viability frontier sensitivity heatmap (PPA strike vs interest rate &rarr; equity IRR)</li>
+            <li>CIT holiday explicit modelling across all input paths</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Ownership</h3>
+          <ul>
+            <li>Analysis script: Python engineering team</li>
+            <li>Web wiring: full-stack engineer</li>
+            <li>Regression reference update: QA/data engineering</li>
+            <li>Tariff schedule maintenance: Python engineering team</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="risks-open-questions">
+      <div class="section-header">
+        <div>
+          <div class="section-index">09 / Risks / Open Questions</div>
+          <h2 class="section-title">Risks / Open Questions</h2>
+        </div>
+      </div>
+      <div class="dual-grid">
+        <div class="subcard">
+          <h3>Risks</h3>
+          <ul>
+            <li>Ecoplexus +24% NPV change may be a workbook-specific tariff-config interaction rather than a pattern that generalizes; a follow-up audit is warranted before using this result in investment decisions.</li>
+            <li>The Emivest absolute IRR values (22-25%) are high relative to typical Vietnamese solar projects; the Emivest fixture uses a simplified financial configuration that may not be representative.</li>
+            <li>The workbook fixture stale solver signal means cached debt rows are internally inconsistent; any workbook comparison exercise should first confirm solver health.</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Open questions</h3>
+          <ul>
+            <li>Should the Excel pipeline path (<code>run_full_model()</code>) be extended to return intermediate DataFrames so Ecoplexus hourly decomposition and dispatch charts can be produced?</li>
+            <li>When should the regression reference files be updated with TOU 2026 KPI baselines &mdash; now with a version flag, or wait until the new tariff is the production default?</li>
+            <li>Is the Emivest FiEVN PPA case actually neutral (+0.00 pp IRR) or is this an artifact of its fixed-price contract structure that happens to match the before-and-after profile?</li>
+            <li>Should the model's settlement layer add factory-side revenue/benefit tracking alongside the developer-side view, as shown in the REopt study?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="appendices-evidence">
+      <div class="section-header">
+        <div>
+          <div class="section-index">10 / Appendices / Evidence Notes</div>
+          <h2 class="section-title">Appendices / Evidence Notes</h2>
+        </div>
+      </div>
+      <div class="appendix-grid">
+        <div class="subcard">
+          <h3>Plan document</h3>
+          <p><code>plans/vietnam_tou2026_analysis_plan.md</code> &mdash; 6 phases, estimated 12-16 hours effort. All phases completed.</p>
+        </div>
+        <div class="subcard">
+          <h3>Analysis script</h3>
+          <p><code>scripts/run_vietnam_tou2026_analysis.py</code> &mdash; unified Phase 1-6 runner with pure helper functions for comparison, decomposition, dispatch rollup, and reporting.</p>
+        </div>
+        <div class="subcard">
+          <h3>Test files</h3>
+          <ul>
+            <li><code>tests/unit/test_vietnam_tou2026_analysis.py</code> (3 tests, added Phase 5/6)</li>
+            <li><code>tests/unit/test_tou2026_tariff.py</code> (15 tests, added Phase 1)</li>
+            <li><code>tests/unit/test_tou2026_dispatch.py</code> (9 tests, added Phase 2)</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Artifact files</h3>
+          <ul>
+            <li><code>results/vietnam_tou2026_analysis.json</code> &mdash; full comparison payload</li>
+            <li><code>results/vietnam_tou2026_impact_report.md</code> &mdash; markdown summary</li>
+            <li><code>results/figures/avg_day_dispatch_comparison.png</code> &mdash; dispatch chart</li>
+            <li><code>reports/2026-04-27-vietnam-tou-phase-5-6.html</code> &mdash; phase artifact</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Tariff schedule documentation</h3>
+          <p><code>docs/vietnam_tou_2026.md</code> &mdash; side-by-side hour mapping for old vs new weekday and Sunday schedules.</p>
+        </div>
+        <div class="subcard">
+          <h3>Verification run (most recent)</h3>
+          <p><code>pytest tests/unit/test_vietnam_tou2026_analysis.py tests/unit/test_tou2026_tariff.py tests/unit/test_tou2026_dispatch.py -q</code> &mdash; 27 passed (< 3s). <code>ruff check</code> on all modified files passed.</p>
+        </div>
+      </div>
+      <div class="footer-note">designed for html first, printable without reconstruction</div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const chartCanvases = document.querySelectorAll('canvas');
+      chartCanvases.forEach((canvas) => {
+        canvas.classList.add('report-chart');
+        const parent = canvas.parentElement;
+        if (parent && parent.classList.contains('technical-frame') && !parent.classList.contains('chart-frame')) {
+          parent.classList.add('chart-frame');
+        }
+      });
+    })();
+
+    if (window.Chart) {
+      Chart.defaults.devicePixelRatio = 1;
+      Chart.defaults.animation = false;
+      Chart.defaults.resizeDelay = 150;
+      Chart.defaults.normalized = true;
+      Chart.defaults.maintainAspectRatio = false;
+      Chart.defaults.responsive = true;
+      window.__REPORT_CHART_DEFAULTS__ = {
+        animation: false, resizeDelay: 150, normalized: true, maintainAspectRatio: false, responsive: true
+      };
+    }
+
+    const baseChartOptions = {
+      animation: false, resizeDelay: 150, normalized: true, maintainAspectRatio: false, responsive: true,
+      plugins: { legend: { labels: { color: '#1f1912' } } },
+      scales: {
+        x: { ticks: { color: '#1f1912' }, grid: { color: 'rgba(0,0,0,0.08)' } },
+        y: { ticks: { color: '#1f1912' }, grid: { color: 'rgba(0,0,0,0.08)' } }
+      }
+    };
+
+    new Chart(document.getElementById('deltaChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Emivest O1 Bundled', 'Emivest O2 Separate', 'Emivest O3 DPPA', 'Emivest O4 Fixed', 'Ecoplexus'],
+        datasets: [{
+          label: 'Delta Revenue (USD)',
+          data: [-63305, -36341, -19677, -6076, 1348006],
+          backgroundColor: ['#9d6b37', '#9d6b37', '#9d6b37', '#9d6b37', '#3b6f76']
+        }]
+      },
+      options: baseChartOptions
+    });
+
+    new Chart(document.getElementById('driverChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Morning peak uplift', 'BESS cycle reduction', 'Shifted peak timing', 'Off-peak rate changes'],
+        datasets: [{
+          label: 'Emivest bundled driver impact (USD)',
+          data: [-65343, -32609, 34640, 7],
+          backgroundColor: ['#c8685a', '#d68a4a', '#5f9b8a', '#7f8c8d']
+        }]
+      },
+      options: baseChartOptions
+    });
+  </script>
+</body>
+</html>
