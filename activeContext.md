@@ -1,5 +1,22 @@
 # Active Context - ISSUE-1 Emivest / ISSUE-2 Excel Alignment / ISSUE-3 Web Tool / ISSUE-4 Gap Analysis Roadmap
 
+## Current Working Plan - Vietnam TOU 2026 Phase 5/6
+
+- [x] Add focused tests for TOU delta-analysis/report helpers before implementation.
+- [x] Extend the existing TOU analysis script to compute case deltas, driver decomposition, and average-day dispatch data.
+- [x] Generate the Phase 5 figure and Phase 6 markdown impact report under `results/`.
+- [x] Run targeted tests and the TOU analysis script to verify outputs are reproducible.
+- [ ] Commit the Phase 5/6 changes and push the branch.
+
+### Review / Results
+
+- Added `tests/unit/test_vietnam_tou2026_analysis.py` to lock the Phase 5 comparison math, decomposition buckets, and average-day dispatch aggregation.
+- Rebuilt `scripts/run_vietnam_tou2026_analysis.py` into a deterministic Phase 1-6 runner that regenerates baseline/new-tariff artifacts, writes `results/vietnam_tou2026_analysis.json`, creates the average-day dispatch figure, and writes `results/vietnam_tou2026_impact_report.md`.
+- Generated `results/figures/avg_day_dispatch_comparison.png` and the Phase 6 markdown report summarizing revenue, IRR, NPV, DSCR, and Emivest revenue-driver decomposition.
+- Verification:
+- `pytest tests/unit/test_vietnam_tou2026_analysis.py tests/unit/test_tou2026_tariff.py tests/unit/test_tou2026_dispatch.py -q` -> **27 passed**
+- `python scripts/run_vietnam_tou2026_analysis.py` -> **passed** (expected loader warnings about missing BESS labels in the Emivest JSON path)
+
 **Last Updated:** 2026-03-27
 
 ## Current Working Plan - ISSUE-5 Parity First

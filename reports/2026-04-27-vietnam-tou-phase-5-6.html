@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase Report :: vietnam-tou-phase-5-6</title>
+  <meta name="color-scheme" content="dark">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) {
+        return;
+      }
+
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        securityLevel: 'loose',
+        themeVariables: {
+          primaryColor: '#111111',
+          primaryTextColor: '#e8f6ff',
+          primaryBorderColor: '#00f5ff',
+          lineColor: '#39ff14',
+          secondaryColor: '#121a1a',
+          tertiaryColor: '#111111',
+          background: '#0d0d0d',
+          mainBkg: '#0d0d0d',
+          nodeBorder: '#00f5ff',
+          clusterBkg: '#111111',
+          clusterBorder: '#39ff14',
+          edgeLabelBackground: '#0d0d0d'
+        }
+      });
+
+      await mermaid.run({ nodes: blocks });
+    }
+
+    const run = () => initMermaid().catch((error) => console.error('Mermaid render failed', error));
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', run, { once: true });
+    } else {
+      run();
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --bg-soft: #111111;
+      --panel: rgba(13, 13, 13, 0.88);
+      --panel-strong: rgba(19, 19, 19, 0.96);
+      --line: rgba(0, 245, 255, 0.26);
+      --line-strong: rgba(57, 255, 20, 0.38);
+      --text: #e9f6ff;
+      --muted: #8ea3ad;
+      --accent-blue: #00f5ff;
+      --accent-green: #39ff14;
+      --glow-blue: 0 0 18px rgba(0, 245, 255, 0.42);
+      --glow-green: 0 0 18px rgba(57, 255, 20, 0.28);
+      --shadow: 0 14px 40px rgba(0, 0, 0, 0.32);
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+      --narrative-font: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --technical-font: "Cascadia Code", "Fira Code", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      position: relative;
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(0, 245, 255, 0.12), transparent 28%),
+        radial-gradient(circle at 85% 12%, rgba(57, 255, 20, 0.08), transparent 24%),
+        linear-gradient(180deg, #050505 0%, #0d0d0d 36%, #090909 100%);
+      color: var(--text);
+      font-family: var(--narrative-font);
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+    }
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+      background-size: 32px 32px;
+      opacity: 0.16;
+    }
+    a { color: var(--accent-blue); }
+    code, pre, .technical, .meta-chip, .section-kicker, .pill, .metric-label, .metric-value, .repo-tag, .mermaid {
+      font-family: var(--technical-font);
+    }
+    .page-shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 72px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero {
+      position: relative;
+      padding: 28px;
+      margin-bottom: 24px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background:
+        linear-gradient(145deg, rgba(0, 245, 255, 0.08), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+        var(--panel-strong);
+      box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.85fr);
+      gap: 22px;
+      align-items: end;
+    }
+    .section-kicker {
+      margin: 0 0 12px;
+      color: var(--accent-green);
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      text-shadow: var(--glow-green);
+    }
+    .phase-title {
+      margin: 0;
+      max-width: 12ch;
+      font-size: clamp(2.5rem, 5vw, 4.7rem);
+      line-height: 0.94;
+      letter-spacing: -0.05em;
+      color: #f5feff;
+      text-transform: uppercase;
+      text-wrap: balance;
+      text-shadow: 0 0 24px rgba(0, 245, 255, 0.2);
+    }
+    .hero-summary {
+      margin: 18px 0 0;
+      max-width: 60ch;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 245, 255, 0.24);
+      background: rgba(0, 245, 255, 0.08);
+      color: var(--accent-blue);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+    }
+    .hero-meta { display: grid; gap: 12px; }
+    .meta-card {
+      padding: 16px 18px;
+      border: 1px solid rgba(57, 255, 20, 0.2);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+    .meta-label {
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+    .meta-chip {
+      color: var(--accent-blue);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .repo-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border: 1px solid rgba(0, 245, 255, 0.24);
+      border-radius: 999px;
+      background: rgba(0, 245, 255, 0.08);
+      color: var(--accent-blue);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+    }
+    .section {
+      position: relative;
+      margin-top: 22px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .section::before {
+      content: "";
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      top: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.9), rgba(57, 255, 20, 0.9), transparent);
+      transform: translateY(-1px);
+    }
+    .section-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px 18px;
+      align-items: end;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .section-index {
+      color: var(--accent-green);
+      font-size: 0.76rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .section-title {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .summary-card, .technical-frame, .question-frame, .diagram-frame, .viz-frame {
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.025);
+      padding: 16px;
+    }
+    .summary-card h3 { margin: 0 0 8px; font-size: 0.95rem; }
+    .summary-card p, .summary-card ul { margin: 0; color: var(--muted); }
+    .technical-frame pre, .question-frame ul { margin: 0; white-space: pre-wrap; }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      text-align: left;
+      vertical-align: top;
+    }
+    th { color: var(--accent-blue); }
+    .chart-frame { height: 360px; }
+    .footer-note {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .chart-frame { height: 280px; }
+    }
+    @media print {
+      body { background: #ffffff; color: #111111; }
+      .section, .hero, .summary-card, .technical-frame, .question-frame, .diagram-frame, .viz-frame {
+        box-shadow: none;
+        background: #ffffff;
+        border-color: #cccccc;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" id="phase-header">
+      <div class="hero-grid">
+        <div>
+          <p class="section-kicker">Phase Report / Personal Technical Artifact</p>
+          <h1 class="phase-title">vietnam-tou-phase-5-6</h1>
+          <p class="hero-summary">
+            Completed the TOU 2026 analysis endgame: delta tables, driver decomposition, average-day dispatch visualization,
+            markdown impact report, and reproducible JSON artifacts.
+          </p>
+          <div class="pill-row" aria-label="report metadata">
+            <span class="pill">project :: RE-Storage</span>
+            <span class="pill">date :: 2026-04-27</span>
+          </div>
+          <div class="repo-tag">repo :: tah-allotrope/RE-storage-model</div>
+        </div>
+
+        <div class="hero-meta">
+          <div class="meta-card">
+            <div class="meta-label">Project</div>
+            <div class="meta-chip">RE-Storage</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Repository</div>
+            <div class="meta-chip">tah-allotrope/RE-storage-model</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Date</div>
+            <div class="meta-chip">2026-04-27</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section narrative" id="input-output-summary">
+      <div class="section-header">
+        <div>
+          <div class="section-index">01 / Input -> Output</div>
+          <h2 class="section-title">Input -> Output Summary</h2>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <article class="summary-card">
+          <h3>Inputs</h3>
+          <p>Existing Phase 1-4 TOU runner, baseline/new-tariff scenario outputs, Emivest JSON path, Ecoplexus Excel path, and the Vietnam TOU 2026 plan.</p>
+        </article>
+        <article class="summary-card">
+          <h3>Code Output</h3>
+          <p>Rebuilt <code>scripts/run_vietnam_tou2026_analysis.py</code> into a deterministic Phase 1-6 runner with pure helper functions for case comparison, decomposition, and dispatch rollups.</p>
+        </article>
+        <article class="summary-card">
+          <h3>Artifacts</h3>
+          <p>Generated <code>results/vietnam_tou2026_analysis.json</code>, <code>results/vietnam_tou2026_impact_report.md</code>, and <code>results/figures/avg_day_dispatch_comparison.png</code>.</p>
+        </article>
+        <article class="summary-card">
+          <h3>Verification</h3>
+          <p><code>pytest tests/unit/test_vietnam_tou2026_analysis.py tests/unit/test_tou2026_tariff.py tests/unit/test_tou2026_dispatch.py -q</code> passed with 27 tests green; targeted Ruff checks also passed.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="logic-flow">
+      <div class="section-header">
+        <div>
+          <div class="section-index">02 / Logic Flow</div>
+          <h2 class="section-title">Logic Flow</h2>
+        </div>
+      </div>
+      <div class="diagram-frame technical">
+        <div class="mermaid">flowchart LR
+          A[Read TOU plan and Phase 1-4 artifacts] --> B[Add helper tests for comparison math]
+          B --> C[Extend TOU analysis runner]
+          C --> D[Regenerate baseline and TOU2026 outputs]
+          D --> E[Build delta table and driver decomposition]
+          E --> F[Aggregate average-day dispatch and render figure]
+          F --> G[Write markdown and JSON reports]
+          G --> H[Run targeted tests and lint]
+        </div>
+      </div>
+    </section>
+
+    <section class="section narrative" id="math-algorithm-used">
+      <div class="section-header">
+        <div>
+          <div class="section-index">03 / Math / Algorithm Used</div>
+          <h2 class="section-title">Math / Algorithm Used</h2>
+        </div>
+      </div>
+      <div class="technical-frame">
+        <pre>Core delta math:
+Delta Revenue (USD) = (new year1_dppa_revenue + new year1_grid_savings)
+                    - (old year1_dppa_revenue + old year1_grid_savings)
+
+Delta Revenue (%)   = Delta Revenue / Old Revenue * 100
+Delta IRR (pp)      = (new project_irr - old project_irr) * 100
+Delta NPV (USD)     = new npv_usd - old npv_usd
+
+Revenue decomposition:
+- Morning peak uplift: aligned rows where PV was peak-priced before but not after.
+- BESS cycle reduction: aligned rows where peak-period discharge dropped under the new tariff.
+- Off-peak rate changes: difference in off-peak grid-savings totals.
+- Shifted peak timing: residual needed for the driver buckets to add back to the observed total delta.
+
+Average-day dispatch:
+- Group hourly settlement output by hour-of-day.
+- Mean direct PV, BESS discharge, and post-RE grid import across the available year.</pre>
+      </div>
+    </section>
+
+    <section class="section" id="tools-formulas-methods">
+      <div class="section-header">
+        <div>
+          <div class="section-index">04 / Tools / Formulas / Methods</div>
+          <h2 class="section-title">Tools / Formulas / Methods</h2>
+        </div>
+      </div>
+      <div class="technical-frame technical">
+        <pre>- Python entrypoint: scripts/run_vietnam_tou2026_analysis.py
+- Test lock: tests/unit/test_vietnam_tou2026_analysis.py
+- Existing TOU verification suites: tests/unit/test_tou2026_tariff.py, tests/unit/test_tou2026_dispatch.py
+- Plotting: Matplotlib (static PNG average-day chart)
+- Comparison source fields: year1_dppa_revenue_usd, year1_grid_savings_usd, project_irr, npv_usd, dscr_min
+- Emivest hourly path used for decomposition and chart because run_model_from_json exposes _hourly_df
+- Ecoplexus kept in the KPI comparison table from scalar outputs because run_full_model currently returns KPIs only</pre>
+      </div>
+    </section>
+
+    <section class="section" id="results-visualizations">
+      <div class="section-header">
+        <div>
+          <div class="section-index">05 / Results &amp; Visualizations</div>
+          <h2 class="section-title">Results &amp; Visualizations</h2>
+        </div>
+      </div>
+      <div class="viz-frame">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>Scenario</th>
+                <th>Delta Revenue</th>
+                <th>Delta Revenue %</th>
+                <th>Delta IRR</th>
+                <th>Delta NPV</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Emivest</td><td>Bundled Discount</td><td>-$63,305</td><td>-11.26%</td><td>-3.25 pp</td><td>-$659,445</td></tr>
+              <tr><td>Emivest</td><td>Separate PV+BESS</td><td>-$36,341</td><td>-6.46%</td><td>-1.70 pp</td><td>-$323,683</td></tr>
+              <tr><td>Emivest</td><td>DPPA (CfD)</td><td>-$19,677</td><td>-3.50%</td><td>-0.76 pp</td><td>-$116,188</td></tr>
+              <tr><td>Emivest</td><td>Fixed EVN PPA</td><td>-$6,076</td><td>-1.08%</td><td>+0.00 pp</td><td>$53,174</td></tr>
+              <tr><td>Ecoplexus 40MW</td><td>DPPA (CfD)</td><td>$1,348,006</td><td>24.32%</td><td>+3.06 pp</td><td>$11,798,735</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="chart-frame" style="margin-top:16px;"><canvas id="deltaChart"></canvas></div>
+        <div class="chart-frame" style="margin-top:16px;"><canvas id="driverChart"></canvas></div>
+      </div>
+    </section>
+
+    <section class="section narrative" id="limitations-second-best-alternative">
+      <div class="section-header">
+        <div>
+          <div class="section-index">06 / Limitations / Second-Best Alternative</div>
+          <h2 class="section-title">Limitations / Second-Best Alternative</h2>
+        </div>
+      </div>
+      <div class="question-frame">
+        <ul>
+          <li>Ecoplexus could be included in the KPI delta table, but not in the hourly decomposition or average-day plot because <code>run_full_model()</code> does not currently surface <code>_hourly_df</code>.</li>
+          <li>The decomposition is intentionally pragmatic: three directly attributable buckets plus one timing residual so the pieces reconcile to the observed total.</li>
+          <li>The second-best alternative would have been a one-off notebook or markdown-only analysis, but that would not have been reproducible or test-locked in the repository.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section narrative" id="errors-warnings-flags-encountered">
+      <div class="section-header">
+        <div>
+          <div class="section-index">07 / Errors / Warnings / Flags</div>
+          <h2 class="section-title">Errors / Warnings / Flags Encountered</h2>
+        </div>
+      </div>
+      <div class="question-frame technical">
+        <ul>
+          <li>Initial decomposition logic double-counted peak revenue and was corrected with helper tests.</li>
+          <li>The first full artifact run timed out at 120s; reran successfully with a longer timeout.</li>
+          <li>Ecoplexus hourly decomposition initially failed because <code>run_full_model()</code> returned no <code>_hourly_df</code>; the final implementation narrowed hourly analysis to the JSON-backed Emivest path.</li>
+          <li>Expected loader warnings were emitted for missing Emivest BESS labels during script execution and did not block completion.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section narrative" id="open-questions-next-phase-seeds">
+      <div class="section-header">
+        <div>
+          <div class="section-index">08 / Open Questions / Next Phase Seeds</div>
+          <h2 class="section-title">Open Questions / Next Phase Seeds</h2>
+        </div>
+      </div>
+      <div class="question-frame">
+        <ul>
+          <li>Should <code>run_full_model()</code> be extended to return hourly/annual frames like the JSON path so Excel-backed scenario analysis can share the same richer reporting pipeline?</li>
+          <li>Should the Phase 6 plan item about regression references be implemented now with a <code>--tariff-version</code> switch, or wait until 2026 TOU becomes the production default?</li>
+          <li>Does the positive Ecoplexus uplift under TOU 2026 reflect a genuine project characteristic, or a workbook-specific tariff/config interaction that needs a follow-up audit?</li>
+        </ul>
+      </div>
+      <div class="footer-note">artifact generated for reflection, not presentation theater</div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const chartCanvases = document.querySelectorAll('canvas');
+      chartCanvases.forEach((canvas) => {
+        canvas.classList.add('report-chart');
+        const parent = canvas.parentElement;
+        if (parent && parent.classList.contains('technical-frame') && !parent.classList.contains('chart-frame')) {
+          parent.classList.add('chart-frame');
+        }
+      });
+    })();
+
+    if (window.Chart) {
+      Chart.defaults.devicePixelRatio = 1;
+      Chart.defaults.animation = false;
+      Chart.defaults.resizeDelay = 150;
+      Chart.defaults.normalized = true;
+      Chart.defaults.maintainAspectRatio = false;
+      Chart.defaults.responsive = true;
+      window.__REPORT_CHART_DEFAULTS__ = {
+        animation: false,
+        resizeDelay: 150,
+        normalized: true,
+        maintainAspectRatio: false,
+        responsive: true
+      };
+    }
+
+    const baseChartOptions = {
+      animation: false,
+      resizeDelay: 150,
+      normalized: true,
+      maintainAspectRatio: false,
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#e9f6ff' } }
+      },
+      scales: {
+        x: { ticks: { color: '#e9f6ff' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+        y: { ticks: { color: '#e9f6ff' }, grid: { color: 'rgba(255,255,255,0.08)' } }
+      }
+    };
+
+    new Chart(document.getElementById('deltaChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Emivest O1', 'Emivest O2', 'Emivest O3', 'Emivest O4', 'Ecoplexus'],
+        datasets: [
+          {
+            label: 'Delta Revenue (USD)',
+            data: [-63305, -36341, -19677, -6076, 1348006],
+            backgroundColor: ['#bc6c25', '#bc6c25', '#bc6c25', '#bc6c25', '#2f7d32']
+          }
+        ]
+      },
+      options: baseChartOptions
+    });
+
+    new Chart(document.getElementById('driverChart'), {
+      type: 'bar',
+      data: {
+        labels: [
+          'Morning peak uplift',
+          'BESS cycle reduction',
+          'Shifted peak timing',
+          'Off-peak rate changes'
+        ],
+        datasets: [
+          {
+            label: 'Emivest bundled driver impact (USD)',
+            data: [-65343, -32609, 34640, 7],
+            backgroundColor: ['#f94144', '#f3722c', '#43aa8b', '#577590']
+          }
+        ]
+      },
+      options: baseChartOptions
+    });
+  </script>
+</body>
+</html>

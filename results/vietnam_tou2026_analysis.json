@@ -1,0 +1,1698 @@
+{
+  "baseline": {
+    "emivest": {
+      "year1_opex_usd": 169601.47059285297,
+      "year1_ebitda_usd": 392542.6479777386,
+      "project_irr": 0.2531498851853092,
+      "equity_irr": 0.24248113096296384,
+      "unlevered_irr": 0.7500631691131592,
+      "after_tax_project_irr": 0.24248113096296384,
+      "npv_usd": 4634733.196094051,
+      "after_tax_npv_usd": 2321142.3276713667,
+      "dscr_min": 1.9555758716789817,
+      "dscr_avg": 2.409033514850255,
+      "debt_amount_usd": 1315615.0,
+      "calc_solar_gen_sum_kwh": 4260949.247771779,
+      "calc_soc_min_kwh": 0.0,
+      "calc_soc_max_kwh": 1827.5,
+      "year1_solar_generation_mwh": 4260.9492477717795,
+      "year1_dppa_revenue_usd": 258282.4328567583,
+      "year1_grid_savings_usd": 303861.6857138333,
+      "average_day_dispatch": [
+        {
+          "hour": 0,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 963.6051111728493
+        },
+        {
+          "hour": 1,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 972.4359695584384
+        },
+        {
+          "hour": 2,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 966.1432091621369
+        },
+        {
+          "hour": 3,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 938.7844703215891
+        },
+        {
+          "hour": 4,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 923.1264784174795
+        },
+        {
+          "hour": 5,
+          "solar_direct_kw": 0.4159733093561644,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 909.7483827676575
+        },
+        {
+          "hour": 6,
+          "solar_direct_kw": 150.23754205038165,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 854.6528080148238
+        },
+        {
+          "hour": 7,
+          "solar_direct_kw": 421.38157846030134,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 445.67539881430133
+        },
+        {
+          "hour": 8,
+          "solar_direct_kw": 711.5349996643836,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 393.59109179578087
+        },
+        {
+          "hour": 9,
+          "solar_direct_kw": 917.6193578445752,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 373.6347350438356
+        },
+        {
+          "hour": 10,
+          "solar_direct_kw": 996.4533437007946,
+          "bess_discharge_kw": 13.130433532037923,
+          "grid_import_kw": 311.60185689426345
+        },
+        {
+          "hour": 11,
+          "solar_direct_kw": 1001.2002572083013,
+          "bess_discharge_kw": 5.9704707763871925,
+          "grid_import_kw": 302.85945106744845
+        },
+        {
+          "hour": 12,
+          "solar_direct_kw": 945.4162255015289,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 374.23959912238905
+        },
+        {
+          "hour": 13,
+          "solar_direct_kw": 915.8423411789972,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 412.92986663481094
+        },
+        {
+          "hour": 14,
+          "solar_direct_kw": 793.0886463143545,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 555.6380176819193
+        },
+        {
+          "hour": 15,
+          "solar_direct_kw": 602.1269663832043,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 747.4679647141656
+        },
+        {
+          "hour": 16,
+          "solar_direct_kw": 344.3187943470838,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 980.9527231137107
+        },
+        {
+          "hour": 17,
+          "solar_direct_kw": 60.41632280704227,
+          "bess_discharge_kw": 735.043565529917,
+          "grid_import_kw": 517.8927865922187
+        },
+        {
+          "hour": 18,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 400.7574945725806,
+          "grid_import_kw": 891.9304871855563
+        },
+        {
+          "hour": 19,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 27.1423587621577,
+          "grid_import_kw": 1191.730841203678
+        },
+        {
+          "hour": 20,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 1267.7067224686027
+        },
+        {
+          "hour": 21,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 1282.2499290979179
+        },
+        {
+          "hour": 22,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 1257.6498260617261
+        },
+        {
+          "hour": 23,
+          "solar_direct_kw": 0.0,
+          "bess_discharge_kw": 0.0,
+          "grid_import_kw": 901.3676047901644
+        }
+      ]
+    },
+    "ecoplexus": {
+      "year1_opex_usd": 437510.0,
+      "year1_ebitda_usd": 2109568.533681673,
+      "project_irr": 0.06255878354987195,
+      "equity_irr": 0.05710587023577194,
+      "unlevered_irr": 0.13411352133980273,
+      "after_tax_project_irr": 0.05710587023577194,
+      "npv_usd": 6009427.392888105,
+      "after_tax_npv_usd": -9689533.926312087,
+      "dscr_min": 1.2833995884081784,
+      "dscr_avg": 1.2940926184839818,
+      "debt_amount_usd": 11494693.708159294,
+      "calc_solar_gen_sum_kwh": 71808298.6286,
+      "calc_soc_min_kwh": 0.0,
+      "calc_soc_max_kwh": 56100.0,
+      "year1_solar_generation_mwh": 71808.2986286,
+      "year1_dppa_revenue_usd": 2547078.533681673,
+      "year1_grid_savings_usd": 2996562.980801968
+    }
+  },
+  "new_tariff": {
+    "emivest": {
+      "option_1": {
+        "year1_opex_usd": 169284.94628613204,
+        "year1_ebitda_usd": 329554.3109402725,
+        "project_irr": 0.22063752035320225,
+        "equity_irr": 0.21005953955755158,
+        "unlevered_irr": 0.6525477932265746,
+        "after_tax_project_irr": 0.21005953955755158,
+        "npv_usd": 3975288.647899646,
+        "after_tax_npv_usd": 1768801.5547074887,
+        "dscr_min": 1.6406454331329918,
+        "dscr_avg": 2.0943964371678607,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 229196.41548240208,
+        "year1_grid_savings_usd": 269642.8417440025,
+        "ppa_option": 1,
+        "ppa_label": "Bundled Discount",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.693231814636526,
+            "grid_import_kw": 1260.5566972832812
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.61301476268493,
+            "grid_import_kw": 1238.0368112990411
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      },
+      "option_2": {
+        "year1_opex_usd": 169419.76770700404,
+        "year1_ebitda_usd": 356383.77369380073,
+        "project_irr": 0.23611228122951633,
+        "equity_irr": 0.22543184778076616,
+        "unlevered_irr": 0.6954664897428122,
+        "after_tax_project_irr": 0.22543184778076616,
+        "npv_usd": 4311050.410400737,
+        "after_tax_npv_usd": 2045407.568534247,
+        "dscr_min": 1.7773877476065036,
+        "dscr_avg": 2.2443030448678094,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 256160.69965680232,
+        "year1_grid_savings_usd": 269642.8417440025,
+        "ppa_option": 2,
+        "ppa_label": "Separate PV+BESS",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.693231814636526,
+            "grid_import_kw": 1260.5566972832812
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.61301476268493,
+            "grid_import_kw": 1238.0368112990411
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      },
+      "option_3": {
+        "year1_opex_usd": 169503.0850903356,
+        "year1_ebitda_usd": 372963.93297678384,
+        "project_irr": 0.24553565420733006,
+        "equity_irr": 0.2348090980110692,
+        "unlevered_irr": 0.7221364990100885,
+        "after_tax_project_irr": 0.2348090980110692,
+        "npv_usd": 4518545.564312126,
+        "after_tax_npv_usd": 2216345.459091729,
+        "dscr_min": 1.8600777411982379,
+        "dscr_avg": 2.336942821372836,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 272824.1763231169,
+        "year1_grid_savings_usd": 269642.8417440025,
+        "ppa_option": 3,
+        "ppa_label": "DPPA (CfD)",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.693231814636526,
+            "grid_import_kw": 1260.5566972832812
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.61301476268493,
+            "grid_import_kw": 1238.0368112990411
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      },
+      "option_4": {
+        "year1_opex_usd": 169571.09055564235,
+        "year1_ebitda_usd": 386497.02057282685,
+        "project_irr": 0.25315893033444187,
+        "equity_irr": 0.24240344515306925,
+        "unlevered_irr": 0.7439875955967961,
+        "after_tax_project_irr": 0.24240344515306925,
+        "npv_usd": 4687907.634103536,
+        "after_tax_npv_usd": 2355868.6932726884,
+        "dscr_min": 1.927571117316868,
+        "dscr_avg": 2.412557427295659,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 286425.26938446675,
+        "year1_grid_savings_usd": 269642.8417440025,
+        "ppa_option": 4,
+        "ppa_label": "Fixed EVN PPA",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.693231814636526,
+            "grid_import_kw": 1260.5566972832812
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.61301476268493,
+            "grid_import_kw": 1238.0368112990411
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      }
+    },
+    "emivest_cyclecap1": {
+      "option_1": {
+        "year1_opex_usd": 169284.523833164,
+        "year1_ebitda_usd": 329470.24279964017,
+        "project_irr": 0.22059374862144512,
+        "equity_irr": 0.21001598144412562,
+        "unlevered_irr": 0.6524193948151614,
+        "after_tax_project_irr": 0.21001598144412562,
+        "npv_usd": 3974408.5123122605,
+        "after_tax_npv_usd": 1768064.366460228,
+        "dscr_min": 1.6402251074402945,
+        "dscr_avg": 2.0939765030127644,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 229157.59547993704,
+        "year1_grid_savings_usd": 269597.17115286714,
+        "ppa_option": 1,
+        "ppa_label": "Bundled Discount",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.218963873951594,
+            "grid_import_kw": 1261.0309652239662
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.129882000684933,
+            "grid_import_kw": 1238.519944061041
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      },
+      "option_2": {
+        "year1_opex_usd": 169419.32241874046,
+        "year1_ebitda_usd": 356295.16132935043,
+        "project_irr": 0.23606651994109984,
+        "equity_irr": 0.2253862193190363,
+        "unlevered_irr": 0.695329557543935,
+        "after_tax_project_irr": 0.2253862193190363,
+        "npv_usd": 4310113.405370519,
+        "after_tax_npv_usd": 2044623.5303128448,
+        "dscr_min": 1.7769458124161668,
+        "dscr_avg": 2.243857720372868,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 256117.31259522375,
+        "year1_grid_savings_usd": 269597.17115286714,
+        "ppa_option": 2,
+        "ppa_label": "Separate PV+BESS",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.218963873951594,
+            "grid_import_kw": 1261.0309652239662
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.129882000684933,
+            "grid_import_kw": 1238.519944061041
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      },
+      "option_3": {
+        "year1_opex_usd": 169502.80454648013,
+        "year1_ebitda_usd": 372908.10474954307,
+        "project_irr": 0.24550876579738234,
+        "equity_irr": 0.23478220765036298,
+        "unlevered_irr": 0.7220516338285683,
+        "after_tax_project_irr": 0.23478220765036298,
+        "npv_usd": 4518018.841805738,
+        "after_tax_npv_usd": 2215899.41830224,
+        "dscr_min": 1.8597993098711327,
+        "dscr_avg": 2.3366806745598554,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 272813.738143156,
+        "year1_grid_savings_usd": 269597.17115286714,
+        "ppa_option": 3,
+        "ppa_label": "DPPA (CfD)",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.218963873951594,
+            "grid_import_kw": 1261.0309652239662
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.129882000684933,
+            "grid_import_kw": 1238.519944061041
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      },
+      "option_4": {
+        "year1_opex_usd": 169570.86220268667,
+        "year1_ebitda_usd": 386451.5783346473,
+        "project_irr": 0.2531379681744626,
+        "equity_irr": 0.24238243807939613,
+        "unlevered_irr": 0.7439190867767396,
+        "after_tax_project_irr": 0.24238243807939613,
+        "npv_usd": 4687510.888780238,
+        "after_tax_npv_usd": 2355529.729805628,
+        "dscr_min": 1.9273444838859262,
+        "dscr_avg": 2.4123533110292477,
+        "debt_amount_usd": 1315615.0,
+        "calc_solar_gen_sum_kwh": 4260949.247771779,
+        "calc_soc_min_kwh": 0.0,
+        "calc_soc_max_kwh": 1827.5,
+        "year1_solar_generation_mwh": 4260.9492477717795,
+        "year1_dppa_revenue_usd": 286425.26938446675,
+        "year1_grid_savings_usd": 269597.17115286714,
+        "ppa_option": 4,
+        "ppa_label": "Fixed EVN PPA",
+        "average_day_dispatch": [
+          {
+            "hour": 0,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 963.6051111728493
+          },
+          {
+            "hour": 1,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 972.4359695584384
+          },
+          {
+            "hour": 2,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 966.1432091621369
+          },
+          {
+            "hour": 3,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 938.7844703215891
+          },
+          {
+            "hour": 4,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 923.1264784174795
+          },
+          {
+            "hour": 5,
+            "solar_direct_kw": 0.4159733093561644,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 909.7483827676575
+          },
+          {
+            "hour": 6,
+            "solar_direct_kw": 150.23754205038165,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 854.6528080148238
+          },
+          {
+            "hour": 7,
+            "solar_direct_kw": 421.38157846030134,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 445.67539881430133
+          },
+          {
+            "hour": 8,
+            "solar_direct_kw": 711.5349996643836,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 393.59109179578087
+          },
+          {
+            "hour": 9,
+            "solar_direct_kw": 917.6193578445752,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 373.6347350438356
+          },
+          {
+            "hour": 10,
+            "solar_direct_kw": 880.6873940585452,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 440.4982400685507
+          },
+          {
+            "hour": 11,
+            "solar_direct_kw": 913.7841256452054,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 396.2460534069315
+          },
+          {
+            "hour": 12,
+            "solar_direct_kw": 948.0860728449995,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 371.5697517789184
+          },
+          {
+            "hour": 13,
+            "solar_direct_kw": 946.3398203251671,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 382.43238748864115
+          },
+          {
+            "hour": 14,
+            "solar_direct_kw": 896.2057108293849,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 452.5209531668891
+          },
+          {
+            "hour": 15,
+            "solar_direct_kw": 715.6698514885442,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 633.9250796088256
+          },
+          {
+            "hour": 16,
+            "solar_direct_kw": 373.8698433170878,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 951.4016741437067
+          },
+          {
+            "hour": 17,
+            "solar_direct_kw": 60.41632280704227,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 1252.9363521221358
+          },
+          {
+            "hour": 18,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 790.4508059579533,
+            "grid_import_kw": 502.23717580018365
+          },
+          {
+            "hour": 19,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 512.7454182358006,
+            "grid_import_kw": 706.127781730035
+          },
+          {
+            "hour": 20,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 27.05700622485541,
+            "grid_import_kw": 1240.6497162437472
+          },
+          {
+            "hour": 21,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 21.218963873951594,
+            "grid_import_kw": 1261.0309652239662
+          },
+          {
+            "hour": 22,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 19.129882000684933,
+            "grid_import_kw": 1238.519944061041
+          },
+          {
+            "hour": 23,
+            "solar_direct_kw": 0.0,
+            "bess_discharge_kw": 0.0,
+            "grid_import_kw": 901.3676047901644
+          }
+        ]
+      }
+    },
+    "ecoplexus": {
+      "year1_opex_usd": 437510.0,
+      "year1_ebitda_usd": 2728922.4568973565,
+      "project_irr": 0.09314321791053531,
+      "equity_irr": 0.08697746660149419,
+      "unlevered_irr": 0.20896464776850288,
+      "after_tax_project_irr": 0.08697746660149419,
+      "npv_usd": 17808162.05693948,
+      "after_tax_npv_usd": -3111429.9175404753,
+      "dscr_min": 1.2714172244945599,
+      "dscr_avg": 1.2872959122532157,
+      "debt_amount_usd": 15162817.001034977,
+      "calc_solar_gen_sum_kwh": 71808298.6286,
+      "calc_soc_min_kwh": 0.0,
+      "calc_soc_max_kwh": 56100.0,
+      "year1_solar_generation_mwh": 71808.2986286,
+      "year1_dppa_revenue_usd": 3166432.4568973565,
+      "year1_grid_savings_usd": 3725214.6551733604
+    },
+    "ecoplexus_cyclecap1": {
+      "year1_opex_usd": 437510.0,
+      "year1_ebitda_usd": 2728922.4568973565,
+      "project_irr": 0.09314321791053531,
+      "equity_irr": 0.08697746660149419,
+      "unlevered_irr": 0.20896464776850288,
+      "after_tax_project_irr": 0.08697746660149419,
+      "npv_usd": 17808162.05693948,
+      "after_tax_npv_usd": -3111429.9175404753,
+      "dscr_min": 1.2714172244945599,
+      "dscr_avg": 1.2872959122532157,
+      "debt_amount_usd": 15162817.001034977,
+      "calc_solar_gen_sum_kwh": 71808298.6286,
+      "calc_soc_min_kwh": 0.0,
+      "calc_soc_max_kwh": 56100.0,
+      "year1_solar_generation_mwh": 71808.2986286,
+      "year1_dppa_revenue_usd": 3166432.4568973565,
+      "year1_grid_savings_usd": 3725214.6551733604
+    }
+  },
+  "phase5": {
+    "comparison_rows": [
+      {
+        "case": "Emivest",
+        "scenario": "Bundled Discount",
+        "old_revenue_usd": 562144.1185705916,
+        "new_revenue_usd": 498839.25722640456,
+        "delta_revenue_usd": -63304.861344187,
+        "delta_revenue_pct": -11.261322364299975,
+        "old_project_irr": 0.2531498851853092,
+        "new_project_irr": 0.22063752035320225,
+        "delta_project_irr_pp": -3.251236483210693,
+        "old_npv_usd": 4634733.196094051,
+        "new_npv_usd": 3975288.647899646,
+        "delta_npv_usd": -659444.5481944052,
+        "old_equity_irr": 0.24248113096296384,
+        "new_equity_irr": 0.21005953955755158,
+        "old_dscr_min": 1.9555758716789817,
+        "new_dscr_min": 1.6406454331329918
+      },
+      {
+        "case": "Emivest",
+        "scenario": "Separate PV+BESS",
+        "old_revenue_usd": 562144.1185705916,
+        "new_revenue_usd": 525803.5414008048,
+        "delta_revenue_usd": -36340.57716978679,
+        "delta_revenue_pct": -6.464637086694576,
+        "old_project_irr": 0.2531498851853092,
+        "new_project_irr": 0.23611228122951633,
+        "delta_project_irr_pp": -1.7037603955792846,
+        "old_npv_usd": 4634733.196094051,
+        "new_npv_usd": 4311050.410400737,
+        "delta_npv_usd": -323682.7856933139,
+        "old_equity_irr": 0.24248113096296384,
+        "new_equity_irr": 0.22543184778076616,
+        "old_dscr_min": 1.9555758716789817,
+        "new_dscr_min": 1.7773877476065036
+      },
+      {
+        "case": "Emivest",
+        "scenario": "DPPA (CfD)",
+        "old_revenue_usd": 562144.1185705916,
+        "new_revenue_usd": 542467.0180671194,
+        "delta_revenue_usd": -19677.100503472146,
+        "delta_revenue_pct": -3.5003658053928715,
+        "old_project_irr": 0.2531498851853092,
+        "new_project_irr": 0.24553565420733006,
+        "delta_project_irr_pp": -0.7614230977979114,
+        "old_npv_usd": 4634733.196094051,
+        "new_npv_usd": 4518545.564312126,
+        "delta_npv_usd": -116187.63178192545,
+        "old_equity_irr": 0.24248113096296384,
+        "new_equity_irr": 0.2348090980110692,
+        "old_dscr_min": 1.9555758716789817,
+        "new_dscr_min": 1.8600777411982379
+      },
+      {
+        "case": "Emivest",
+        "scenario": "Fixed EVN PPA",
+        "old_revenue_usd": 562144.1185705916,
+        "new_revenue_usd": 556068.1111284692,
+        "delta_revenue_usd": -6076.007442122325,
+        "delta_revenue_pct": -1.0808629391288966,
+        "old_project_irr": 0.2531498851853092,
+        "new_project_irr": 0.25315893033444187,
+        "delta_project_irr_pp": 0.0009045149132691499,
+        "old_npv_usd": 4634733.196094051,
+        "new_npv_usd": 4687907.634103536,
+        "delta_npv_usd": 53174.43800948467,
+        "old_equity_irr": 0.24248113096296384,
+        "new_equity_irr": 0.24240344515306925,
+        "old_dscr_min": 1.9555758716789817,
+        "new_dscr_min": 1.927571117316868
+      },
+      {
+        "case": "Ecoplexus 40MW",
+        "scenario": "DPPA (CfD)",
+        "old_revenue_usd": 5543641.514483641,
+        "new_revenue_usd": 6891647.112070717,
+        "delta_revenue_usd": 1348005.597587076,
+        "delta_revenue_pct": 24.316247615672804,
+        "old_project_irr": 0.06255878354987195,
+        "new_project_irr": 0.09314321791053531,
+        "delta_project_irr_pp": 3.058443436066337,
+        "old_npv_usd": 6009427.392888105,
+        "new_npv_usd": 17808162.05693948,
+        "delta_npv_usd": 11798734.664051374,
+        "old_equity_irr": 0.05710587023577194,
+        "new_equity_irr": 0.08697746660149419,
+        "old_dscr_min": 1.2833995884081784,
+        "new_dscr_min": 1.2714172244945599
+      }
+    ],
+    "driver_rows": [
+      {
+        "case": "Emivest",
+        "scenario": "Bundled Discount",
+        "driver": "Loss of morning peak uplift",
+        "value_usd": -65343.36608851235
+      },
+      {
+        "case": "Emivest",
+        "scenario": "Bundled Discount",
+        "driver": "BESS cycle reduction",
+        "value_usd": -32608.88305592107
+      },
+      {
+        "case": "Emivest",
+        "scenario": "Bundled Discount",
+        "driver": "Shifted peak window (timing)",
+        "value_usd": 34640.43864613409
+      },
+      {
+        "case": "Emivest",
+        "scenario": "Bundled Discount",
+        "driver": "Off-peak rate changes",
+        "value_usd": 6.949154112263461
+      }
+    ],
+    "figure_path": "results\\figures\\avg_day_dispatch_comparison.png"
+  },
+  "phase6": {
+    "report_path": "results\\vietnam_tou2026_impact_report.md",
+    "summary_lines": [
+      "Worst revenue hit: Emivest Bundled Discount moved by -$63,305 (-11.26%).",
+      "Best preserved case: Ecoplexus 40MW DPPA (CfD) moved by $1,348,006 (24.32%).",
+      "Largest NPV movement: Ecoplexus 40MW DPPA (CfD) shifted by $11,798,735.",
+      "Ecoplexus project IRR changed from 6.26% to 9.31%."
+    ]
+  }
+}
