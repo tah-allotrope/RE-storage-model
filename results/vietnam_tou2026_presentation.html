@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vietnam TOU 2026 — Old vs New Analysis</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #FFFFFF; --surface: #F8F9FA; --primary: #1A5276;
+      --accent: #27AE60; --text: #2C3E50; --muted: #7F8C8D; --border: #E0E0E0;
+    }
+    body { font-family: 'Segoe UI', Trebuchet MS, sans-serif; background: #1A1A2E; overflow: hidden; }
+    .deck { width: 100vw; height: calc(100vh - 48px); position: relative; overflow: hidden; }
+    .slide { display: none; position: absolute; inset: 0; padding: 3rem 4rem; background: var(--bg); overflow-y: auto; }
+    .slide.active { display: flex; flex-direction: column; }
+    .slide-title { font-size: 2.2rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem; }
+    .slide-subtitle { font-size: 1rem; color: var(--muted); margin-bottom: 1.5rem; }
+    .slide-body { font-size: 1rem; color: var(--text); line-height: 1.6; }
+    .stat-number { font-size: 3.5rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .nav { height: 48px; display: flex; align-items: center; justify-content: center; gap: 1.5rem; background: var(--surface); border-top: 1px solid var(--border); }
+    .nav button { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 4px 14px; cursor: pointer; font-size: 1rem; color: var(--text); }
+    .nav button:hover { background: var(--surface); border-color: var(--accent); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; flex: 1; }
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin: 1rem 0; }
+    .stat-card { background: var(--surface); border-radius: 10px; padding: 1.5rem; text-align: center; border: 1px solid var(--border); }
+    .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+    .stat-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.3rem; }
+    .section-slide { background: var(--primary) !important; justify-content: center; align-items: center; text-align: center; }
+    .section-slide .section-num { font-size: 5rem; font-weight: 700; color: var(--accent); }
+    .section-slide .section-title { font-size: 2rem; font-weight: 700; color: #FFFFFF; margin-top: 0.5rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 1rem 0; }
+    th { background: #EBF5FB; color: var(--primary); padding: 0.5rem 0.6rem; text-align: left; font-weight: 600; }
+    td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:hover td { background: var(--surface); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .neg { color: #E74C3C; }
+    .pos { color: #27AE60; }
+    .icon-row { display: grid; grid-template-columns: 3rem 1fr; gap: 1rem; align-items: start; margin-bottom: 1rem; }
+    .icon-circle { width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: white; font-size: 1rem; flex-shrink: 0; }
+    h2 { font-size: 1.4rem; color: var(--primary); margin: 1rem 0 0.5rem; }
+    h3 { font-size: 1.1rem; color: var(--text); margin: 0.8rem 0 0.4rem; }
+    ul { margin: 0.5rem 0 0.5rem 1.5rem; color: var(--text); }
+    li { margin-bottom: 0.3rem; }
+    .title-slide { background: #1A5276 !important; justify-content: center; align-items: center; text-align: center; }
+    .title-slide .company { font-size: 0.8rem; color: #BDC3C7; letter-spacing: 5px; text-transform: uppercase; margin-bottom: 2rem; }
+    .title-slide h1 { font-size: 2.8rem; color: #FFFFFF; font-weight: 700; margin-bottom: 0.5rem; }
+    .title-slide .subtitle { font-size: 1.1rem; color: #BDC3C7; margin-bottom: 2rem; }
+    .title-slide .date { font-size: 0.9rem; color: #95A5A6; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge-green { background: #D5F5E3; color: #1E8449; }
+    .badge-red { background: #FADBD8; color: #C0392B; }
+    .badge-blue { background: #D6EAF8; color: #1A5276; }
+    canvas { max-height: 280px; margin: 0.5rem 0; }
+    @media (max-width: 768px) {
+      .slide { padding: 1.5rem; }
+      .two-col { grid-template-columns: 1fr; gap: 1rem; }
+      .slide-title { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="deck">
+
+<!-- TITLE SLIDE -->
+<div class="slide title-slide active" id="s1">
+  <div class="company">ALLOTROPE</div>
+  <h1>Vietnam TOU Tariff 2026</h1>
+  <div class="subtitle">Revenue Impact Analysis — Old vs New Schedule Comparison<br>Emivest &amp; Ecoplexus 40MW Cases</div>
+  <div class="date">April 2026</div>
+</div>
+
+<!-- AGENDA -->
+<div class="slide" id="s2">
+  <div class="slide-title">Agenda</div>
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:0.8rem;">
+    <div class="icon-row"><div class="icon-circle">1</div><div><strong>Tariff Change Summary</strong><br><span style="color:var(--muted);font-size:0.9rem;">Old schedule (≤Apr 21) vs New schedule (≥Apr 22)</span></div></div>
+    <div class="icon-row"><div class="icon-circle">2</div><div><strong>BESS Dispatch Impact</strong><br><span style="color:var(--muted);font-size:0.9rem;">2-cycle → 1-cycle, shifted peak window</span></div></div>
+    <div class="icon-row"><div class="icon-circle">3</div><div><strong>Emivest Case Results</strong><br><span style="color:var(--muted);font-size:0.9rem;">All 4 PPA options compared</span></div></div>
+    <div class="icon-row"><div class="icon-circle">4</div><div><strong>Ecoplexus 40MW Results</strong><br><span style="color:var(--muted);font-size:0.9rem;">DPPA (CfD) scenario</span></div></div>
+    <div class="icon-row"><div class="icon-circle">5</div><div><strong>Revenue Decomposition</strong><br><span style="color:var(--muted);font-size:0.9rem;">Driver-by-driver attribution</span></div></div>
+    <div class="icon-row"><div class="icon-circle">6</div><div><strong>Average-Day Dispatch View</strong><br><span style="color:var(--muted);font-size:0.9rem;">Old vs new hourly profiles</span></div></div>
+    <div class="icon-row"><div class="icon-circle">7</div><div><strong>Mitigations &amp; Next Steps</strong><br><span style="color:var(--muted);font-size:0.9rem;">Recommended actions</span></div></div>
+  </div>
+</div>
+
+<!-- SECTION: Tariff Change -->
+<div class="slide section-slide" id="s3">
+  <div class="section-num">01</div>
+  <div class="section-title">Tariff Change Summary</div>
+</div>
+
+<div class="slide" id="s4">
+  <div class="slide-title">Tariff Change Summary</div>
+  <div class="slide-subtitle">Vietnam TOU schedule effective April 22, 2026</div>
+  <table>
+    <tr><th>Attribute</th><th>Old (≤ Apr 21)</th><th>New (≥ Apr 22)</th></tr>
+    <tr><td><strong>Off-Peak (Mon–Sat)</strong></td><td>22:00–04:00</td><td>00:00–06:00</td></tr>
+    <tr><td><strong>Normal (Mon–Sat)</strong></td><td>04:00–09:30, 11:30–17:00, 20:00–22:00</td><td>06:00–17:30, 22:30–24:00</td></tr>
+    <tr><td><strong>Peak (Mon–Sat)</strong></td><td>09:30–11:30 <strong>and</strong> 17:00–20:00 (2 blocks, 5hr)</td><td>17:30–22:30 (1 block, 5hr)</td></tr>
+    <tr><td><strong>Sunday</strong></td><td>Normal 04:00–22:00 / Off-Peak 22:00–04:00</td><td>Normal 06:00–24:00 / Off-Peak 00:00–06:00</td></tr>
+    <tr><td><strong>BESS cycles/day</strong></td><td>2 (morning + evening peak)</td><td>1 (evening peak only)</td></tr>
+  </table>
+  <div class="stat-row" style="margin-top:1rem;">
+    <div class="stat-card"><div class="value">Lost</div><div class="label">Morning Peak Solar Uplift</div></div>
+    <div class="stat-card"><div class="value">1→1</div><div class="label">BESS Cycles Per Day</div></div>
+    <div class="stat-card"><div class="value">17:30–22:30</div><div class="label">New Single Peak Block</div></div>
+    <div class="stat-card"><div class="value">00:00–06:00</div><div class="label">New Off-Peak Window</div></div>
+  </div>
+</div>
+
+<!-- SECTION: BESS Dispatch -->
+<div class="slide section-slide" id="s5">
+  <div class="section-num">02</div>
+  <div class="section-title">BESS Dispatch Impact</div>
+</div>
+
+<div class="slide" id="s6">
+  <div class="slide-title">BESS Dispatch Impact</div>
+  <div class="two-col">
+    <div>
+      <h3>Old Schedule (2 Cycles/Day)</h3>
+      <ul>
+        <li><strong>Charge:</strong> Off-peak 22:00–04:00</li>
+        <li><strong>Peak 1:</strong> 09:30–11:30 (morning solar + BESS)</li>
+        <li><strong>Charge 2:</strong> Normal 11:30–17:00 (from solar)</li>
+        <li><strong>Peak 2:</strong> 17:00–20:00 (evening BESS)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>New Schedule (1 Cycle/Day)</h3>
+      <ul>
+        <li><strong>Charge:</strong> Off-peak 00:00–06:00 (grid only)</li>
+        <li><strong>Peak:</strong> 17:30–22:30 (evening BESS only)</li>
+        <li style="color:#E74C3C;"><strong>Solar (06:00–17:30) now fully Normal</strong></li>
+        <li style="color:#27AE60;">BESS preserves SOC through afternoon</li>
+      </ul>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-card"><div class="value" style="color:#E74C3C;">-50%</div><div class="label">BESS Cycles Per Day</div></div>
+    <div class="stat-card"><div class="value" style="color:#E74C3C;">~5hr</div><div class="label">Peak Solar Overlap Lost</div></div>
+    <div class="stat-card"><div class="value">5hr</div><div class="label">Evening Peak Duration</div></div>
+  </div>
+</div>
+
+<!-- SECTION: Emivest Results -->
+<div class="slide section-slide" id="s7">
+  <div class="section-num">03</div>
+  <div class="section-title">Emivest Case Results</div>
+</div>
+
+<div class="slide" id="s8">
+  <div class="slide-title">Emivest — Revenue Impact (All PPA Options)</div>
+  <div class="slide-subtitle">Old baseline revenue: $562,144</div>
+  <table>
+    <tr><th>PPA Option</th><th>New Revenue</th><th>Delta $</th><th>Delta %</th><th>Old IRR</th><th>New IRR</th><th>Δ IRR</th><th>Δ NPV</th></tr>
+    <tr>
+      <td>Bundled Discount</td>
+      <td class="num">$498,839</td>
+      <td class="num neg">-$63,305</td>
+      <td class="num neg">-11.3%</td>
+      <td class="num">25.31%</td>
+      <td class="num">22.06%</td>
+      <td class="num neg">-3.25pp</td>
+      <td class="num neg">-$659,445</td>
+    </tr>
+    <tr>
+      <td>Separate PV+BESS</td>
+      <td class="num">$525,804</td>
+      <td class="num neg">-$36,341</td>
+      <td class="num neg">-6.5%</td>
+      <td class="num">25.31%</td>
+      <td class="num">23.61%</td>
+      <td class="num neg">-1.70pp</td>
+      <td class="num neg">-$323,683</td>
+    </tr>
+    <tr>
+      <td>DPPA (CfD)</td>
+      <td class="num">$542,467</td>
+      <td class="num neg">-$19,677</td>
+      <td class="num neg">-3.5%</td>
+      <td class="num">25.31%</td>
+      <td class="num">24.55%</td>
+      <td class="num neg">-0.76pp</td>
+      <td class="num neg">-$116,188</td>
+    </tr>
+    <tr>
+      <td>Fixed EVN PPA</td>
+      <td class="num">$556,068</td>
+      <td class="num pos">-$6,076</td>
+      <td class="num pos">-1.1%</td>
+      <td class="num">25.31%</td>
+      <td class="num">25.32%</td>
+      <td class="num pos">+0.00pp</td>
+      <td class="num pos">+$53,174</td>
+    </tr>
+  </table>
+  <div class="stat-row" style="margin-top:0.5rem;">
+    <div class="stat-card"><div class="value" style="color:#E74C3C;">-$63,305</div><div class="label">Worst Hit (Bundled Discount)</div></div>
+    <div class="stat-card"><div class="value" style="color:#27AE60;">-$6,076</div><div class="label">Best Preserved (Fixed PPA)</div></div>
+  </div>
+</div>
+
+<div class="slide" id="s9">
+  <div class="slide-title">Emivest — PPA Option Revenue Delta</div>
+  <canvas id="emivestRevenueChart"></canvas>
+</div>
+
+<div class="slide" id="s10">
+  <div class="slide-title">Emivest — Revenue Decomposition by Driver</div>
+  <div class="slide-subtitle">Bundled Discount option — root cause breakdown</div>
+  <table>
+    <tr><th>Driver</th><th>Impact</th><th>Explanation</th></tr>
+    <tr>
+      <td>Loss of morning peak uplift</td>
+      <td class="num neg">-$65,343</td>
+      <td>Solar kWh (09:30–11:30) now earns Normal rate instead of Peak</td>
+    </tr>
+    <tr>
+      <td>BESS cycle reduction</td>
+      <td class="num neg">-$32,609</td>
+      <td>Single cycle halves BESS arbitrage revenue</td>
+    </tr>
+    <tr>
+      <td>Shifted peak window (timing)</td>
+      <td class="num pos">+$34,640</td>
+      <td>Later peak extends discharge into higher-load evening hours</td>
+    </tr>
+    <tr>
+      <td>Off-peak rate changes</td>
+      <td class="num pos">+$7</td>
+      <td>Minimal effect due to low off-peak consumption</td>
+    </tr>
+  </table>
+  <div style="margin-top:1rem;">
+    <canvas id="decompChart" style="max-height:240px;"></canvas>
+  </div>
+</div>
+
+<!-- SECTION: Ecoplexus -->
+<div class="slide section-slide" id="s11">
+  <div class="section-num">04</div>
+  <div class="section-title">Ecoplexus 40MW Results</div>
+</div>
+
+<div class="slide" id="s12">
+  <div class="slide-title">Ecoplexus 40MW — DPPA (CfD) Impact</div>
+  <table>
+    <tr><th>Metric</th><th>Old Tariff</th><th>New Tariff</th><th>Delta</th><th>Change</th></tr>
+    <tr><td>Year 1 Revenue</td><td class="num">$5,543,642</td><td class="num">$6,891,647</td><td class="num pos">+$1,348,006</td><td><span class="badge badge-green">+24.3%</span></td></tr>
+    <tr><td>Project IRR</td><td class="num">6.26%</td><td class="num">9.31%</td><td class="num pos">+3.06pp</td><td><span class="badge badge-green">Improvement</span></td></tr>
+    <tr><td>Equity IRR</td><td class="num">5.71%</td><td class="num">8.70%</td><td class="num pos">+2.99pp</td><td><span class="badge badge-green">Improvement</span></td></tr>
+    <tr><td>NPV</td><td class="num">$6,009,427</td><td class="num">$17,808,162</td><td class="num pos">+$11,798,735</td><td><span class="badge badge-green">+196%</span></td></tr>
+    <tr><td>Min DSCR</td><td class="num">1.28x</td><td class="num">1.27x</td><td class="num neg">-0.01x</td><td><span class="badge badge-blue">Stable</span></td></tr>
+    <tr><td>Year 1 DPPA Revenue</td><td class="num">$2,547,079</td><td class="num">$3,166,432</td><td class="num pos">+$619,353</td><td><span class="badge badge-green">+24.3%</span></td></tr>
+    <tr><td>Year 1 Grid Savings</td><td class="num">$2,996,563</td><td class="num">$3,725,215</td><td class="num pos">+$728,652</td><td><span class="badge badge-green">+24.3%</span></td></tr>
+  </table>
+  <div class="stat-row">
+    <div class="stat-card"><div class="value">9.31%</div><div class="label">New Project IRR</div></div>
+    <div class="stat-card"><div class="value">+$11.8M</div><div class="label">NPV Gain</div></div>
+    <div class="stat-card"><div class="value">+24.3%</div><div class="label">Revenue Uplift</div></div>
+  </div>
+  <p style="color:var(--muted);font-size:0.85rem;margin-top:0.5rem;">
+    <strong>Why Ecoplexus gains:</strong> Larger solar+BESS system benefits from later peak timing (17:30–22:30) with higher evening load coincidence. DPPA CfD settlement amplifies the tariff spread.
+  </p>
+</div>
+
+<div class="slide" id="s13">
+  <div class="slide-title">Ecoplexus — Old vs New Tariff KPIs</div>
+  <canvas id="ecoplexusChart"></canvas>
+</div>
+
+<!-- SECTION: Average Day -->
+<div class="slide section-slide" id="s14">
+  <div class="section-num">05</div>
+  <div class="section-title">Average-Day Dispatch</div>
+</div>
+
+<div class="slide" id="s15">
+  <div class="slide-title">Emivest — Average Day Dispatch Comparison</div>
+  <div class="slide-subtitle">Old tariff (2-cycle BESS) vs New tariff (1-cycle BESS, shifted peak)</div>
+  <div class="two-col">
+    <div>
+      <h3>Old Tariff</h3>
+      <canvas id="oldDispatchChart"></canvas>
+      <p style="color:var(--muted);font-size:0.8rem;">BESS discharges in morning peak (hr 10-11) and evening peak (hr 17-19)</p>
+    </div>
+    <div>
+      <h3>New Tariff</h3>
+      <canvas id="newDispatchChart"></canvas>
+      <p style="color:var(--muted);font-size:0.8rem;">BESS preserves SOC, discharges only in evening peak (hr 18-22)</p>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION: Mitigations -->
+<div class="slide section-slide" id="s16">
+  <div class="section-num">06</div>
+  <div class="section-title">Mitigations &amp; Next Steps</div>
+</div>
+
+<div class="slide" id="s17">
+  <div class="slide-title">Recommended Mitigations</div>
+  <div class="icon-row"><div class="icon-circle">R</div><div><strong>Re-price PPA offers</strong><br>Adjust bundled and DPPA offers against the lower evening-only uplift. Solar no longer touches any peak block.</div></div>
+  <div class="icon-row"><div class="icon-circle">D</div><div><strong>Re-tune BESS dispatch</strong><br>Focus on evening peak capture. Preserve state of charge during late-afternoon standard hours.</div></div>
+  <div class="icon-row"><div class="icon-circle">C</div><div><strong>Review discount assumptions</strong><br>Separate PV-heavy vs BESS-heavy product stacks — the tariff shift impacts them differently.</div></div>
+  <div class="icon-row"><div class="icon-circle">K</div><div><strong>Maintain both tariff baselines</strong><br>Keep old/new regression artifacts until 2026 schedule becomes the production default for all project types.</div></div>
+  <div class="icon-row"><div class="icon-circle">S</div><div><strong>Sensitivity analysis</strong><br>Evaluate strike price and discount adjustments under the new schedule to identify optimal commercial terms.</div></div>
+</div>
+
+<div class="slide" id="s18">
+  <div class="slide-title">Summary &amp; Key Takeaways</div>
+  <table>
+    <tr><th>Metric</th><th>Emivest (Worst)</th><th>Emivest (Best)</th><th>Ecoplexus</th></tr>
+    <tr><td>Revenue Delta</td><td class="num neg">-$63,305 (-11.3%)</td><td class="num neg">-$6,076 (-1.1%)</td><td class="num pos">+$1,348,006 (+24.3%)</td></tr>
+    <tr><td>Project IRR Delta</td><td class="num neg">-3.25 pp</td><td class="num pos">+0.00 pp</td><td class="num pos">+3.06 pp</td></tr>
+    <tr><td>NPV Delta</td><td class="num neg">-$659,445</td><td class="num pos">+$53,174</td><td class="num pos">+$11,798,735</td></tr>
+    <tr><td>DSCR Impact</td><td class="num neg">1.96x → 1.64x</td><td class="num">1.96x → 1.93x</td><td class="num">1.28x → 1.27x</td></tr>
+  </table>
+  <h3 style="margin-top:1rem;">Headline Messages</h3>
+  <ul>
+    <li>Small C&amp;I (Emivest) is <strong>negatively impacted</strong> — hardest for Bundled Discount (-11.3% revenue)</li>
+    <li>Large utility-scale (Ecoplexus) <strong>benefits significantly</strong> (+24% revenue, +3pp IRR) from shifted peak timing and larger BESS</li>
+    <li>Fixed EVN PPA is the <strong>most resilient</strong> option for Emivest under the new schedule</li>
+    <li>BESS dispatch strategy <strong>must be updated</strong> — the old 2-cycle pattern is no longer optimal</li>
+  </ul>
+</div>
+</div>
+
+<div class="nav">
+  <button id="prev">&larr;</button>
+  <span id="counter">1 / 18</span>
+  <button id="next">&rarr;</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const slides = document.querySelectorAll('.slide');
+let cur = 0;
+function goTo(n) {
+  slides[cur].classList.remove('active');
+  cur = Math.max(0, Math.min(n, slides.length - 1));
+  slides[cur].classList.add('active');
+  document.getElementById('counter').textContent = `${cur + 1} / ${slides.length}`;
+}
+document.getElementById('prev').addEventListener('click', () => goTo(cur - 1));
+document.getElementById('next').addEventListener('click', () => goTo(cur + 1));
+document.addEventListener('keydown', e => {
+  if (['ArrowRight', 'ArrowDown', 'PageDown'].includes(e.key)) goTo(cur + 1);
+  if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) goTo(cur - 1);
+});
+
+// --- Emivest Revenue Delta by PPA Option ---
+new Chart(document.getElementById('emivestRevenueChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Bundled Discount', 'Separate PV+BESS', 'DPPA (CfD)', 'Fixed EVN PPA'],
+    datasets: [
+      { label: 'Old Revenue ($)', data: [562144, 562144, 562144, 562144], backgroundColor: '#1A5276' },
+      { label: 'New Revenue ($)', data: [498839, 525804, 542467, 556068], backgroundColor: '#27AE60' }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'Revenue (USD)' } } }
+  }
+});
+
+// --- Revenue Decomposition ---
+new Chart(document.getElementById('decompChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Loss of morning peak uplift', 'BESS cycle reduction', 'Shifted peak window', 'Off-peak rate changes'],
+    datasets: [{
+      label: 'Revenue Impact ($)',
+      data: [-65343, -32609, 34640, 7],
+      backgroundColor: ['#E74C3C', '#E67E22', '#27AE60', '#3498DB']
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: { x: { title: { display: true, text: 'Impact (USD)' } } }
+  }
+});
+
+// --- Ecoplexus Old vs New KPIs ---
+new Chart(document.getElementById('ecoplexusChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Project IRR', 'Equity IRR', 'NPV ($M)', 'Min DSCR', 'Year 1 Rev ($M)'],
+    datasets: [
+      { label: 'Old Tariff', data: [6.26, 5.71, 6.01, 1.28, 5.54], backgroundColor: '#1A5276' },
+      { label: 'New Tariff', data: [9.31, 8.70, 17.81, 1.27, 6.89], backgroundColor: '#27AE60' }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: { callbacks: { label: ctx => [['Project IRR %','Equity IRR %','NPV $M','Min DSCR','Year 1 Rev $M'][ctx.dataIndex], ': ', ctx.parsed.y].join('') } }
+    },
+    scales: { y: { beginAtZero: true } }
+  }
+});
+
+// --- Old Dispatch (baseline Emivest) ---
+const oldDispatch = [
+  {h:0,s:0,b:0,g:964},{h:1,s:0,b:0,g:972},{h:2,s:0,b:0,g:966},{h:3,s:0,b:0,g:939},{h:4,s:0,b:0,g:923},{h:5,s:0.4,b:0,g:910},
+  {h:6,s:150,b:0,g:855},{h:7,s:421,b:0,g:446},{h:8,s:712,b:0,g:394},{h:9,s:918,b:0,g:374},{h:10,s:996,b:13,g:312},
+  {h:11,s:1001,b:6,g:303},{h:12,s:945,b:0,g:374},{h:13,s:916,b:0,g:413},{h:14,s:793,b:0,g:556},{h:15,s:602,b:0,g:747},
+  {h:16,s:344,b:0,g:981},{h:17,s:60,b:735,g:518},{h:18,s:0,b:401,g:892},{h:19,s:0,b:27,g:1192},{h:20,s:0,b:0,g:1268},
+  {h:21,s:0,b:0,g:1282},{h:22,s:0,b:0,g:1258},{h:23,s:0,b:0,g:901}
+];
+
+const newDispatch = [
+  {h:0,s:0,b:0,g:964},{h:1,s:0,b:0,g:972},{h:2,s:0,b:0,g:966},{h:3,s:0,b:0,g:939},{h:4,s:0,b:0,g:923},{h:5,s:0.4,b:0,g:910},
+  {h:6,s:150,b:0,g:855},{h:7,s:421,b:0,g:446},{h:8,s:712,b:0,g:394},{h:9,s:918,b:0,g:374},{h:10,s:881,b:0,g:440},
+  {h:11,s:914,b:0,g:396},{h:12,s:948,b:0,g:372},{h:13,s:946,b:0,g:382},{h:14,s:896,b:0,g:453},{h:15,s:716,b:0,g:634},
+  {h:16,s:374,b:0,g:951},{h:17,s:60,b:0,g:1253},{h:18,s:0,b:790,g:502},{h:19,s:0,b:513,g:706},{h:20,s:0,b:27,g:1241},
+  {h:21,s:0,b:22,g:1261},{h:22,s:0,b:20,g:1238},{h:23,s:0,b:0,g:901}
+];
+
+const hours = Array.from({length:24},(_,i)=>i);
+
+function makeDispatchChart(id, data, colorSolar, colorBess, colorGrid) {
+  new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels: hours.map(h => h+'h'),
+      datasets: [
+        { label: 'Solar Direct', data: data.map(d=>d.s), backgroundColor: colorSolar || '#F39C12' },
+        { label: 'BESS Discharge', data: data.map(d=>d.b), backgroundColor: colorBess || '#27AE60' },
+        { label: 'Grid Import', data: data.map(d=>d.g), backgroundColor: colorGrid || '#3498DB' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, title: { display: true, text: 'Hour' } },
+        y: { stacked: true, beginAtZero: true, title: { display: true, text: 'kW' } }
+      },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+    }
+  });
+}
+
+makeDispatchChart('oldDispatchChart', oldDispatch, '#F39C12', '#27AE60', '#3498DB');
+makeDispatchChart('newDispatchChart', newDispatch, '#F39C12', '#27AE60', '#3498DB');
+</script>
+</body>
+</html>
