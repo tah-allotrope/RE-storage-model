@@ -1,5 +1,25 @@
 # Active Context - ISSUE-1 Emivest / ISSUE-2 Excel Alignment / ISSUE-3 Web Tool / ISSUE-4 Gap Analysis Roadmap
 
+## Current Working Plan - Vietnam TOU 2026 Presentation V2
+
+- [x] Review the updated `present` skill guidance and the existing TOU analysis artifacts.
+- [x] Generate a self-contained HTML v2 deck and an Allotrope-style PPTX v2 deck under `results/`.
+- [x] QA the generated presentation files and record the exact regeneration command.
+- [ ] Commit the presentation refresh and push the branch.
+
+### Review / Results
+
+- Added `results/make_presentation_v2.js` as a reproducible generator that writes both `results/vietnam_tou2026_presentation_v2.html` and `results/vietnam_tou2026_presentation_v2.pptx` from the Phase 5/6 TOU analysis outputs.
+- The new HTML deck is self-contained and offline-safe, with inline CSS, inline SVG charts, and keyboard/button navigation rather than CDN-based charts.
+- The new PPTX deck follows the updated Allotrope guidance more closely than the earlier presentation, including Calibri Light/Calibri typography, green title rule, and confidentiality footer on non-title slides.
+- Regeneration command: `node results/make_presentation_v2.js`
+- QA completed:
+- `node results/make_presentation_v2.js` -> passed and produced both v2 files.
+- Verified generated file presence and timestamps via PowerShell `Get-Item` metadata.
+- Limitation: `soffice` is not installed in this environment, so PDF/image visual QA for the PPTX could not be run locally.
+
+**Last Updated:** 2026-05-02
+
 ## Current Working Plan - Vietnam TOU 2026 Phase 5/6
 
 - [x] Add focused tests for TOU delta-analysis/report helpers before implementation.

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vietnam TOU 2026 TOU Analysis V2</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f8f9fa;
+      --title-bg: #1A5276;
+      --section-bg: #1B4F72;
+      --primary: #1A3550;
+      --accent: #27AE60;
+      --text: #2C3E50;
+      --muted: #7F8C8D;
+      --border: #E0E0E0;
+      --red: #E74C3C;
+      --blue: #3498DB;
+      --card: #EBF5FB;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #0f1720; color: var(--text); font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+    .deck { width: 100vw; height: calc(100vh - 54px); position: relative; overflow: hidden; }
+    .slide { display: none; position: absolute; inset: 0; padding: 2.8rem 3.4rem; background: var(--bg); overflow-y: auto; }
+    .slide.active { display: flex; flex-direction: column; }
+    .title-slide { background: linear-gradient(160deg, #1A5276 0%, #163d5a 100%); color: #fff; justify-content: center; }
+    .section-slide { background: linear-gradient(160deg, #1B4F72 0%, #16394f 100%); color: #fff; justify-content: center; }
+    .brand { font-size: 0.8rem; letter-spacing: 0.38rem; text-transform: uppercase; color: #d9e3ea; margin-bottom: 2rem; }
+    .hero-title { font-size: 3rem; line-height: 1.04; margin: 0 0 0.8rem; font-weight: 700; max-width: 12ch; }
+    .hero-subtitle { font-size: 1.15rem; color: #d7e3ec; max-width: 44rem; line-height: 1.5; }
+    .hero-meta { display: flex; gap: 1rem; margin-top: 2rem; color: #b8c7d2; font-size: 0.95rem; flex-wrap: wrap; }
+    .section-number { font-size: 5rem; color: var(--accent); font-weight: 700; }
+    .section-title { font-size: 2.1rem; margin-top: 0.5rem; max-width: 16ch; }
+    .slide-title { font-size: 2rem; color: var(--primary); margin: 0; font-weight: 700; }
+    .slide-caption { font-size: 0.98rem; color: var(--muted); margin: 0.65rem 0 1.3rem; }
+    .title-rule { width: 100%; height: 4px; background: var(--accent); margin-bottom: 1.2rem; border-radius: 999px; }
+    .nav { height: 54px; display: flex; align-items: center; justify-content: center; gap: 1rem; background: #f3f5f7; border-top: 1px solid #dbe2e8; }
+    .nav button { border: 1px solid #ced6de; background: white; color: var(--text); border-radius: 999px; padding: 0.45rem 0.9rem; font-weight: 600; cursor: pointer; }
+    .nav button:hover { border-color: var(--accent); }
+    .counter { min-width: 5rem; text-align: center; color: var(--muted); font-weight: 600; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1rem 1.1rem; }
+    .stat-card { background: var(--card); border: 1px solid #d5e8f5; border-radius: 16px; padding: 1rem; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+    .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06rem; font-size: 0.75rem; margin-top: 0.3rem; }
+    .bullet-list { margin: 0; padding-left: 1.1rem; line-height: 1.6; }
+    .bullet-list li { margin: 0.3rem 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th { background: #EBF5FB; color: var(--primary); text-align: left; padding: 0.65rem 0.72rem; border-bottom: 1px solid var(--border); }
+    td { padding: 0.62rem 0.72rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .neg { color: var(--red); font-weight: 600; }
+    .pos { color: var(--accent); font-weight: 600; }
+    .quote { border-left: 4px solid var(--accent); padding-left: 1rem; color: var(--muted); font-size: 0.96rem; }
+    .footer-note { margin-top: auto; padding-top: 1rem; color: #95A5A6; font-size: 0.72rem; text-align: center; }
+    .chart-svg { width: 100%; height: auto; display: block; }
+    .axis-label { fill: #6f7f8b; font-size: 12px; font-family: inherit; }
+    .legend-label { fill: #2C3E50; font-size: 12px; font-family: inherit; }
+    .value-label { fill: #2C3E50; font-size: 12px; font-weight: 600; font-family: inherit; }
+    .dispatch-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
+    .dispatch-title { font-weight: 700; color: var(--primary); margin-bottom: 0.5rem; }
+    .legend-inline { display: flex; gap: 1rem; flex-wrap: wrap; color: var(--muted); font-size: 0.82rem; margin-top: 0.5rem; }
+    .legend-inline span { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .legend-inline i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+    .summary-band { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1rem; }
+    @media (max-width: 900px) {
+      .slide { padding: 1.5rem; }
+      .grid-2, .grid-3, .summary-band { grid-template-columns: 1fr; }
+      .hero-title { font-size: 2.2rem; }
+      .section-number { font-size: 4rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <section class="slide title-slide active">
+      <div class="brand">Allotrope</div>
+      <h1 class="hero-title">Vietnam TOU 2026 TOU Analysis V2</h1>
+      <div class="hero-subtitle">Updated HTML deck generated from the Phase 5/6 tariff impact report. Focus: how the new tariff reshapes revenue, dispatch, and financing outcomes across Emivest and Ecoplexus.</div>
+      <div class="hero-meta">
+        <span>May 2026</span>
+        <span>Internal Allotrope review using the Phase 5/6 tariff impact outputs</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Executive Summary</h2>
+      <div class="title-rule"></div>
+      <div class="summary-band">
+        <div class="card">
+          <ul class="bullet-list">
+            <li>Worst revenue hit: Emivest Bundled Discount moved by -$63,305 (-11.26%).</li><li>Best preserved case: Fixed EVN PPA kept Emivest nearly flat at -$6,076 (-1.08%).</li><li>Largest upside: Ecoplexus 40MW DPPA gained +$1,348,006 revenue and +$11.8M NPV.</li><li>Core mechanism: the tariff removed the morning peak and collapsed BESS from two cycles to one.</li>
+          </ul>
+        </div>
+        <div class="grid-2">
+          <div class="stat-card"><div class="stat-value">-63,305</div><div class="stat-label">Worst revenue move</div></div>
+          <div class="stat-card"><div class="stat-value">+1,348k</div><div class="stat-label">Ecoplexus revenue gain</div></div>
+          <div class="stat-card"><div class="stat-value">25.32%</div><div class="stat-label">Most resilient Emivest IRR</div></div>
+          <div class="stat-card"><div class="stat-value">9.31%</div><div class="stat-label">New Ecoplexus project IRR</div></div>
+        </div>
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide section-slide">
+      <div class="section-number">01</div>
+      <div class="section-title">Tariff Shift and Operating Logic</div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Tariff Change Summary</h2>
+      <div class="title-rule"></div>
+      <div class="slide-caption">The tariff kept a five-hour peak window, but moved it entirely into the evening and removed the morning solar overlap.</div>
+      <table><thead><tr><th>Attribute</th><th>Old (&lt;= Apr 21)</th><th>New (&gt;= Apr 22)</th></tr></thead><tbody><tr><td>Off-Peak (Mon-Sat)</td><td>22:00-04:00</td><td>00:00-06:00</td></tr><tr><td>Normal (Mon-Sat)</td><td>04:00-09:30, 11:30-17:00, 20:00-22:00</td><td>06:00-17:30, 22:30-24:00</td></tr><tr><td>Peak (Mon-Sat)</td><td>09:30-11:30 and 17:00-20:00</td><td>17:30-22:30</td></tr><tr><td>Sunday</td><td>Normal 04:00-22:00 / Off-Peak 22:00-04:00</td><td>Normal 06:00-24:00 / Off-Peak 00:00-06:00</td></tr><tr><td>BESS cycles/day</td><td>2</td><td>1</td></tr></tbody></table>
+      <div class="grid-3" style="margin-top:1rem;">
+        <div class="stat-card"><div class="stat-value" style="color:var(--red)">Lost</div><div class="stat-label">Morning peak solar uplift</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--red)">2 -> 1</div><div class="stat-label">BESS cycles per day</div></div>
+        <div class="stat-card"><div class="stat-value">17:30-22:30</div><div class="stat-label">Single peak block</div></div>
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Dispatch Implications</h2>
+      <div class="title-rule"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--primary);">Old schedule</h3>
+          <ul class="bullet-list">
+            <li>Grid charge in off-peak hours 22:00-04:00.</li>
+            <li>Morning peak captured solar plus a first BESS discharge.</li>
+            <li>Midday recharge allowed a second evening cycle.</li>
+            <li>The commercial model monetized both solar timing and battery arbitrage.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--primary);">New schedule</h3>
+          <ul class="bullet-list">
+            <li>Solar output from 06:00-17:30 is now normal-priced energy.</li>
+            <li>BESS value concentrates in one evening discharge window.</li>
+            <li>State-of-charge management becomes more important than daily cycling count.</li>
+            <li>PV-heavy structures lose more value than fixed-price offtake structures.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="quote" style="margin-top:1rem;">The tariff change is not a broad haircut. It is a shape change: less value during solar hours, more emphasis on evening alignment.</p>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide section-slide">
+      <div class="section-number">02</div>
+      <div class="section-title">Case-Level Financial Outcomes</div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Emivest Outcome by PPA Structure</h2>
+      <div class="title-rule"></div>
+      <div class="slide-caption">All Emivest options start from the same old-tariff revenue base of $562,144.</div>
+      <table><thead><tr><th>PPA option</th><th>New revenue</th><th>Delta revenue</th><th>Delta revenue %</th><th>Delta IRR</th><th>Delta NPV</th><th>DSCR move</th></tr></thead><tbody><tr><td>Bundled Discount</td><td>$498,839</td><td><span class="neg">-$63,305</span></td><td><span class="neg">-11.26%</span></td><td><span class="neg">-3.25 pp</span></td><td><span class="neg">-$659,445</span></td><td>1.96x -> 1.64x</td></tr><tr><td>Separate PV+BESS</td><td>$525,804</td><td><span class="neg">-$36,341</span></td><td><span class="neg">-6.46%</span></td><td><span class="neg">-1.70 pp</span></td><td><span class="neg">-$323,683</span></td><td>1.96x -> 1.78x</td></tr><tr><td>DPPA (CfD)</td><td>$542,467</td><td><span class="neg">-$19,677</span></td><td><span class="neg">-3.50%</span></td><td><span class="neg">-0.76 pp</span></td><td><span class="neg">-$116,188</span></td><td>1.96x -> 1.86x</td></tr><tr><td>Fixed EVN PPA</td><td>$556,068</td><td><span class="neg">-$6,076</span></td><td><span class="neg">-1.08%</span></td><td><span class="pos">+0.00 pp</span></td><td><span class="pos">$53,174</span></td><td>1.96x -> 1.93x</td></tr></tbody></table>
+      <div class="grid-2" style="margin-top:1rem;">
+        <div class="stat-card"><div class="stat-value" style="color:var(--red)">-$63,305</div><div class="stat-label">Worst hit: bundled discount</div></div>
+        <div class="stat-card"><div class="stat-value">-$6,076</div><div class="stat-label">Best preserved: fixed EVN PPA</div></div>
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Emivest Revenue Comparison</h2>
+      <div class="title-rule"></div>
+      <div class="slide-caption">The new schedule compresses the spread between structures, but fixed-price offtake remains the most insulated.</div>
+      
+    <svg viewBox="0 0 900 320" class="chart-svg" role="img" aria-label="Emivest old versus new revenue by PPA option">
+      
+      <line x1="72" y1="250" x2="876" y2="250" stroke="#E7EDF3" stroke-width="1"></line>
+      <text x="60" y="254" text-anchor="end" class="axis-label">0k</text>
+    
+      <line x1="72" y1="193.5" x2="876" y2="193.5" stroke="#E7EDF3" stroke-width="1"></line>
+      <text x="60" y="197.5" text-anchor="end" class="axis-label">141k</text>
+    
+      <line x1="72" y1="137" x2="876" y2="137" stroke="#E7EDF3" stroke-width="1"></line>
+      <text x="60" y="141" text-anchor="end" class="axis-label">281k</text>
+    
+      <line x1="72" y1="80.5" x2="876" y2="80.5" stroke="#E7EDF3" stroke-width="1"></line>
+      <text x="60" y="84.5" text-anchor="end" class="axis-label">422k</text>
+    
+      <line x1="72" y1="24" x2="876" y2="24" stroke="#E7EDF3" stroke-width="1"></line>
+      <text x="60" y="28" text-anchor="end" class="axis-label">562k</text>
+    
+      <line x1="72" y1="250" x2="876" y2="250" stroke="#AAB7C4" stroke-width="1.2"></line>
+      
+      <rect x="108.18" y="24" width="56.28000000000001" height="226" rx="6" fill="#1A5276"></rect>
+      <rect x="180.46" y="49.45064965560425" width="56.28000000000001" height="200.54935034439575" rx="6" fill="#27AE60"></rect>
+      <text x="172.5" y="298" text-anchor="middle" class="axis-label">Bundled Discount</text>
+    
+      <rect x="309.18" y="24" width="56.28000000000001" height="226" rx="6" fill="#1A5276"></rect>
+      <rect x="381.46000000000004" y="38.60985085671999" width="56.28000000000001" height="211.39014914328" rx="6" fill="#27AE60"></rect>
+      <text x="373.5" y="298" text-anchor="middle" class="axis-label">Separate PV+BESS</text>
+    
+      <rect x="510.18" y="24" width="56.28000000000001" height="226" rx="6" fill="#1A5276"></rect>
+      <rect x="582.46" y="31.910787983150215" width="56.28000000000001" height="218.08921201684979" rx="6" fill="#27AE60"></rect>
+      <text x="574.5" y="298" text-anchor="middle" class="axis-label">DPPA (CfD)</text>
+    
+      <rect x="711.18" y="24" width="56.28000000000001" height="226" rx="6" fill="#1A5276"></rect>
+      <rect x="783.4599999999999" y="26.44274776569705" width="56.28000000000001" height="223.55725223430295" rx="6" fill="#27AE60"></rect>
+      <text x="775.5" y="298" text-anchor="middle" class="axis-label">Fixed EVN PPA</text>
+    
+      <g>
+        <rect x="660" y="12" width="14" height="14" rx="3" fill="#1A5276"></rect>
+        <text x="680" y="24" class="legend-label">Old revenue</text>
+        <rect x="776" y="12" width="14" height="14" rx="3" fill="#27AE60"></rect>
+        <text x="796" y="24" class="legend-label">New revenue</text>
+      </g>
+    </svg>
+  
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Ecoplexus 40MW DPPA Upside</h2>
+      <div class="title-rule"></div>
+      <div class="slide-caption">Ecoplexus moves in the opposite direction because the later evening peak better matches its larger solar plus storage profile.</div>
+      <table><thead><tr><th>Metric</th><th>Old tariff</th><th>New tariff</th><th>Delta</th></tr></thead><tbody><tr><td>Year 1 revenue</td><td>$5,543,642</td><td>$6,891,647</td><td><span class="pos">$1,348,006</span></td></tr><tr><td>Project IRR</td><td>6.26%</td><td>9.31%</td><td><span class="pos">+3.05 pp</span></td></tr><tr><td>Equity IRR</td><td>5.71%</td><td>8.70%</td><td><span class="pos">+2.99 pp</span></td></tr><tr><td>NPV</td><td>$6,009,427</td><td>$17,808,162</td><td><span class="pos">$11,798,735</span></td></tr><tr><td>Min DSCR</td><td>1.28x</td><td>1.27x</td><td><span class="neg">-0.01x</span></td></tr></tbody></table>
+      <div class="grid-3" style="margin-top:1rem;">
+        <div class="stat-card"><div class="stat-value">9.31%</div><div class="stat-label">New project IRR</div></div>
+        <div class="stat-card"><div class="stat-value">$11,798,735</div><div class="stat-label">NPV gain</div></div>
+        <div class="stat-card"><div class="stat-value">+24.32%</div><div class="stat-label">Revenue uplift</div></div>
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide section-slide">
+      <div class="section-number">03</div>
+      <div class="section-title">Driver Breakdown and Dispatch View</div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Revenue Driver Decomposition</h2>
+      <div class="title-rule"></div>
+      <div class="slide-caption">Bundled Discount for Emivest shows the cleanest read on what the tariff change is doing economically.</div>
+      <div class="grid-2">
+        <div class="card">
+          <table><thead><tr><th>Driver</th><th>Impact</th><th>Interpretation</th></tr></thead><tbody><tr><td>Loss of morning peak uplift</td><td><span class="neg">-$65,343</span></td><td>Solar no longer lands in a morning peak block.</td></tr><tr><td>BESS cycle reduction</td><td><span class="neg">-$32,609</span></td><td>One peak cycle removes half of the old arbitrage rhythm.</td></tr><tr><td>Shifted peak window</td><td><span class="pos">$34,640</span></td><td>Later discharge better aligns with evening load.</td></tr><tr><td>Off-peak rate changes</td><td><span class="pos">$7</span></td><td>Minimal impact in this case.</td></tr></tbody></table>
+        </div>
+        <div class="card">
+          
+    <svg viewBox="0 0 900 280" class="chart-svg" role="img" aria-label="Revenue decomposition by driver">
+      <line x1="568" y1="20" x2="568" y2="256" stroke="#AAB7C4" stroke-width="1.4"></line>
+      
+      <text x="248" y="46" text-anchor="end" class="axis-label">Loss of morning peak uplift</text>
+      <rect x="290" y="32" width="278" height="20" rx="5" fill="#E74C3C"></rect>
+      <text x="282" y="47" text-anchor="end" class="value-label">-$65,343</text>
+    
+      <text x="248" y="98" text-anchor="end" class="axis-label">BESS cycle reduction</text>
+      <rect x="429.26590453453315" y="84" width="138.73409546546685" height="20" rx="5" fill="#E74C3C"></rect>
+      <text x="421.26590453453315" y="99" text-anchor="end" class="value-label">-$32,609</text>
+    
+      <text x="248" y="150" text-anchor="end" class="axis-label">Shifted peak window</text>
+      <rect x="568" y="136" width="147.37492921965628" height="20" rx="5" fill="#27AE60"></rect>
+      <text x="723.3749292196562" y="151" text-anchor="start" class="value-label">$34,640</text>
+    
+      <text x="248" y="202" text-anchor="end" class="axis-label">Off-peak rate changes</text>
+      <rect x="568" y="188" width="0.029781307867713453" height="20" rx="5" fill="#27AE60"></rect>
+      <text x="576.0297813078677" y="203" text-anchor="start" class="value-label">$7</text>
+    
+    </svg>
+  
+        </div>
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Average-Day Dispatch Comparison</h2>
+      <div class="title-rule"></div>
+      <div class="slide-caption">Old tariff dispatch shows a morning-plus-evening rhythm; the new tariff concentrates value in the evening block.</div>
+      <div class="grid-2">
+        
+    <div class="dispatch-card">
+      <div class="dispatch-title">Old tariff dispatch</div>
+      <svg viewBox="0 0 540 280" class="chart-svg" role="img" aria-label="Old tariff dispatch dispatch chart">
+        <line x1="52" y1="244" x2="526" y2="244" stroke="#AAB7C4" stroke-width="1.2"></line>
+        
+      <rect x="54" y="81.07042253521129" width="15.75" height="162.9295774647887" fill="#3498DB"></rect>
+      <rect x="54" y="81.07042253521129" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="54" y="81.07042253521129" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="61.875" y="268" text-anchor="middle" class="axis-label">0</text>
+    
+      <rect x="73.75" y="79.71830985915491" width="15.75" height="164.2816901408451" fill="#3498DB"></rect>
+      <rect x="73.75" y="79.71830985915491" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="73.75" y="79.71830985915491" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="93.5" y="80.73239436619718" width="15.75" height="163.26760563380282" fill="#3498DB"></rect>
+      <rect x="93.5" y="80.73239436619718" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="93.5" y="80.73239436619718" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="113.25" y="85.29577464788733" width="15.75" height="158.70422535211267" fill="#3498DB"></rect>
+      <rect x="113.25" y="85.29577464788733" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="113.25" y="85.29577464788733" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="121.125" y="268" text-anchor="middle" class="axis-label">3</text>
+    
+      <rect x="133" y="88" width="15.75" height="156" fill="#3498DB"></rect>
+      <rect x="133" y="88" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="133" y="88" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="152.75" y="90.19718309859155" width="15.75" height="153.80281690140845" fill="#3498DB"></rect>
+      <rect x="152.75" y="90.19718309859155" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="152.75" y="90.12957746478874" width="15.75" height="0.06760563380281691" fill="#F39C12"></rect>
+      
+    
+      <rect x="172.5" y="99.49295774647885" width="15.75" height="144.50704225352115" fill="#3498DB"></rect>
+      <rect x="172.5" y="99.49295774647885" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="172.5" y="74.14084507042251" width="15.75" height="25.35211267605634" fill="#F39C12"></rect>
+      <text x="180.375" y="268" text-anchor="middle" class="axis-label">6</text>
+    
+      <rect x="192.25" y="168.61971830985914" width="15.75" height="75.38028169014085" fill="#3498DB"></rect>
+      <rect x="192.25" y="168.61971830985914" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="192.25" y="97.46478873239435" width="15.75" height="71.15492957746478" fill="#F39C12"></rect>
+      
+    
+      <rect x="212" y="177.40845070422534" width="15.75" height="66.59154929577466" fill="#3498DB"></rect>
+      <rect x="212" y="177.40845070422534" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="212" y="57.070422535211264" width="15.75" height="120.33802816901408" fill="#F39C12"></rect>
+      
+    
+      <rect x="231.75" y="180.7887323943662" width="15.75" height="63.21126760563381" fill="#3498DB"></rect>
+      <rect x="231.75" y="180.7887323943662" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="231.75" y="25.633802816901408" width="15.75" height="155.1549295774648" fill="#F39C12"></rect>
+      <text x="239.625" y="268" text-anchor="middle" class="axis-label">9</text>
+    
+      <rect x="251.5" y="191.26760563380282" width="15.75" height="52.732394366197184" fill="#3498DB"></rect>
+      <rect x="251.5" y="189.07042253521126" width="15.75" height="2.1971830985915495" fill="#27AE60"></rect>
+      <rect x="251.5" y="20.732394366197184" width="15.75" height="168.33802816901408" fill="#F39C12"></rect>
+      
+    
+      <rect x="271.25" y="192.7887323943662" width="15.75" height="51.2112676056338" fill="#3498DB"></rect>
+      <rect x="271.25" y="191.77464788732397" width="15.75" height="1.0140845070422535" fill="#27AE60"></rect>
+      <rect x="271.25" y="22.591549295774684" width="15.75" height="169.18309859154928" fill="#F39C12"></rect>
+      
+    
+      <rect x="291" y="180.7887323943662" width="15.75" height="63.21126760563381" fill="#3498DB"></rect>
+      <rect x="291" y="180.7887323943662" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="291" y="21.070422535211293" width="15.75" height="159.7183098591549" fill="#F39C12"></rect>
+      <text x="298.875" y="268" text-anchor="middle" class="axis-label">12</text>
+    
+      <rect x="310.75" y="174.19718309859155" width="15.75" height="69.80281690140845" fill="#3498DB"></rect>
+      <rect x="310.75" y="174.19718309859155" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="310.75" y="19.380281690140833" width="15.75" height="154.81690140845072" fill="#F39C12"></rect>
+      
+    
+      <rect x="330.5" y="150.0281690140845" width="15.75" height="93.97183098591549" fill="#3498DB"></rect>
+      <rect x="330.5" y="150.0281690140845" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="330.5" y="16" width="15.75" height="134.0281690140845" fill="#F39C12"></rect>
+      
+    
+      <rect x="350.25" y="117.74647887323944" width="15.75" height="126.25352112676056" fill="#3498DB"></rect>
+      <rect x="350.25" y="117.74647887323944" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="350.25" y="16" width="15.75" height="101.74647887323944" fill="#F39C12"></rect>
+      <text x="358.125" y="268" text-anchor="middle" class="axis-label">15</text>
+    
+      <rect x="370" y="78.19718309859155" width="15.75" height="165.80281690140845" fill="#3498DB"></rect>
+      <rect x="370" y="78.19718309859155" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="370" y="20.056338028169016" width="15.75" height="58.140845070422536" fill="#F39C12"></rect>
+      
+    
+      <rect x="389.75" y="156.45070422535213" width="15.75" height="87.54929577464789" fill="#3498DB"></rect>
+      <rect x="389.75" y="32.22535211267606" width="15.75" height="124.22535211267606" fill="#27AE60"></rect>
+      <rect x="389.75" y="22.084507042253527" width="15.75" height="10.140845070422536" fill="#F39C12"></rect>
+      
+    
+      <rect x="409.5" y="93.2394366197183" width="15.75" height="150.7605633802817" fill="#3498DB"></rect>
+      <rect x="409.5" y="25.464788732394354" width="15.75" height="67.77464788732395" fill="#27AE60"></rect>
+      <rect x="409.5" y="25.464788732394354" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="417.375" y="268" text-anchor="middle" class="axis-label">18</text>
+    
+      <rect x="429.25" y="42.53521126760563" width="15.75" height="201.46478873239437" fill="#3498DB"></rect>
+      <rect x="429.25" y="37.97183098591549" width="15.75" height="4.56338028169014" fill="#27AE60"></rect>
+      <rect x="429.25" y="37.97183098591549" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="449" y="29.69014084507043" width="15.75" height="214.30985915492957" fill="#3498DB"></rect>
+      <rect x="449" y="29.69014084507043" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="449" y="29.69014084507043" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="468.75" y="27.32394366197184" width="15.75" height="216.67605633802816" fill="#3498DB"></rect>
+      <rect x="468.75" y="27.32394366197184" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="468.75" y="27.32394366197184" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="476.625" y="268" text-anchor="middle" class="axis-label">21</text>
+    
+      <rect x="488.5" y="31.380281690140833" width="15.75" height="212.61971830985917" fill="#3498DB"></rect>
+      <rect x="488.5" y="31.380281690140833" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="488.5" y="31.380281690140833" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="508.25" y="91.71830985915494" width="15.75" height="152.28169014084506" fill="#3498DB"></rect>
+      <rect x="508.25" y="91.71830985915494" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="508.25" y="91.71830985915494" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      </svg>
+      <div class="legend-inline">
+        <span><i style="background:#F39C12"></i>Solar direct</span>
+        <span><i style="background:#27AE60"></i>BESS discharge</span>
+        <span><i style="background:#3498DB"></i>Grid import</span>
+      </div>
+    </div>
+  
+        
+    <div class="dispatch-card">
+      <div class="dispatch-title">New tariff dispatch</div>
+      <svg viewBox="0 0 540 280" class="chart-svg" role="img" aria-label="New tariff dispatch dispatch chart">
+        <line x1="52" y1="244" x2="526" y2="244" stroke="#AAB7C4" stroke-width="1.2"></line>
+        
+      <rect x="54" y="81.1911111111111" width="15.75" height="162.8088888888889" fill="#3498DB"></rect>
+      <rect x="54" y="81.1911111111111" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="54" y="81.1911111111111" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="61.875" y="268" text-anchor="middle" class="axis-label">0</text>
+    
+      <rect x="73.75" y="79.84" width="15.75" height="164.16" fill="#3498DB"></rect>
+      <rect x="73.75" y="79.84" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="73.75" y="79.84" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="93.5" y="80.85333333333335" width="15.75" height="163.14666666666665" fill="#3498DB"></rect>
+      <rect x="93.5" y="80.85333333333335" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="93.5" y="80.85333333333335" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="113.25" y="85.41333333333333" width="15.75" height="158.58666666666667" fill="#3498DB"></rect>
+      <rect x="113.25" y="85.41333333333333" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="113.25" y="85.41333333333333" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="121.125" y="268" text-anchor="middle" class="axis-label">3</text>
+    
+      <rect x="133" y="88.11555555555555" width="15.75" height="155.88444444444445" fill="#3498DB"></rect>
+      <rect x="133" y="88.11555555555555" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="133" y="88.11555555555555" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="152.75" y="90.31111111111113" width="15.75" height="153.68888888888887" fill="#3498DB"></rect>
+      <rect x="152.75" y="90.31111111111113" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="152.75" y="90.24355555555557" width="15.75" height="0.06755555555555555" fill="#F39C12"></rect>
+      
+    
+      <rect x="172.5" y="99.6" width="15.75" height="144.4" fill="#3498DB"></rect>
+      <rect x="172.5" y="99.6" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="172.5" y="74.26666666666667" width="15.75" height="25.333333333333332" fill="#F39C12"></rect>
+      <text x="180.375" y="268" text-anchor="middle" class="axis-label">6</text>
+    
+      <rect x="192.25" y="168.67555555555555" width="15.75" height="75.32444444444444" fill="#3498DB"></rect>
+      <rect x="192.25" y="168.67555555555555" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="192.25" y="97.57333333333334" width="15.75" height="71.10222222222221" fill="#F39C12"></rect>
+      
+    
+      <rect x="212" y="177.45777777777778" width="15.75" height="66.54222222222222" fill="#3498DB"></rect>
+      <rect x="212" y="177.45777777777778" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="212" y="57.20888888888888" width="15.75" height="120.2488888888889" fill="#F39C12"></rect>
+      
+    
+      <rect x="231.75" y="180.83555555555557" width="15.75" height="63.16444444444444" fill="#3498DB"></rect>
+      <rect x="231.75" y="180.83555555555557" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="231.75" y="25.795555555555552" width="15.75" height="155.04000000000002" fill="#F39C12"></rect>
+      <text x="239.625" y="268" text-anchor="middle" class="axis-label">9</text>
+    
+      <rect x="251.5" y="169.68888888888887" width="15.75" height="74.31111111111112" fill="#3498DB"></rect>
+      <rect x="251.5" y="169.68888888888887" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="251.5" y="20.897777777777748" width="15.75" height="148.79111111111112" fill="#F39C12"></rect>
+      
+    
+      <rect x="271.25" y="177.12" width="15.75" height="66.88" fill="#3498DB"></rect>
+      <rect x="271.25" y="177.12" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="271.25" y="22.75555555555556" width="15.75" height="154.36444444444444" fill="#F39C12"></rect>
+      
+    
+      <rect x="291" y="181.17333333333335" width="15.75" height="62.82666666666667" fill="#3498DB"></rect>
+      <rect x="291" y="181.17333333333335" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="291" y="21.06666666666669" width="15.75" height="160.10666666666665" fill="#F39C12"></rect>
+      <text x="298.875" y="268" text-anchor="middle" class="axis-label">12</text>
+    
+      <rect x="310.75" y="179.48444444444445" width="15.75" height="64.51555555555555" fill="#3498DB"></rect>
+      <rect x="310.75" y="179.48444444444445" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="310.75" y="19.71555555555554" width="15.75" height="159.7688888888889" fill="#F39C12"></rect>
+      
+    
+      <rect x="330.5" y="167.49333333333334" width="15.75" height="76.50666666666666" fill="#3498DB"></rect>
+      <rect x="330.5" y="167.49333333333334" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="330.5" y="16.168888888888887" width="15.75" height="151.32444444444445" fill="#F39C12"></rect>
+      
+    
+      <rect x="350.25" y="136.92444444444445" width="15.75" height="107.07555555555555" fill="#3498DB"></rect>
+      <rect x="350.25" y="136.92444444444445" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="350.25" y="16" width="15.75" height="120.92444444444445" fill="#F39C12"></rect>
+      <text x="358.125" y="268" text-anchor="middle" class="axis-label">15</text>
+    
+      <rect x="370" y="83.38666666666666" width="15.75" height="160.61333333333334" fill="#3498DB"></rect>
+      <rect x="370" y="83.38666666666666" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="370" y="20.222222222222214" width="15.75" height="63.16444444444444" fill="#F39C12"></rect>
+      
+    
+      <rect x="389.75" y="32.382222222222225" width="15.75" height="211.61777777777777" fill="#3498DB"></rect>
+      <rect x="389.75" y="32.382222222222225" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="389.75" y="22.248888888888892" width="15.75" height="10.133333333333333" fill="#F39C12"></rect>
+      
+    
+      <rect x="409.5" y="159.21777777777777" width="15.75" height="84.78222222222223" fill="#3498DB"></rect>
+      <rect x="409.5" y="25.795555555555552" width="15.75" height="133.42222222222222" fill="#27AE60"></rect>
+      <rect x="409.5" y="25.795555555555552" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="417.375" y="268" text-anchor="middle" class="axis-label">18</text>
+    
+      <rect x="429.25" y="124.76444444444445" width="15.75" height="119.23555555555555" fill="#3498DB"></rect>
+      <rect x="429.25" y="38.12444444444445" width="15.75" height="86.64" fill="#27AE60"></rect>
+      <rect x="429.25" y="38.12444444444445" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="449" y="34.408888888888896" width="15.75" height="209.5911111111111" fill="#3498DB"></rect>
+      <rect x="449" y="29.848888888888894" width="15.75" height="4.5600000000000005" fill="#27AE60"></rect>
+      <rect x="449" y="29.848888888888894" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="468.75" y="31.0311111111111" width="15.75" height="212.9688888888889" fill="#3498DB"></rect>
+      <rect x="468.75" y="27.315555555555548" width="15.75" height="3.715555555555555" fill="#27AE60"></rect>
+      <rect x="468.75" y="27.315555555555548" width="15.75" height="0" fill="#F39C12"></rect>
+      <text x="476.625" y="268" text-anchor="middle" class="axis-label">21</text>
+    
+      <rect x="488.5" y="34.91555555555556" width="15.75" height="209.08444444444444" fill="#3498DB"></rect>
+      <rect x="488.5" y="31.53777777777778" width="15.75" height="3.3777777777777778" fill="#27AE60"></rect>
+      <rect x="488.5" y="31.53777777777778" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      <rect x="508.25" y="91.83111111111111" width="15.75" height="152.1688888888889" fill="#3498DB"></rect>
+      <rect x="508.25" y="91.83111111111111" width="15.75" height="0" fill="#27AE60"></rect>
+      <rect x="508.25" y="91.83111111111111" width="15.75" height="0" fill="#F39C12"></rect>
+      
+    
+      </svg>
+      <div class="legend-inline">
+        <span><i style="background:#F39C12"></i>Solar direct</span>
+        <span><i style="background:#27AE60"></i>BESS discharge</span>
+        <span><i style="background:#3498DB"></i>Grid import</span>
+      </div>
+    </div>
+  
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Recommended Actions</h2>
+      <div class="title-rule"></div>
+      <div class="grid-2">
+        <div class="card">
+          <ul class="bullet-list">
+            <li>Re-price bundled and DPPA offers against the lower evening-only uplift.</li><li>Re-tune BESS dispatch to preserve state of charge until the evening peak.</li><li>Separate PV-heavy and BESS-heavy commercial structures when updating discounts.</li><li>Keep both tariff baselines in regression artifacts until the 2026 schedule is the default.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--primary);">Commercial read-through</h3>
+          <ul class="bullet-list">
+            <li>Expect more pressure on PV-led C&amp;I offers than on fixed-price structures.</li>
+            <li>Storage still matters, but only if it is dispatched for the evening window.</li>
+            <li>Large systems with meaningful evening coincidence can improve under the new schedule.</li>
+            <li>Pricing and dispatch assumptions should be refreshed together, not independently.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+
+    <section class="slide">
+      <h2 class="slide-title">Bottom Line</h2>
+      <div class="title-rule"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--primary);">Who loses</h3>
+          <ul class="bullet-list">
+            <li>Smaller C&amp;I structures that depended on morning solar peak pricing.</li>
+            <li>Battery strategies designed around two monetizable cycles per day.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--primary);">Who wins</h3>
+          <ul class="bullet-list">
+            <li>Projects with stronger evening coincidence and storage that can hold energy later.</li>
+            <li>Larger DPPA structures where the new peak amplifies evening delivery economics.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid-3" style="margin-top:1rem;">
+        <div class="stat-card"><div class="stat-value" style="color:var(--red)">-11.26%</div><div class="stat-label">Emivest worst revenue move</div></div>
+        <div class="stat-card"><div class="stat-value">-1.08%</div><div class="stat-label">Emivest most resilient move</div></div>
+        <div class="stat-card"><div class="stat-value">+24.32%</div><div class="stat-label">Ecoplexus revenue move</div></div>
+      </div>
+      <div class="footer-note">Confidential - For Internal Use by Allotrope & Key Partners - Not for Further Circulation</div>
+    </section>
+  </div>
+  <nav class="nav">
+    <button id="prev" type="button">Prev</button>
+    <div id="counter" class="counter">1 / 12</div>
+    <button id="next" type="button">Next</button>
+  </nav>
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    let current = 0;
+    const counter = document.getElementById('counter');
+    function goTo(index) {
+      slides[current].classList.remove('active');
+      current = Math.max(0, Math.min(index, slides.length - 1));
+      slides[current].classList.add('active');
+      counter.textContent = (current + 1) + ' / ' + slides.length;
+    }
+    document.getElementById('prev').addEventListener('click', () => goTo(current - 1));
+    document.getElementById('next').addEventListener('click', () => goTo(current + 1));
+    document.addEventListener('keydown', (event) => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) {
+        event.preventDefault();
+        goTo(current + 1);
+      }
+      if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) {
+        event.preventDefault();
+        goTo(current - 1);
+      }
+      if (event.key === 'Home') {
+        goTo(0);
+      }
+      if (event.key === 'End') {
+        goTo(slides.length - 1);
+      }
+    });
+  </script>
+</body>
+</html>
