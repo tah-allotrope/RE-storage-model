@@ -256,6 +256,50 @@ Verify numerical accuracy, visual fidelity, and reproducibility; document the re
 
 No open clarification questions.
 
+## Interpretation Note: Showcase vs Live Model
+
+"Replicate the TOU analysis in an Excel model" admits two readings. This plan takes reading **(A)** explicitly:
+
+- **(A) Showcase workbook (chosen).** A read-only `.xlsx` whose cells hold *static values* copied from `results/vietnam_tou2026_analysis.json`. The Python model remains the source of truth; the workbook is a presentation artifact. This is what ASM-002 and DEC-001 encode.
+- **(B) Live formula workbook (NOT in scope).** An `.xlsx` whose cells re-derive the TOU 2024 vs 2026 deltas via Excel formulas — solar generation, BESS dispatch, hour-by-hour tariff lookup, settlement, IRR/NPV — so a stakeholder can change a tariff cell and watch outputs recompute. This would be a port of the Python physics + settlement layers (`src/re_storage/physics/`, `src/re_storage/settlement/`) into Excel and is materially larger than the current plan.
+
+If the requester actually wants (B), this plan must be rejected and replaced; reuse of `model_architecture.md` (the existing Excel-model reference doc) would be the starting point. If the goal is a stakeholder-readable presentation of the completed TOU 2026 impact analysis — which the recent commit history (`feat: add final TOU 2026 impact analysis report`, `feat: add v2 Vietnam TOU presentation outputs`) suggests — reading (A) is correct and this plan stands.
+
+## Claude Execution Playbook
+
+Recommended ordering when a Claude session executes this plan end-to-end:
+
+1. **Spawn an `Explore` subagent** to read `results/vietnam_tou2026_analysis.json` and report the exact key tree, presence of `average_day_dispatch` for each case, and any `None`/missing fields. Output feeds PHASE-01 and de-risks RISK-01-01 before any code is written.
+2. **PHASE-01 in main context** — author `docs/tou_showcase_workbook_spec.md`. Small, design-heavy, benefits from main-context coherence.
+3. **PHASE-02 + PHASE-03 sequentially in main context** — data layer first, then generator. Avoid parallel subagents here: the generator imports the data layer, so the dependency is tight.
+4. **PHASE-04** — incremental. After each chart added, regenerate and visually verify (open the workbook locally, or convert one sheet to PNG via LibreOffice headless if a screenshot is needed).
+5. **PHASE-05** — checklist run; commit only after spot-checks pass.
+
+Per-phase commands:
+
+```bash
+# After PHASE-02
+pytest tests/unit/test_tou_showcase_data.py -q
+
+# After PHASE-03 / PHASE-04
+python scripts/generate_tou_showcase_xlsx.py
+ruff check scripts/generate_tou_showcase_xlsx.py scripts/tou_showcase_data.py
+
+# Final smoke
+python scripts/generate_tou_showcase_xlsx.py \
+    --input-json results/vietnam_tou2026_analysis.json \
+    --output-xlsx results/vietnam_tou2026_showcase.xlsx
+ls -lh results/vietnam_tou2026_showcase.xlsx   # confirm < 5 MB (OBS-001)
+```
+
+Deterministic-output check (TASK-05-02): hash the file twice across two clean runs.
+
+```bash
+python scripts/generate_tou_showcase_xlsx.py && \
+    sha256sum results/vietnam_tou2026_showcase.xlsx
+# rerun and compare hashes
+```
+
 ## Suggested Next Step
 
 Approve this plan, then begin implementation with PHASE-01 (design the workbook spec) while I (or another agent) read the JSON payload to confirm data shapes.
