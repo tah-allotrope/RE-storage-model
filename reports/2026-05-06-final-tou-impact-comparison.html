@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Final Report :: Vietnam TOU Impact Model Comparison — File G vs File C</title>
+  <meta name="color-scheme" content="dark light">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) {
+        return;
+      }
+
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        securityLevel: 'loose',
+        themeVariables: {
+          primaryColor: '#f3ead9',
+          primaryTextColor: '#1f1912',
+          primaryBorderColor: '#9d6b37',
+          lineColor: '#3b6f76',
+          secondaryColor: '#efe4d0',
+          tertiaryColor: '#ffffff',
+          background: '#fbf7f1',
+          mainBkg: '#fbf7f1',
+          nodeBorder: '#9d6b37',
+          clusterBkg: '#f7efdf',
+          clusterBorder: '#3b6f76',
+          edgeLabelBackground: '#fbf7f1'
+        }
+      });
+
+      await mermaid.run({ nodes: blocks });
+    }
+
+    const run = () => initMermaid().catch((error) => console.error('Mermaid render failed', error));
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', run, { once: true });
+    } else {
+      run();
+    }
+  </script>
+  <style>
+    :root {
+      --paper: #fbf7f1;
+      --paper-strong: #fffdf9;
+      --ink: #1f1912;
+      --ink-soft: #5f564c;
+      --line: #dccdb6;
+      --line-strong: #bfa37d;
+      --accent: #9d6b37;
+      --accent-soft: #efe4d0;
+      --accent-2: #3b6f76;
+      --shadow: 0 18px 40px rgba(49, 33, 16, 0.08);
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --page-width: 1040px;
+      --display-font: Georgia, "Times New Roman", serif;
+      --body-font: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --mono-font: "Cascadia Code", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(157, 107, 55, 0.09), transparent 26%),
+        radial-gradient(circle at 88% 10%, rgba(59, 111, 118, 0.08), transparent 22%),
+        linear-gradient(180deg, #f7f1e7 0%, #fbf7f1 28%, #f6efe5 100%);
+      font-family: var(--body-font);
+      line-height: 1.65;
+      letter-spacing: 0.01em;
+    }
+
+    a {
+      color: var(--accent-2);
+    }
+
+    code,
+    pre,
+    .technical,
+    .meta-chip,
+    .section-index,
+    .eyebrow,
+    .stat-label,
+    .stat-value,
+    .mermaid {
+      font-family: var(--mono-font);
+    }
+
+    .page-shell {
+      width: min(var(--page-width), calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 56px;
+    }
+
+    .hero {
+      padding: 34px;
+      border: 1px solid rgba(159, 123, 79, 0.28);
+      border-radius: 30px;
+      background:
+        linear-gradient(135deg, rgba(157, 107, 55, 0.1), transparent 34%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.86)),
+        var(--paper-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.85fr);
+      gap: 24px;
+      align-items: end;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .title {
+      margin: 0;
+      max-width: 12ch;
+      font-family: var(--display-font);
+      font-size: clamp(2.8rem, 5vw, 4.8rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      text-wrap: balance;
+    }
+
+    .lede {
+      margin: 18px 0 0;
+      max-width: 60ch;
+      color: var(--ink-soft);
+      font-size: 1rem;
+    }
+
+    .takeaway {
+      margin-top: 22px;
+      padding: 18px 20px;
+      border-left: 4px solid var(--accent-2);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      background: rgba(59, 111, 118, 0.08);
+      color: #20373a;
+      font-size: 1.02rem;
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .meta-card,
+    .section,
+    .subcard,
+    .empty-state {
+      border: 1px solid rgba(95, 72, 46, 0.12);
+      background: rgba(255, 253, 249, 0.88);
+      box-shadow: var(--shadow);
+    }
+
+    .meta-card {
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+    }
+
+    .meta-label {
+      color: var(--ink-soft);
+      font-size: 0.76rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .meta-chip {
+      margin-top: 8px;
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .section {
+      margin-top: 22px;
+      padding: 24px;
+      border-radius: var(--radius-lg);
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px 18px;
+      align-items: end;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-index {
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .section-title {
+      margin: 0;
+      font-family: var(--display-font);
+      font-size: clamp(1.45rem, 2vw, 2rem);
+      line-height: 1.05;
+    }
+
+    .summary-grid,
+    .dual-grid,
+    .phase-grid,
+    .stat-grid,
+    .appendix-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .summary-grid,
+    .dual-grid,
+    .phase-grid,
+    .appendix-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .subcard {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .subcard h3,
+    .subcard h4 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .subcard p:first-child,
+    .subcard ul:first-child,
+    .subcard ol:first-child {
+      margin-top: 0;
+    }
+
+    .stat-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 16px;
+    }
+
+    .stat {
+      padding: 14px 16px;
+      border: 1px solid rgba(59, 111, 118, 0.16);
+      border-radius: var(--radius-sm);
+      background: rgba(59, 111, 118, 0.06);
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .stat-label {
+      color: var(--ink-soft);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 8px;
+      color: var(--accent-2);
+      font-size: 1.18rem;
+      font-weight: 700;
+    }
+
+    .narrative,
+    .chart-frame,
+    .technical-frame,
+    .diagram-frame,
+    .viz-frame {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.54);
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .diagram-frame {
+      overflow-x: auto;
+      overflow-y: auto;
+      overscroll-behavior-x: contain;
+      overscroll-behavior-y: contain;
+      max-height: min(70vh, 720px);
+    }
+
+    .chart-frame,
+    .viz-frame {
+      overflow: hidden;
+    }
+
+    .mermaid {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      color: var(--ink);
+    }
+
+    .mermaid svg {
+      display: block;
+      width: auto !important;
+      min-width: 100%;
+      max-width: none !important;
+      height: auto !important;
+    }
+
+    .diagram-frame.compact-diagram {
+      padding: 12px;
+      max-height: min(62vh, 560px);
+    }
+
+    .diagram-frame.compact-diagram .mermaid {
+      min-width: 900px;
+    }
+
+    .chart-frame canvas,
+    .technical-frame > canvas,
+    .viz-frame canvas,
+    canvas.report-chart {
+      display: block;
+      width: 100% !important;
+      max-width: 100%;
+      height: 300px !important;
+      min-height: 300px;
+      max-height: 300px;
+    }
+
+    .technical-frame table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    .technical-frame th,
+    .technical-frame td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    .technical-frame th {
+      color: var(--accent);
+      font-size: 0.76rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .empty-state {
+      padding: 20px;
+      border-radius: var(--radius-md);
+      text-align: center;
+      color: var(--ink-soft);
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .empty-state strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent);
+      font-size: 0.84rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    ul,
+    ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    p:last-child,
+    li:last-child {
+      margin-bottom: 0;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: rgba(95, 86, 76, 0.74);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-align: right;
+    }
+
+    @media (max-width: 920px) {
+      .hero-grid,
+      .summary-grid,
+      .dual-grid,
+      .phase-grid,
+      .stat-grid,
+      .appendix-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .title {
+        max-width: none;
+      }
+
+    }
+
+    @media (max-width: 640px) {
+      .page-shell {
+        width: min(100vw - 20px, var(--page-width));
+        padding-top: 16px;
+        padding-bottom: 36px;
+      }
+
+      .hero,
+      .section {
+        padding: 18px;
+        border-radius: 20px;
+      }
+
+      .title {
+        font-size: clamp(2.1rem, 12vw, 3.2rem);
+      }
+
+    }
+
+    @media print {
+      :root {
+        --paper: #ffffff;
+        --paper-strong: #ffffff;
+        --ink: #111111;
+        --ink-soft: #444444;
+        --line: #d6d1c8;
+      }
+
+      @page {
+        size: A4;
+        margin: 14mm;
+      }
+
+      body {
+        background: #ffffff;
+      }
+
+      .page-shell {
+        width: 100%;
+        max-width: none;
+        padding: 0;
+      }
+
+      .hero,
+      .meta-card,
+      .section,
+      .subcard,
+      .narrative,
+      .chart-frame,
+      .technical-frame,
+      .diagram-frame,
+      .viz-frame,
+      .empty-state,
+      .stat {
+        background: #ffffff;
+        box-shadow: none;
+      }
+
+      .hero,
+      .section {
+        margin-top: 0;
+        margin-bottom: 10mm;
+      }
+
+      .diagram-frame {
+        overflow: visible;
+        max-height: none;
+      }
+
+      .diagram-frame.compact-diagram .mermaid {
+        min-width: 0;
+      }
+
+      .section-header,
+      .takeaway {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" id="title-hero">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Final Report / Shareable Analysis Artifact</p>
+          <h1 class="title">Vietnam TOU Impact Model Comparison — File G vs File C</h1>
+          <p class="lede">
+            A presentation-ready synthesis of a multi-phase analysis, written for readers who need context, judgment, and a clear path forward.
+          </p>
+          <div class="takeaway">File C wins on completeness, scenario depth, and lifetime projections, but its BESS impact is built on a false 40 % morning-peak attribution (actual morning discharge = 0 kWh). File G wins on BESS accuracy but omits lifetime and NPV analysis. The canonical sheet should combine G's hourly revaluation engine with C's scenario and lifetime framework.</div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-card">
+            <div class="meta-label">Project</div>
+            <div class="meta-chip">Vietnam PV+BESS Financial Model</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Repository</div>
+            <div class="meta-chip">tou</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Date</div>
+            <div class="meta-chip">2026-05-06</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="executive-summary">
+      <div class="section-header">
+        <div>
+          <div class="section-index">01 / Executive Summary</div>
+          <h2 class="section-title">Executive Summary</h2>
+        </div>
+      </div>
+      <div class="summary-grid">
+        
+<div class="subcard">
+  <h3>What We Compared</h3>
+  <p>Two independently-built <code>TOU Impact</code> sheets inside the same PV+BESS model were audited against Vietnam's Decision&nbsp;963 regulatory ground truth and first-principles arithmetic.</p>
+</div>
+<div class="subcard">
+  <h3>The Bottom Line</h3>
+  <p><strong>File C is the recommended base</strong> because it provides scenario analysis, 20-year lifetime projections, NPV, and model-update guidance — all essential for PPA pricing and investor presentations. <strong>However, File C's BESS impact must be corrected:</strong> it assumes 40 % of BESS peak discharge occurs in the 09:30–11:30 morning block, but the Cal. sheet shows <strong>0 kWh</strong> of morning-peak discharge. File G's revaluation approach (+$101 BESS impact) is arithmetically faithful to the current dispatch.</p>
+</div>
+<div class="subcard">
+  <h3>Key Numbers</h3>
+  <ul>
+    <li><strong>Solar revenue loss (both files):</strong> ~22,310 USD/yr <span style="color:#c0392b">~12.7% loss</span> — independently verified.</li>
+    <li><strong>BESS impact — File G (revaluation):</strong> +101 USD/yr.</li>
+    <li><strong>BESS impact — File C (base case):</strong> -4,591 USD/yr — <em>incorrect premise</em>.</li>
+    <li><strong>NPV of revenue loss — File C:</strong> -345,266 USD at 9.3 % discount.</li>
+  </ul>
+</div>
+<div class="subcard">
+  <h3>Critical Caveat</h3>
+  <p>Neither file re-runs the BESS dispatch optimizer for the new TOU windows. Both are "what-if" overlays. The true BESS behavioral impact requires updating <code>Cal.!E</code> and re-solving dispatch — a Phase&nbsp;6 follow-up.</p>
+</div>
+
+      </div>
+    </section>
+
+    <section class="section" id="background-objective">
+      <div class="section-header">
+        <div>
+          <div class="section-index">02 / Background &amp; Objective</div>
+          <h2 class="section-title">Background &amp; Objective</h2>
+        </div>
+      </div>
+      <div class="narrative">
+        
+<p>On 22 April 2026, Vietnam's Ministry of Industry and Trade issued Decision 963/QĐ-BCT, replacing the split morning+evening peak window (09:30–11:30 and 17:00–20:00) with a single consolidated evening peak (17:30–22:30). This change eliminates the morning-peak premium for solar generation and collapses BESS arbitrage from two cycles to one.</p>
+<p>Two analysts built competing <code>TOU Impact</code> sheets inside the same base model:</p>
+<ul>
+  <li><strong>File G</strong> — Compact (36 rows), array-formula-driven, revalues the existing hourly dispatch without rerunning it.</li>
+  <li><strong>File C</strong> — Comprehensive (108 rows), 8-section analytical breakdown with base/worst cases, lifetime projections, and financial KPI impacts.</li>
+</ul>
+<p>The objective was to determine which sheet is more accurate, complete, and aligned with the regulatory change, and to produce a canonical impact analysis for PPA pricing decisions.</p>
+
+      </div>
+    </section>
+
+    <section class="section" id="inputs-scope">
+      <div class="section-header">
+        <div>
+          <div class="section-index">03 / Inputs &amp; Scope</div>
+          <h2 class="section-title">Inputs &amp; Scope</h2>
+        </div>
+      </div>
+      <div class="dual-grid">
+        
+<div class="subcard">
+  <h3>Inputs &amp; Source Files</h3>
+  <ul>
+    <li><code>20260501 PV BESS Model V02-No VBA -G.xlsm</code> → File G <code>TOU Impact</code></li>
+    <li><code>20260501 PV BESS Model V02-No VBA -C.xlsm</code> → File C <code>TOU Impact</code></li>
+    <li><code>2026-04-25_vietnam-tou-rooftop-ppa.md</code> → Regulatory source of truth</li>
+    <li>Both files share identical base model: <code>Cal.</code>, <code>Measures</code>, <code>Assumption</code>, <code>Output</code>, <code>Financial</code></li>
+  </ul>
+</div>
+<div class="subcard">
+  <h3>Scope Boundaries</h3>
+  <ul>
+    <li><strong>In scope:</strong> TOU window accuracy, solar/BESS revenue math, lifetime projection validation, scoring.</li>
+    <li><strong>Out of scope:</strong> Re-running the BESS dispatch engine, modifying <code>Cal.</code> formulas, building a new consolidated model, updating base model for Decision 963 compliance.</li>
+  </ul>
+</div>
+
+      </div>
+    </section>
+
+    <section class="section" id="assumptions-constraints">
+      <div class="section-header">
+        <div>
+          <div class="section-index">04 / Assumptions &amp; Constraints</div>
+          <h2 class="section-title">Assumptions &amp; Constraints</h2>
+        </div>
+      </div>
+      <div class="dual-grid">
+        
+<div class="subcard">
+  <h3>Key Assumptions</h3>
+  <ul>
+    <li>Both files use the same hourly load/generation profiles from <code>Cal.</code> (8,760 hours, 2024 timestamps).</li>
+    <li>Tariff rates (22kV industrial): Normal = 1,275 VND/kWh, Peak = 2,182 VND/kWh, Off-Peak = 859 VND/kWh.</li>
+    <li>FX rate = 26,000 VND/USD.</li>
+    <li>Old TOU windows in <code>Cal.!E</code>: Peak = Mon–Sat 09:30–11:30 + 17:00–20:00; Off-Peak = 22:00–04:00.</li>
+  </ul>
+</div>
+<div class="subcard">
+  <h3>Constraints &amp; Limitations</h3>
+  <ul>
+    <li>openpyxl reads cached values but cannot execute Excel array formulas (File G).</li>
+    <li>Neither file re-optimizes BESS dispatch for the new TOU — both are overlay analyses.</li>
+    <li>Hourly resolution cannot perfectly represent 17:30 and 22:30 half-hour boundaries.</li>
+  </ul>
+</div>
+
+      </div>
+    </section>
+
+    <section class="section" id="methodology">
+      <div class="section-header">
+        <div>
+          <div class="section-index">05 / Methodology</div>
+          <h2 class="section-title">Methodology</h2>
+        </div>
+      </div>
+      <div class="narrative">
+        
+<p>The comparison progressed through five phases:</p>
+<ol>
+  <li><strong>Regulatory Window Verification</strong> — Extracted old/new window definitions from both sheets and cross-checked against Decision 963 and the research brief.</li>
+  <li><strong>Solar Revenue Impact Validation</strong> — Computed an independent solar impact from <code>Measures</code> data and tariff rates, then traced both files' figures.</li>
+  <li><strong>BESS Revenue Impact Validation</strong> — Extracted actual BESS discharge-by-hour from <code>Cal.</code> to test File C's 40 % morning-peak attribution and File G's revaluation logic.</li>
+  <li><strong>Lifetime &amp; NPV Audit</strong> — Verified File C's 20-year escalation, geometric series totals, and NPV using closed-form growing-annuity math.</li>
+  <li><strong>Scoring &amp; Winner Declaration</strong> — Built a weighted scoring matrix across ten dimensions, declared a conditional winner, and listed specific corrections.</li>
+</ol>
+
+      </div>
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat-label">Orientation</div>
+          <div class="stat-value">multi-phase</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Audience</div>
+          <div class="stat-value">stakeholder-safe</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Evidence Rule</div>
+          <div class="stat-value">no invented data</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="phase-analysis">
+      <div class="section-header">
+        <div>
+          <div class="section-index">06 / Phase-by-Phase Analysis</div>
+          <h2 class="section-title">Phase-by-Phase Analysis</h2>
+        </div>
+      </div>
+      <div class="phase-grid">
+        
+<div class="subcard">
+  <h3>Phase 1 — Regulatory TOU Windows</h3>
+  <p>Both files state the old and new windows correctly. File G's "Tariff Bands Applied" (rows 28–30) and File C's Section 1 (rows 5–10) match the research brief exactly:</p>
+  <ul>
+    <li>Old Peak: Mon–Sat 09:30–11:30 + 17:00–20:00</li>
+    <li>New Peak: Mon–Sat 17:30–22:30 only</li>
+    <li>New Off-Peak: All days 00:00–06:00</li>
+  </ul>
+  <p><code>Cal.!E</code> sampling confirmed the old flags: weekday hours 0–3 = O, 4–9 = N, 10–11 = P, 12–16 = N, 17–19 = P, 20–21 = N, 22–23 = O. Sunday hours 0–3 = O, 4–21 = N, 22–23 = O (both files treat Sunday off-peak as 22:00–04:00).</p>
+  <p><strong>Verdict:</strong> Both pass. Neither resolves half-hour granularity, but both acknowledge it.</p>
+</div>
+<div class="subcard">
+  <h3>Phase 2 — Solar Revenue Impact</h3>
+  <p>Independent calculation from <code>Measures</code>:</p>
+  <p class="technical">639,534 kWh × (2,182 − 1,275) ÷ 26,000 = <strong>22,309.90 USD/yr</strong></p>
+  <ul>
+    <li>File G reports <strong>-22,312.51 USD/yr</strong> (delta) — within $3 (0.01 %), immaterial.</li>
+    <li>File C reports <strong>-22,310 USD/yr</strong> — matches exactly.</li>
+  </ul>
+  <p>File G's old revenue (175,586.16 USD) and File C's old peak revenue (53,672 USD) both reconcile to first principles. File G shows 0.16 MWh shifting to off-peak (negligible, &lt;0.01 %).</p>
+  <p><strong>Flag:</strong> File G's partial-year "Post-Apr 22" impact (-15,881.27 USD) does not scale cleanly from the annual figure using 254/365 (-15,527.06 USD). A ~$354 discrepancy exists.</p>
+</div>
+<div class="subcard">
+  <h3>Phase 3 — BESS Revenue Impact <span style="color:#c0392b">(Critical)</span></h3>
+  <p>We extracted every hour of BESS discharge from <code>Cal.</code> and summed by peak block:</p>
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-label">Morning Peak Discharge</div><div class="stat-value">0 kWh</div></div>
+    <div class="stat"><div class="stat-label">Evening Peak Discharge</div><div class="stat-value">329,037 kWh</div></div>
+    <div class="stat"><div class="stat-label">Total Peak Discharge</div><div class="stat-value">329,037 kWh</div></div>
+  </div>
+  <p>The BESS <strong>never discharges during 09:30–11:30</strong>. The dispatch is entirely evening-weighted (17:00–20:00 old peak).</p>
+  <p><strong>File G</strong> holds dispatch fixed and revalues each hour under new rates. Result: +101 USD/yr. This is arithmetically correct for the <em>current</em> dispatch profile.</p>
+  <p><strong>File C</strong> assumes 40 % of peak discharge (131,615 kWh) was in the morning block. Because actual morning discharge is zero, both its base case (-4,591 USD) and worst case (-11,046 USD) are wrong. They describe a revenue loss that does not exist in the current dispatch.</p>
+  <p><strong>Secondary flag:</strong> File C's "afternoon/evening peak" old-revenue figure (19,661 USD for 197,422 kWh) implies an effective rate of ~2,588 VND/kWh, well above the stated 2,182 VND/kWh. This is an internal inconsistency.</p>
+  <p><strong>Verdict:</strong> File G wins on BESS accuracy. File C's BESS section must be rebuilt using actual dispatch data, not a theoretical 40 % split.</p>
+</div>
+<div class="subcard">
+  <h3>Phase 4 — Lifetime Projections &amp; NPV</h3>
+  <p>File C provides a full 20-year escalated projection (5 % p.a.) and NPV at 9.3 % project IRR. Independent verification:</p>
+  <ul>
+    <li>20-year solar total: -737,704 USD (model) vs -737,701.44 USD (independent) — matches.</li>
+    <li>20-year BESS base total: -151,806 USD (model) vs -151,805.80 USD (independent) — matches.</li>
+    <li>NPV factor at 9.3 %: 12.834697 → solar NPV -286,342.08 USD (model -286,342 USD) — matches.</li>
+  </ul>
+  <p>Using a 10 % discount rate (target equity IRR from <code>Assumption</code>) instead of 9.3 % changes the total NPV from -345,266 USD to -325,827.17 USD (~5.6 % lower loss). File C's choice is non-standard but defensible.</p>
+  <p><strong>File G gap:</strong> No lifetime projection, no NPV, no IRR impact. This is a material omission for investor-facing analysis.</p>
+</div>
+
+      </div>
+      
+<div class="diagram-frame compact-diagram">
+  <div class="mermaid">
+flowchart LR
+    A[Regulatory Truth<br/>Decision 963] --> B[Phase 1: Window Check]
+    B --> C[Phase 2: Solar Math]
+    B --> D[Phase 3: BESS Math]
+    C --> E[Phase 4: Lifetime & NPV]
+    D --> E
+    E --> F[Phase 5: Scoring]
+    F --> G{Winner?}
+    G -->|Higher completeness| H[File C<br/>Conditional]
+    G -->|Higher BESS accuracy| I[File G<br/>Reference]
+    H --> J[Fix BESS attribution<br/>Add partial-year]
+    I --> K[Add lifetime/NPV<br/>Add scenarios]
+  </div>
+</div>
+
+    </section>
+
+    <section class="section" id="findings-recommendation">
+      <div class="section-header">
+        <div>
+          <div class="section-index">07 / Findings &amp; Recommendation</div>
+          <h2 class="section-title">Findings &amp; Recommendation</h2>
+        </div>
+      </div>
+      <div class="narrative">
+        
+<p>We scored both files across ten dimensions (0 = missing/wrong, 1 = partial, 2 = fully correct). Weights reflect materiality to the decision.</p>
+<div class="technical-frame">
+  <table>
+    <thead>
+      <tr><th>Dimension</th><th>Weight</th><th>File G</th><th>File C</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Regulatory window accuracy</td><td>15 %</td><td>2</td><td>2</td></tr>
+      <tr><td>Solar impact methodology</td><td>10 %</td><td>2</td><td>2</td></tr>
+      <tr><td>BESS impact methodology</td><td>25 %</td><td>2</td><td>0</td></tr>
+      <tr><td>Scenario analysis (base/worst)</td><td>10 %</td><td>0</td><td>1</td></tr>
+      <tr><td>Lifetime projection</td><td>10 %</td><td>0</td><td>2</td></tr>
+      <tr><td>NPV / IRR propagation</td><td>10 %</td><td>0</td><td>2</td></tr>
+      <tr><td>Model update guidance</td><td>5 %</td><td>0</td><td>2</td></tr>
+      <tr><td>Presentation clarity / auditability</td><td>5 %</td><td>1</td><td>2</td></tr>
+      <tr><td>Half-hour boundary handling</td><td>5 %</td><td>1</td><td>1</td></tr>
+      <tr><td>Partial-year adjustment</td><td>5 %</td><td>1</td><td>0</td></tr>
+    </tbody>
+    <tfoot>
+      <tr style="font-weight:bold"><td>Weighted Total (out of 2.0)</td><td>100 %</td><td>1.15 (57.5 %)</td><td>1.25 (62.5 %)</td></tr>
+    </tfoot>
+  </table>
+</div>
+<h3>Winner: File C (Conditional)</h3>
+<p>File C scores higher overall because it supplies the lifetime, NPV, scenario, and guidance content required for a production PPA decision. <strong>The condition is non-negotiable:</strong> its BESS impact must be corrected to reflect the actual zero morning-peak discharge observed in <code>Cal.</code>. Until that fix is made, File C's total impact figures (-26,901 USD base, -33,356 USD worst) overstate the revenue loss.</p>
+<p><strong>File G</strong> is the more trustworthy source for the <em>current-dispatch</em> BESS impact and should be used as the arithmetic reference when rebuilding File C's BESS section.</p>
+<h3>Error List — File G</h3>
+<ul>
+  <li><strong>Partial-year adjustment (F7):</strong> -15,881.27 USD does not reconcile to 254/365 scaling of the annual impact (-15,527.06 USD). Check day-count basis or formula.</li>
+  <li><strong>No lifetime / NPV:</strong> Omitting 20-year projections and NPV makes the sheet unsuitable for standalone investor presentation.</li>
+  <li><strong>No scenario analysis:</strong> Only a single "current dispatch" case is provided.</li>
+  <li><strong>No model-update guidance:</strong> Missing instructions for updating <code>Cal.!E</code> or BESS strategy parameters.</li>
+</ul>
+<h3>Error List — File C</h3>
+<ul>
+  <li><strong>BESS morning-peak attribution (Section 3, rows 34–35):</strong> Assumes 131,615 kWh (40 %) of BESS peak discharge occurs in 09:30–11:30. <code>Cal.</code> data shows <strong>0 kWh</strong> in that block. Base-case loss (-4,591 USD) and worst-case loss (-11,046 USD) are both incorrect for current dispatch.</li>
+  <li><strong>BESS afternoon/evening peak old revenue (B33):</strong> 19,661 USD for 197,422 kWh implies an effective rate of ~2,588 VND/kWh, inconsistent with the stated 2,182 VND/kWh.</li>
+  <li><strong>Discount rate choice (Section 6):</strong> Uses 9.3 % project IRR for equity NPV. Standard practice is to discount at cost of equity or target IRR (10 % per <code>Assumption</code>). Difference is ~19,439 USD.</li>
+  <li><strong>No partial-year adjustment:</strong> Reports full-year impacts only; omits 2026 P&amp;L forecasting.</li>
+</ul>
+
+      </div>
+      
+<div class="chart-frame">
+  <canvas id="scoreChart"></canvas>
+</div>
+<script>
+  (function() {
+    var ctx = document.getElementById('scoreChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Regulatory', 'Solar', 'BESS', 'Scenarios', 'Lifetime', 'NPV/IRR', 'Guidance', 'Clarity', 'Boundary', 'Partial-Yr'],
+        datasets: [
+          { label: 'File G', data: [2, 2, 2, 0, 0, 0, 0, 1, 1, 1], backgroundColor: '#9d6b37' },
+          { label: 'File C', data: [2, 2, 0, 1, 2, 2, 2, 2, 1, 0], backgroundColor: '#3b6f76' }
+        ]
+      },
+      options: {
+        animation: false,
+        resizeDelay: 150,
+        normalized: true,
+        maintainAspectRatio: false,
+        responsive: true,
+        scales: { y: { beginAtZero: true, max: 2.2, ticks: { stepSize: 1 } } },
+        plugins: { legend: { position: 'top' } }
+      }
+    });
+  })();
+</script>
+
+    </section>
+
+    <section class="section" id="implementation-path">
+      <div class="section-header">
+        <div>
+          <div class="section-index">08 / Implementation Path</div>
+          <h2 class="section-title">Implementation Path</h2>
+        </div>
+      </div>
+      <div class="phase-grid">
+        
+<div class="subcard">
+  <h3>Immediate (This Week)</h3>
+  <ol>
+    <li><strong>Fix File C BESS section.</strong> Replace the 40 % morning-peak assumption with actual dispatch data from <code>Cal.</code>. Morning discharge = 0 kWh. Re-run base/worst cases using the evening-peak-only profile.</li>
+    <li><strong>Reconcile File C B33.</strong> Verify the $19,661 afternoon/evening peak figure or replace it with the straightforward 197,422 kWh × 2,182 / 26,000 calculation.</li>
+    <li><strong>Fix File G partial-year adjustment.</strong> Confirm the day-count basis (254 vs 260 days) or replace with a clear formula.</li>
+  </ol>
+</div>
+<div class="subcard">
+  <h3>Short-Term (Next Sprint)</h3>
+  <ol>
+    <li><strong>Build a hybrid TOU Impact sheet.</strong> Use File C's structure (Sections 1–8) but populate the BESS numbers from File G's hourly revaluation or from a fresh Cal. extraction.</li>
+    <li><strong>Add NPV sensitivity at 10 %.</strong> Show both 9.3 % (project IRR) and 10 % (target equity IRR) discount rates side-by-side.</li>
+    <li><strong>Add partial-year toggle.</strong> Let users switch between full-year and Apr 22–Dec 31 impacts.</li>
+  </ol>
+</div>
+<div class="subcard">
+  <h3>Follow-Up (Phase 6 — Out of Scope Here)</h3>
+  <ol>
+    <li><strong>Re-run BESS dispatch.</strong> Update <code>Cal.!E</code> TimePeriodFlag for the new TOU windows and re-solve the dispatch model to capture behavioral changes (charge/discharge timing shift).</li>
+    <li><strong>Half-hour granularity.</strong> Evaluate whether to migrate the hourly model to 30-minute steps for boundary accuracy.</li>
+  </ol>
+</div>
+
+      </div>
+    </section>
+
+    <section class="section" id="risks-open-questions">
+      <div class="section-header">
+        <div>
+          <div class="section-index">09 / Risks / Open Questions</div>
+          <h2 class="section-title">Risks / Open Questions</h2>
+        </div>
+      </div>
+      <div class="dual-grid">
+        
+<div class="subcard">
+  <h3>Major Risks</h3>
+  <ul>
+    <li><strong>Behavioral gap:</strong> Neither file models how the BESS <em>would</em> dispatch under the new TOU. The true impact could differ materially if the optimizer shifts charge timing.</li>
+    <li><strong>Half-hour error:</strong> Integer-hour approximation misallocates ~30 minutes of peak/normal transition (17:00–18:00 and 22:00–23:00). Estimated error &lt;1 % of revenue impact.</li>
+    <li><strong>Discount rate credibility:</strong> Using project IRR (9.3 %) for equity NPV may understate the loss to equity investors. At 10 %, the NPV shortfall is ~$19,400 lower.</li>
+  </ul>
+</div>
+<div class="subcard">
+  <h3>Open Questions</h3>
+  <ul>
+    <li>Will MOIT issue revised Decision 14/2025 multipliers for the new windows, or simply remap existing multipliers?</li>
+    <li>Does the BESS dispatch optimizer in the VBA-free model actually function, or is the current profile hard-coded?</li>
+    <li>Should the partial-year adjustment be standard for 2026 budget impact reporting?</li>
+  </ul>
+</div>
+
+      </div>
+    </section>
+
+    <section class="section" id="appendices-evidence">
+      <div class="section-header">
+        <div>
+          <div class="section-index">10 / Appendices / Evidence Notes</div>
+          <h2 class="section-title">Appendices / Evidence Notes</h2>
+        </div>
+      </div>
+      <div class="appendix-grid">
+        
+<div class="subcard">
+  <h3>Appendix A — Window Mapping Accuracy</h3>
+  <div class="technical-frame">
+    <table>
+      <thead><tr><th>Regime</th><th>File G</th><th>File C</th><th>Research Brief</th></tr></thead>
+      <tbody>
+        <tr><td>Old Peak</td><td>Mon–Sat 09:30–11:30 + 17:00–20:00</td><td>09:30–11:30 AND 17:00–20:00</td><td>Confirmed</td></tr>
+        <tr><td>New Peak</td><td>Mon–Sat 17:30–22:30 only</td><td>17:30–22:30</td><td>Confirmed</td></tr>
+        <tr><td>New Off-Peak</td><td>All days 00:00–06:00</td><td>All days 00:00–06:00</td><td>Confirmed</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="subcard">
+  <h3>Appendix B — Solar Impact Reconciliation</h3>
+  <div class="technical-frame">
+    <table>
+      <thead><tr><th>Source</th><th>Old Revenue (USD)</th><th>Impact (USD/yr)</th></tr></thead>
+      <tbody>
+        <tr><td>Independent calc</td><td>175,586.16</td><td>22,309.90</td></tr>
+        <tr><td>File G</td><td>175,586.16</td><td>-22,312.51</td></tr>
+        <tr><td>File C</td><td>84,972 (subtotal shown)</td><td>-22,310</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="subcard">
+  <h3>Appendix C — BESS Dispatch Extraction</h3>
+  <p>Extracted from <code>Cal.!E</code> (TimePeriodFlag) and <code>Cal.!W</code> (DischargeEnergy_kWh) for all 8,760 hours. Morning peak proxy = hours 9–10 (09:00–10:59); Evening peak proxy = hours 17–19 (17:00–19:59).</p>
+  <div class="technical-frame">
+    <table>
+      <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Morning peak discharge (09:00–10:59)</td><td>0 kWh</td></tr>
+        <tr><td>Evening peak discharge (17:00–19:59)</td><td>329,037 kWh</td></tr>
+        <tr><td>Total peak discharge</td><td>329,037 kWh</td></tr>
+        <tr><td>Total BESS discharge</td><td>347,411 kWh</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="subcard">
+  <h3>Appendix D — NPV Verification</h3>
+  <div class="technical-frame">
+    <table>
+      <thead><tr><th>Discount Rate</th><th>Factor</th><th>Solar NPV</th><th>BESS Base NPV</th><th>Total NPV</th></tr></thead>
+      <tbody>
+        <tr><td>9.3 % (File C)</td><td>12.834697</td><td>-286,342</td><td>-58,924</td><td>-345,266</td></tr>
+        <tr><td>10.0 % (Target IRR)</td><td>12.112084</td><td>-270,221</td><td>-55,607</td><td>-325,827</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+      </div>
+      <div class="footer-note">designed for html first, printable without reconstruction</div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const chartCanvases = document.querySelectorAll('canvas');
+      chartCanvases.forEach((canvas) => {
+        canvas.classList.add('report-chart');
+        const parent = canvas.parentElement;
+        if (parent && parent.classList.contains('technical-frame') && !parent.classList.contains('chart-frame')) {
+          parent.classList.add('chart-frame');
+        }
+      });
+    })();
+
+    if (window.Chart) {
+      Chart.defaults.devicePixelRatio = 1;
+      Chart.defaults.animation = false;
+      Chart.defaults.resizeDelay = 150;
+      Chart.defaults.normalized = true;
+      Chart.defaults.maintainAspectRatio = false;
+      Chart.defaults.responsive = true;
+      window.__REPORT_CHART_DEFAULTS__ = {
+        animation: false,
+        resizeDelay: 150,
+        normalized: true,
+        maintainAspectRatio: false,
+        responsive: true
+      };
+    }
+  </script>
+</body>
+</html>
