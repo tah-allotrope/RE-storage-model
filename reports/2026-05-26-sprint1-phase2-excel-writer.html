@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase Report :: sprint1-phase2-excel-writer</title>
+  <meta name="color-scheme" content="dark">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) return;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', themeVariables: { primaryColor: '#111111', primaryTextColor: '#e8f6ff', primaryBorderColor: '#00f5ff', lineColor: '#39ff14', secondaryColor: '#121a1a', tertiaryColor: '#111111', background: '#0d0d0d', mainBkg: '#0d0d0d', nodeBorder: '#00f5ff', clusterBkg: '#111111', clusterBorder: '#39ff14', edgeLabelBackground: '#0d0d0d' }});
+      await mermaid.run({ nodes: blocks });
+    }
+    const run = () => initMermaid().catch((error) => console.error('Mermaid render failed', error));
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', run, { once: true }); } else { run(); }
+  </script>
+  <style>
+    :root { --bg: #0d0d0d; --bg-soft: #111111; --panel: rgba(13, 13, 13, 0.88); --panel-strong: rgba(19, 19, 19, 0.96); --line: rgba(0, 245, 255, 0.26); --line-strong: rgba(57, 255, 20, 0.38); --text: #e9f6ff; --muted: #8ea3ad; --accent-blue: #00f5ff; --accent-green: #39ff14; --glow-blue: 0 0 18px rgba(0, 245, 255, 0.42); --glow-green: 0 0 18px rgba(57, 255, 20, 0.28); --shadow: 0 14px 40px rgba(0, 0, 0, 0.32); --radius-lg: 22px; --radius-md: 16px; --radius-sm: 12px; --narrative-font: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; --technical-font: "Cascadia Code", "Fira Code", Consolas, "Liberation Mono", monospace; }
+    * { box-sizing: border-box; }
+    body { position: relative; margin: 0; min-height: 100vh; overflow-x: hidden; background: radial-gradient(circle at top left, rgba(0, 245, 255, 0.12), transparent 28%), radial-gradient(circle at 85% 12%, rgba(57, 255, 20, 0.08), transparent 24%), linear-gradient(180deg, #050505 0%, #0d0d0d 36%, #090909 100%); color: var(--text); font-family: var(--narrative-font); line-height: 1.6; letter-spacing: 0.01em; }
+    body::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px); background-size: 32px 32px; opacity: 0.16; }
+    a { color: var(--accent-blue); }
+    code, pre, .technical, .meta-chip, .section-kicker, .pill, .metric-label, .metric-value, .repo-tag, .mermaid { font-family: var(--technical-font); }
+    .page-shell { width: min(1180px, calc(100vw - 32px)); margin: 0 auto; padding: 32px 0 72px; position: relative; z-index: 1; }
+    .hero { position: relative; padding: 28px; margin-bottom: 24px; border: 1px solid var(--line); border-radius: 28px; background: linear-gradient(145deg, rgba(0, 245, 255, 0.08), transparent 28%), linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)), var(--panel-strong); box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.02); }
+    .hero::after { content: ""; position: absolute; inset: auto -10% -55% 42%; height: 280px; background: radial-gradient(circle, rgba(0, 245, 255, 0.18), transparent 64%); filter: blur(12px); pointer-events: none; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.85fr); gap: 22px; align-items: end; }
+    .section-kicker { margin: 0 0 12px; color: var(--accent-green); font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.22em; text-shadow: var(--glow-green); }
+    .phase-title { margin: 0; max-width: 12ch; font-size: clamp(2.5rem, 5vw, 4.7rem); line-height: 0.94; letter-spacing: -0.05em; color: #f5feff; text-transform: uppercase; text-wrap: balance; text-shadow: 0 0 24px rgba(0, 245, 255, 0.2); }
+    .hero-summary { margin: 18px 0 0; max-width: 60ch; color: var(--muted); font-size: 0.98rem; }
+    .hero-meta { display: grid; gap: 12px; }
+    .meta-card { padding: 16px 18px; border: 1px solid rgba(57, 255, 20, 0.2); border-radius: 18px; background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.24); }
+    .meta-label { margin-bottom: 6px; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.16em; }
+    .meta-chip { color: var(--accent-blue); font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; text-shadow: var(--glow-blue); word-break: break-word; }
+    .repo-tag { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 12px; border: 1px solid rgba(0, 245, 255, 0.24); border-radius: 999px; background: rgba(0, 245, 255, 0.08); color: var(--accent-blue); font-size: 0.82rem; letter-spacing: 0.04em; }
+    .section { position: relative; margin-top: 22px; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); box-shadow: var(--shadow); }
+    .section::before { content: ""; position: absolute; left: 24px; right: 24px; top: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.9), rgba(57, 255, 20, 0.9), transparent); transform: translateY(-1px); }
+    .section-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 18px; align-items: end; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+    .section-title { margin: 0; font-size: clamp(1.2rem, 2vw, 1.7rem); line-height: 1.1; color: #f0feff; }
+    .section-index { display: inline-flex; align-items: center; gap: 10px; color: var(--accent-green); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; text-shadow: var(--glow-green); }
+    .section-index::after { content: ""; width: 44px; height: 1px; background: linear-gradient(90deg, rgba(57, 255, 20, 0.9), transparent); }
+    .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .column-card, .diagram-frame, .technical-frame, .viz-frame, .question-frame, .empty-state { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-md); background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)), rgba(7, 7, 7, 0.82); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.012); }
+    .column-card { padding: 18px; min-height: 200px; }
+    .column-label { margin: 0 0 12px; color: var(--accent-blue); font-size: 0.83rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; text-shadow: var(--glow-blue); }
+    .diagram-frame, .chart-frame, .technical-frame, .viz-frame, .question-frame { padding: 18px; }
+    .diagram-frame { overflow-x: auto; overflow-y: auto; overscroll-behavior-x: contain; overscroll-behavior-y: contain; max-height: min(70vh, 720px); }
+    .mermaid { width: 100%; max-width: 100%; min-width: 0; color: var(--text); }
+    .mermaid svg { display: block; width: auto !important; min-width: 100%; max-width: none !important; height: auto !important; }
+    .technical-frame { color: #d6f6ff; }
+    .technical-frame table { width: 100%; border-collapse: collapse; }
+    .technical-frame th, .technical-frame td { padding: 12px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); vertical-align: top; }
+    .technical-frame th { color: var(--accent-green); font-size: 0.76rem; text-align: left; letter-spacing: 0.12em; text-transform: uppercase; }
+    .empty-state { padding: 22px; text-align: center; }
+    .empty-state strong { display: block; margin-bottom: 6px; color: var(--accent-blue); font-size: 0.9rem; letter-spacing: 0.12em; text-transform: uppercase; text-shadow: var(--glow-blue); }
+    .metric-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+    .metric { padding: 14px 16px; border: 1px solid rgba(0, 245, 255, 0.18); border-radius: var(--radius-sm); background: rgba(0, 245, 255, 0.04); }
+    .metric-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.16em; }
+    .metric-value { margin-top: 8px; color: var(--accent-green); font-size: 1.2rem; font-weight: 700; text-shadow: var(--glow-green); }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid rgba(57, 255, 20, 0.22); border-radius: 999px; background: rgba(57, 255, 20, 0.06); color: #d9ffd0; font-size: 0.8rem; }
+    .question-frame ul, .technical-frame ul, .column-card ul { margin: 0; padding-left: 20px; }
+    .question-frame li, .technical-frame li, .column-card li { margin-bottom: 8px; }
+    .footer-note { margin-top: 18px; text-align: right; color: rgba(142, 163, 173, 0.72); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    @media (max-width: 900px) { .hero-grid, .summary-grid, .metric-strip { grid-template-columns: 1fr; } .phase-title { max-width: none; } }
+    @media (max-width: 640px) { .page-shell { width: min(100vw - 20px, 1180px); padding-top: 16px; padding-bottom: 42px; } .hero, .section { padding: 18px; border-radius: 20px; } .section::before { left: 18px; right: 18px; } .phase-title { font-size: clamp(2rem, 12vw, 3rem); } }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" id="phase-header">
+      <div class="hero-grid">
+        <div>
+          <p class="section-kicker">Phase Report / Sprint 1 — PHASE-02</p>
+          <h1 class="phase-title">Excel Writer</h1>
+          <p class="hero-summary">
+            Created <code>reporting/excel_writer.py</code> — a multi-sheet workbook generator producing client-ready <code>.xlsx</code> files with Cover, Assessment, Comparison, Sensitivity, and Assumptions sheets. All monetary values display in both USD and VND per user decision.
+          </p>
+          <div class="pill-row" aria-label="report metadata">
+            <span class="pill">project :: RE-Storage</span>
+            <span class="pill">date :: 2026-05-26</span>
+          </div>
+          <div class="repo-tag">repo :: RE-storage-model</div>
+        </div>
+        <div class="hero-meta">
+          <div class="meta-card"><div class="meta-label">Project</div><div class="meta-chip">RE-Storage</div></div>
+          <div class="meta-card"><div class="meta-label">Repository</div><div class="meta-chip">RE-storage-model</div></div>
+          <div class="meta-card"><div class="meta-label">Date</div><div class="meta-chip">2026-05-26</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section narrative" id="input-output-summary">
+      <div class="section-header">
+        <div><div class="section-index">01 / Input -> Output</div><h2 class="section-title">Input -> Output Summary</h2></div>
+      </div>
+      <div class="summary-grid">
+        <div class="column-card">
+          <div class="column-label">Input</div>
+          <ul>
+            <li>PHASE-01 pipeline output dict with KPIs including new payback metrics</li>
+            <li><code>_annual_df</code> DataFrame from <code>_run_financial()</code> (25-year waterfall)</li>
+            <li><code>openpyxl>=3.1.0</code> already in dependencies</li>
+            <li>Sprint 1 plan: <code>plans/2026-05-22-sprint1-excel-writer-payback-metrics-plan.md</code></li>
+            <li>User decisions: top 5 sensitivity variables, both USD+VND columns</li>
+          </ul>
+        </div>
+        <div class="column-card">
+          <div class="column-label">Output</div>
+          <ul>
+            <li><code>src/re_storage/reporting/excel_writer.py</code> — 7 public functions + internal helpers</li>
+            <li><code>create_workbook()</code> — new Workbook, no default sheet, Calibri font</li>
+            <li><code>write_cover_sheet()</code> — project name, date, KPI table, metadata</li>
+            <li><code>write_assessment_sheet()</code> — KPI cards + 25-year proforma with USD/VND dual columns</li>
+            <li><code>write_comparison_sheet()</code> — 4 PPA options side-by-side, best-value green highlighting</li>
+            <li><code>write_sensitivity_sheet()</code> — top 5 variables with per-value KPI tables</li>
+            <li><code>write_assumptions_sheet()</code> — parameters grouped by category (System/DPPA/Financial/Dispatch)</li>
+            <li><code>save_workbook()</code> — save to output path with parent directory creation</li>
+            <li>19 unit tests in <code>test_excel_writer.py</code></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="logic-flow">
+      <div class="section-header">
+        <div><div class="section-index">02 / Logic Flow</div><h2 class="section-title">Logic Flow</h2></div>
+      </div>
+      <div class="diagram-frame technical">
+        <div class="mermaid">flowchart LR
+  A[create_workbook] --> B[write_cover_sheet]
+  A --> C[write_assessment_sheet]
+  A --> D[write_comparison_sheet]
+  A --> E[write_sensitivity_sheet]
+  A --> F[write_assumptions_sheet]
+  B --> G[save_workbook]
+  C --> G
+  D --> G
+  E --> G
+  F --> G
+  G --> H[Output .xlsx]
+  subgraph Styling
+    I[_apply_number_format]
+    J[_write_header_row]
+    K[_write_data_row]
+    L[_write_section_header]
+    M[_auto_width]
+  end
+  B -.-> I
+  C -.-> I
+  D -.-> I
+  E -.-> I
+  F -.-> I
+</div>
+      </div>
+    </section>
+
+    <section class="section narrative" id="math-algorithm-used">
+      <div class="section-header">
+        <div><div class="section-index">03 / Math / Algorithm Used</div><h2 class="section-title">Math / Algorithm Used</h2></div>
+      </div>
+      <div class="technical-frame">
+        <table>
+          <thead><tr><th>Algorithm</th><th>Purpose</th><th>Details</th></tr></thead>
+          <tbody>
+            <tr><td>VND conversion</td><td>Dual-currency display</td><td><code>vnd = usd × exchange_rate_usd_vnd</code> (default 25,000)</td></tr>
+            <tr><td>Best-value highlighting</td><td>Comparison sheet</td><td>Higher-is-better for IRR/NPV/DSCR, lower-is-better for payback; green fill on best cell</td></tr>
+            <tr><td>Category grouping</td><td>Assumptions sheet</td><td>Keyword matching on key names → System/DPPA/Financial/Dispatch/Other</td></tr>
+            <tr><td>Auto column width</td><td>All sheets</td><td>Max string length per column + 2, capped at 35 characters</td></tr>
+            <tr><td>NaN/Inf sanitization</td><td>All sheets</td><td>Convert to "N/A" string for Excel display</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="tools-formulas-methods">
+      <div class="section-header">
+        <div><div class="section-index">04 / Tools / Formulas / Methods</div><h2 class="section-title">Tools / Formulas / Methods</h2></div>
+      </div>
+      <div class="technical-frame technical">
+        <table>
+          <thead><tr><th>Tool / Method</th><th>Usage</th></tr></thead>
+          <tbody>
+            <tr><td><code>openpyxl</code></td><td>Workbook creation, sheet management, cell styling, number formatting</td></tr>
+            <tr><td><code>openpyxl.styles</code></td><td>Font, Fill, Border, Alignment for all cells</td></tr>
+            <tr><td><code>openpyxl.utils.get_column_letter</code></td><td>Convert column index to letter for width setting</td></tr>
+            <tr><td><code>pandas.DataFrame.iterrows()</code></td><td>Iterate annual proforma rows for assessment sheet</td></tr>
+            <tr><td><code>pytest</code></td><td>19 unit tests across 8 test classes</td></tr>
+            <tr><td><code>tempfile.TemporaryDirectory</code></td><td>Isolated file system for save workbook test</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="results-visualizations">
+      <div class="section-header">
+        <div><div class="section-index">05 / Results &amp; Visualizations</div><h2 class="section-title">Results &amp; Visualizations</h2></div>
+      </div>
+      <div class="metric-strip">
+        <div class="metric"><div class="metric-label">Functions Added</div><div class="metric-value">7</div></div>
+        <div class="metric"><div class="metric-label">Tests Added</div><div class="metric-value">19</div></div>
+        <div class="metric"><div class="metric-label">Tests Passing</div><div class="metric-value">19 / 19</div></div>
+      </div>
+      <div class="empty-state" style="margin-top: 18px;">
+        <strong>No Chart Data</strong>
+        <p style="color: var(--muted); margin-top: 8px;">This phase produced a formatting/writing module — no quantitative data was generated that would benefit from Chart.js visualization. The Excel writer itself produces visual output in .xlsx format.</p>
+      </div>
+    </section>
+
+    <section class="section narrative" id="limitations-second-best-alternative">
+      <div class="section-header">
+        <div><div class="section-index">06 / Limitations / Second-Best Alternative</div><h2 class="section-title">Limitations / Second-Best Alternative</h2></div>
+      </div>
+      <div class="question-frame">
+        <ul>
+          <li><strong>No Excel formulas:</strong> All values are static Python-computed numbers. The client cannot modify inputs and see recalculated outputs. This is intentional per the plan (CON-001) but limits the workbook to assessment use only.</li>
+          <li><strong>No chart embedding:</strong> Dispatch charts and DSCR charts are deferred to Sprint 3 (PHASE-02 of that sprint). The assessment sheet currently shows only tabular proforma data.</li>
+          <li><strong>No go/no-go verdict:</strong> The Cover sheet shows raw KPIs without interpretive assessment logic. This is deferred to Sprint 3 (PHASE-01).</li>
+          <li><strong>Column width estimation is approximate:</strong> The <code>_auto_width()</code> function uses string length, which doesn't account for font metrics. Some columns may be slightly too narrow or too wide.</li>
+          <li><strong>Second-best alternative:</strong> Could have used <code>xlsxwriter</code> for better chart support and conditional formatting. Not chosen because <code>openpyxl</code> is already a project dependency and handles both read and write.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section narrative" id="errors-warnings-flags-encountered">
+      <div class="section-header">
+        <div><div class="section-index">07 / Errors / Warnings / Flags</div><h2 class="section-title">Errors / Warnings / Flags Encountered</h2></div>
+      </div>
+      <div class="question-frame technical">
+        <ul>
+          <li><strong>No new errors:</strong> All 19 tests pass on first run. No pre-existing failures were triggered by this phase.</li>
+          <li><strong>Git warning:</strong> LF→CRLF conversion warnings — standard Windows behavior, no impact.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section narrative" id="open-questions-next-phase-seeds">
+      <div class="section-header">
+        <div><div class="section-index">08 / Open Questions / Next Phase Seeds</div><h2 class="section-title">Open Questions / Next Phase Seeds</h2></div>
+      </div>
+      <div class="question-frame">
+        <ul>
+          <li><strong>PHASE-03:</strong> Create <code>scripts/generate_dppa_assessment.py</code> CLI script that orchestrates pipeline runs and Excel writer to produce a complete assessment workbook from a single command.</li>
+          <li><strong>PHASE-03:</strong> Add <code>--input</code>, <code>--output</code>, <code>--project-name</code>, <code>--ppa-options</code> CLI arguments.</li>
+          <li><strong>PHASE-03:</strong> Write integration test <code>tests/integration/test_dppa_assessment_script.py</code>.</li>
+          <li><strong>Cleanup:</strong> Resolve the pre-existing emivest directory JSON file conflict and waterfall test mismatch.</li>
+        </ul>
+      </div>
+      <div class="footer-note">artifact generated for reflection, not presentation theater</div>
+    </section>
+  </main>
+  <script>
+    (function() { const chartCanvases = document.querySelectorAll('canvas'); chartCanvases.forEach((canvas) => { canvas.classList.add('report-chart'); const parent = canvas.parentElement; if (parent && parent.classList.contains('technical-frame') && !parent.classList.contains('chart-frame')) { parent.classList.add('chart-frame'); } }); })();
+    if (window.Chart) { Chart.defaults.devicePixelRatio = 1; Chart.defaults.animation = false; Chart.defaults.resizeDelay = 150; Chart.defaults.normalized = true; Chart.defaults.maintainAspectRatio = false; Chart.defaults.responsive = true; window.__REPORT_CHART_DEFAULTS__ = { animation: false, resizeDelay: 150, normalized: true, maintainAspectRatio: false, responsive: true }; }
+  </script>
+</body>
+</html>
