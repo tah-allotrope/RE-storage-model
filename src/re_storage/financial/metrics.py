@@ -158,3 +158,75 @@ def calculate_dscr_series(ebitda_usd: pd.Series, debt_service_usd: pd.Series) ->
     dscr = ebitda_usd.astype(float) / debt_service_usd.astype(float)
     dscr.name = "dscr_ratio"
     return dscr
+
+
+def calculate_simple_payback(total_capex_usd: float, year1_ebitda_usd: float) -> float:
+    """
+    Calculate simple payback period.
+
+    Args:
+        total_capex_usd: Total initial capital expenditure (USD).
+        year1_ebitda_usd: Year 1 EBITDA (USD).
+
+    Returns:
+        Payback period in years. Returns float('inf') if EBITDA <= 0.
+    """
+    if year1_ebitda_usd <= 0:
+        return float("inf")
+    return total_capex_usd / year1_ebitda_usd
+
+
+def calculate_discounted_payback(
+    cashflows: pd.Series, dates: pd.Series, discount_rate_pct: float
+) -> int | None:
+    """
+    Calculate discounted payback period.
+
+    Iterates year-by-year through cumulative discounted cashflows and returns
+    the first year index where the cumulative sum turns non-negative.
+
+    Args:
+        cashflows: Cashflow series (USD), typically including initial capex at index 0.
+        dates: Corresponding dates for each cashflow.
+        discount_rate_pct: Discount rate as a percentage (e.g., 8.0).
+
+    Returns:
+        The year index (0-based) where cumulative discounted cashflow turns
+        non-negative, or None if it never recovers.
+    """
+    if discount_rate_pct <= -100:
+        return None
+
+    rate = discount_rate_pct / 100.0
+    cf_values = pd.Series(cashflows, dtype=float)
+    date_values = pd.to_datetime(pd.Series(dates), errors="coerce")
+
+    if date_values.isna().any():
+        return None
+
+    base_date = date_values.iloc[0]
+    year_fractions = (date_values - base_date).dt.days.to_numpy(dtype=float) / 365.0
+
+    cumulative = 0.0
+    for i in range(len(cf_values)):
+        discounted = cf_values.iloc[i] / (1 + rate) ** year_fractions[i]
+        cumulative += discounted
+        if cumulative >= 0:
+            return i
+    return None
+
+
+def calculate_cash_on_cash_yield(year1_fcfe_usd: float, equity_invested_usd: float) -> float:
+    """
+    Calculate cash-on-cash yield for Year 1.
+
+    Args:
+        year1_fcfe_usd: Year 1 free cash flow to equity (USD).
+        equity_invested_usd: Total equity invested (USD).
+
+    Returns:
+        Cash-on-cash yield as a decimal (e.g., 0.15 for 15%). Returns 0.0 if equity <= 0.
+    """
+    if equity_invested_usd <= 0:
+        return 0.0
+    return year1_fcfe_usd / equity_invested_usd

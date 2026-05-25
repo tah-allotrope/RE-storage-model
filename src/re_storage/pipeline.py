@@ -32,10 +32,13 @@ from re_storage.core.types import (
 )
 from re_storage.financial.debt import calculate_amortization_schedule, size_debt_for_dscr
 from re_storage.financial.metrics import (
+    calculate_cash_on_cash_yield,
+    calculate_discounted_payback,
     calculate_dscr_series,
     calculate_equity_irr,
     calculate_npv,
     calculate_project_irr,
+    calculate_simple_payback,
 )
 from re_storage.financial.mra import build_mra_schedule
 from re_storage.financial.opex import build_opex_schedule
@@ -901,6 +904,29 @@ def _run_financial(
         dscr_series = pd.Series(dtype=float)
 
     results["debt_amount_usd"] = debt_amount_usd
+
+    # Payback metrics
+    results["simple_payback_years"] = calculate_simple_payback(
+        total_capex_usd=initial_capex_usd,
+        year1_ebitda_usd=results["year1_ebitda_usd"],
+    )
+
+    try:
+        results["discounted_payback_year"] = calculate_discounted_payback(
+            cashflows=project_cf,
+            dates=dates,
+            discount_rate_pct=discount_rate_pct,
+        )
+    except Exception as exc:
+        logger.warning("Discounted payback calculation failed: %s", exc)
+        results["discounted_payback_year"] = None
+
+    equity_invested = initial_capex_usd - debt_amount_usd
+    year1_fcfe = float(waterfall["free_cash_flow_to_equity_usd"].iloc[0]) if len(waterfall) > 0 else 0.0
+    results["cash_on_cash_yield"] = calculate_cash_on_cash_yield(
+        year1_fcfe_usd=year1_fcfe,
+        equity_invested_usd=equity_invested,
+    )
 
     annual = waterfall.loc[year_index].copy()
     annual["dppa_revenue_usd"] = revenue["dppa_revenue_usd"].values
