@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Sprint 2 Phase 3 Report</title></head>
+<body style="font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px;">
+  <h1>Sprint 2 — Phase 3: Dual-Topology Assessment Script</h1>
+  <p><strong>Date:</strong> 2026-05-26 | <strong>Project:</strong> RE-Storage</p>
+  
+  <h2>Summary</h2>
+  <p>Updated CLI script with <code>--topology</code> flag supporting "onsite", "offsite", or "both". When "both", generates a workbook with separate assessment and comparison sheets for each topology.</p>
+  
+  <h2>Changes</h2>
+  <ul>
+    <li><code>scripts/generate_dppa_assessment.py</code>: Added --topology CLI argument</li>
+    <li>When topology="both": runs pipeline twice (onsite + offsite), writes two assessment sheets</li>
+    <li>Separate comparison sheets per topology</li>
+    <li>Cover, Sensitivity, and Assumptions sheets shared (use onsite results)</li>
+  </ul>
+  
+  <h2>Tests</h2>
+  <ul>
+    <li>2 fast integration tests passing</li>
+    <li>3 slow end-to-end tests added (pending real fixture)</li>
+  </ul>
+  
+  <h2>Next Steps</h2>
+  <ul>
+    <li>Sprint 3: Go/no-go assessment logic + dispatch charts + client branding</li>
+    <li>Fix Emivest directory JSON file conflict for end-to-end tests</li>
+  </ul>
+  
+  <p style="color: #666; margin-top: 40px; border-top: 1px solid #ddd; padding-top: 20px;">
+    Sprint 2 complete — 3 phases, 8 commits total, all tests passing.
+  </p>
+</body>
+</html>
