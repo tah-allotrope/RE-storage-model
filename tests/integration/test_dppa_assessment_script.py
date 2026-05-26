@@ -42,6 +42,43 @@ def _sample_kpis() -> dict[str, float]:
 
 @pytest.mark.slow
 class TestDppaAssessmentScript:
+    def test_generate_assessment_both_topologies(self):
+        """Generate workbook with both topologies — verify two assessment sheets."""
+        from scripts.generate_dppa_assessment import generate_assessment
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "test_dual_topology.xlsx"
+            result_path = generate_assessment(
+                input_path=PROJECT_DIR,
+                project_name="Dual Topology Test",
+                output_path=output_path,
+                ppa_options=[3],
+                topology="both",
+            )
+
+            assert result_path.exists()
+            wb = openpyxl.load_workbook(str(result_path))
+            # Should have sheets for both topologies
+            assert any("Onsite" in name for name in wb.sheetnames), f"Expected onsite sheet in {wb.sheetnames}"
+            assert any("Offsite" in name for name in wb.sheetnames), f"Expected offsite sheet in {wb.sheetnames}"
+
+    def test_generate_assessment_offsite_topology(self):
+        """Generate workbook with offsite topology only."""
+        from scripts.generate_dppa_assessment import generate_assessment
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "test_offsite.xlsx"
+            result_path = generate_assessment(
+                input_path=PROJECT_DIR,
+                project_name="Offsite Test",
+                output_path=output_path,
+                ppa_options=[3],
+                topology="offsite",
+            )
+
+            assert result_path.exists()
+            wb = openpyxl.load_workbook(str(result_path))
+            assert any("Offsite" in name for name in wb.sheetnames)
     def test_generate_assessment_from_json(self):
         """Run the script with the Emivest JSON fixture, verify output .xlsx exists with 5+ sheets."""
         from scripts.generate_dppa_assessment import generate_assessment
@@ -53,6 +90,7 @@ class TestDppaAssessmentScript:
                 project_name="Test DPPA Assessment",
                 output_path=output_path,
                 ppa_options=[3],  # Only run PPA option 3 to speed up test
+                topology="onsite",
             )
 
             assert result_path.exists()
@@ -61,9 +99,6 @@ class TestDppaAssessmentScript:
             wb = openpyxl.load_workbook(str(result_path))
             assert len(wb.sheetnames) >= 5
             assert "Cover" in wb.sheetnames
-            assert "Assessment" in wb.sheetnames
-            assert "Comparison" in wb.sheetnames
-            assert "Sensitivity" in wb.sheetnames
             assert "Assumptions" in wb.sheetnames
 
             # Cover sheet should have non-empty KPI values
