@@ -625,6 +625,7 @@ def run_sensitivity_for_values(
     excel_path: Path | None = None,
     base_params: dict[str, Any] | None = None,
     ppa_option: int = 3,
+    dppa_topology: str = "onsite",
 ) -> dict[float, dict[str, Any]]:
     """
     Run the full pipeline for each value of a single sensitivity variable.
@@ -653,6 +654,9 @@ def run_sensitivity_for_values(
     """
     from re_storage.pipeline import run_full_model, run_model_from_json
 
+    if dppa_topology not in {"onsite", "offsite"}:
+        raise ValueError(f"dppa_topology must be 'onsite' or 'offsite', got {dppa_topology!r}")
+
     if project_dir is None and excel_path is None:
         raise ValueError("Either project_dir or excel_path must be provided.")
 
@@ -674,10 +678,12 @@ def run_sensitivity_for_values(
                     Path(excel_path),
                     ppa_option=ppa_option,
                     base_params=params,
+                    dppa_topology=dppa_topology,
                 )
             else:
                 kpis = run_model_from_json(
                     Path(project_dir),
+                    dppa_topology=dppa_topology,
                     ppa_option=ppa_option,
                     base_params=params,
                 )

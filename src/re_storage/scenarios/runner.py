@@ -30,6 +30,7 @@ def run_all_scenarios(
     excel_path: Path | None = None,
     base_params: dict[str, Any] | None = None,
     ppa_options: list[int] | None = None,
+    dppa_topology: str = "onsite",
 ) -> dict[int, dict[str, Any]]:
     """
     Run the full pipeline for each PPA option and return a comparison dict.
@@ -55,6 +56,9 @@ def run_all_scenarios(
     """
     from re_storage.pipeline import run_full_model, run_model_from_json
 
+    if dppa_topology not in {"onsite", "offsite"}:
+        raise ValueError(f"dppa_topology must be 'onsite' or 'offsite', got {dppa_topology!r}")
+
     if project_dir is None and excel_path is None:
         raise ValueError("Either project_dir or excel_path must be provided.")
 
@@ -70,12 +74,14 @@ def run_all_scenarios(
                     Path(excel_path),
                     ppa_option=option,
                     base_params=base_params,
+                    dppa_topology=dppa_topology,
                 )
             else:
                 kpis = run_model_from_json(
                     Path(project_dir),
                     ppa_option=option,
                     base_params=base_params,
+                    dppa_topology=dppa_topology,
                 )
             kpis = dict(kpis)
             kpis["ppa_option"] = option
