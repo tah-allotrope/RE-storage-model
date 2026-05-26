@@ -484,6 +484,7 @@ def _run_settlement(
     hourly_data: pd.DataFrame,
     assumptions: SystemAssumptions,
     tariff_rates: dict[TimePeriod, float],
+    dppa_topology: str = "onsite",
 ) -> pd.DataFrame:
     """
     Calculate PPA revenue and grid expenses for each hour.
@@ -515,6 +516,10 @@ def _run_settlement(
     result["bau_expense_usd"] = bau_expense
     result["re_expense_usd"] = re_expense
     result["grid_savings_usd"] = calculate_grid_savings(bau_expense, re_expense)
+
+    # Apply topology masking for offsite projects
+    if dppa_topology == "offsite":
+        result["grid_savings_usd"] = 0.0
 
     ppa_option = getattr(assumptions, "ppa_option", 3)
 
@@ -956,6 +961,7 @@ def run_full_model(
     tariff_rates: dict[TimePeriod, float] | None = None,
     ppa_option: int | None = None,
     base_params: dict[str, Any] | None = None,
+    dppa_topology: str = "onsite",
 ) -> dict[str, float]:
     """
     Run the full RE-Storage simulation pipeline on an Excel input file.
@@ -990,8 +996,11 @@ def run_full_model(
         EnergyBalanceError: If physics simulation violates energy balance.
         SoCBoundsError: If battery SoC goes out of bounds.
     """
+    if dppa_topology not in {"onsite", "offsite"}:
+        raise ValueError(f"dppa_topology must be 'onsite' or 'offsite', got {dppa_topology!r}")
+
     excel_path = Path(excel_path)
-    logger.info("Running full model on %s", excel_path.name)
+    logger.info("Running full model on %s (topology: %s)", excel_path.name, dppa_topology)
 
     financial_params = load_financial_params_from_cells(excel_path)
     assumption_updates, financial_updates = _split_pipeline_overrides(base_params, financial_params)
@@ -1070,7 +1079,7 @@ def run_full_model(
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
 
     # --- Stage B: Settlement ---
-    settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates)
+    settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates, dppa_topology)
 
     # --- Stage C: Aggregation ---
     agg = _run_aggregation(
@@ -1100,6 +1109,10 @@ def run_full_model(
         cp_demand_vnd_per_kw=cp_demand_vnd_per_kw,
         exchange_rate_usd_vnd=exchange_rate_effective,
     )
+
+    # Topology masking for offsite: zero out demand charge savings
+    if dppa_topology == "offsite":
+        demand_savings_yr1 = 0.0
 
     # Grid savings = factory's utility bill reduction. For all PPA structures, the project only
     # receives its PPA cash flows (dppa_revenue_usd). Grid savings accrue to the off-taker.
@@ -1171,7 +1184,11 @@ def run_full_model(
     year1 = agg["year1"]
     results["year1_solar_generation_mwh"] = float(year1.loc[1, "total_solar_generation_mwh"])
     results["year1_dppa_revenue_usd"] = float(year1.loc[1, "total_dppa_revenue_usd"])
-    results["year1_grid_savings_usd"] = float(year1.loc[1, "total_grid_savings_usd"])
+    year1_grid_savings = float(year1.loc[1, "total_grid_savings_usd"])
+    results["year1_grid_savings_usd"] = year1_grid_savings if dppa_topology == "onsite" else 0.0
+
+    # Record topology
+    results["dppa_topology"] = dppa_topology
 
     logger.info(
         "Model complete — Project IRR: %.4f, Equity IRR: %.4f, NPV: %.0f",
@@ -1188,6 +1205,7 @@ def run_model_from_json(
     tariff_rates: dict[TimePeriod, float] | None = None,
     ppa_option: int | None = None,
     base_params: dict[str, Any] | None = None,
+    dppa_topology: str = "onsite",
 ) -> dict[str, Any]:
     """
     Run the full RE-Storage pipeline using JSON+CSV project inputs.
@@ -1195,6 +1213,9 @@ def run_model_from_json(
     Returns the same scalar KPI keys as run_full_model, plus report-friendly
     DataFrames under underscore-prefixed keys: _hourly_df and _lifetime_df.
     """
+    if dppa_topology not in {"onsite", "offsite"}:
+        raise ValueError(f"dppa_topology must be 'onsite' or 'offsite', got {dppa_topology!r}")
+
     project_dir = Path(project_dir)
     if not project_dir.exists() or not project_dir.is_dir():
         raise ValueError(f"project_dir must be an existing directory: {project_dir}")
@@ -1271,7 +1292,7 @@ def run_model_from_json(
     )
 
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
-    settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates)
+    settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates, dppa_topology)
     rev_esc = float(
         financial_params.get(
             "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
@@ -1291,6 +1312,21 @@ def run_model_from_json(
     )
 
     initial_capex_usd = float(financial_params["initial_capex_usd"])
+
+    # Compute demand charge savings for JSON path
+    exchange_rate_usd_vnd = float(financial_params.get("exchange_rate_usd_vnd", 25_000.0))
+    cp_demand_vnd_per_kw = float(financial_params.get("cp_demand_vnd_per_kw", 0.0))
+    demand_savings_yr1 = 0.0
+    if cp_demand_vnd_per_kw > 0 and exchange_rate_usd_vnd > 0:
+        demand_savings_yr1 = calculate_annual_demand_savings(
+            monthly_data=agg["monthly"],
+            cp_demand_vnd_per_kw=cp_demand_vnd_per_kw,
+            exchange_rate_usd_vnd=exchange_rate_usd_vnd,
+        )
+    # Topology masking for offsite
+    if dppa_topology == "offsite":
+        demand_savings_yr1 = 0.0
+
     financial_kpis = _run_financial(
         lifetime=agg["lifetime"],
         project_years=project_years,
@@ -1341,6 +1377,7 @@ def run_model_from_json(
         bess_mra_pct=float(financial_params.get("bess_mra_pct", 0.60)),
         pv_mra_pct=float(financial_params.get("pv_mra_pct", 0.10)),
         mra_buildup_schedule=financial_params.get("mra_buildup_schedule"),
+        demand_charge_savings_usd_yr1=demand_savings_yr1,
     )
 
     results: dict[str, Any] = {}
@@ -1354,7 +1391,11 @@ def run_model_from_json(
     year1 = agg["year1"]
     results["year1_solar_generation_mwh"] = float(year1.loc[1, "total_solar_generation_mwh"])
     results["year1_dppa_revenue_usd"] = float(year1.loc[1, "total_dppa_revenue_usd"])
-    results["year1_grid_savings_usd"] = float(year1.loc[1, "total_grid_savings_usd"])
+    year1_grid_savings = float(year1.loc[1, "total_grid_savings_usd"])
+    results["year1_grid_savings_usd"] = year1_grid_savings if dppa_topology == "onsite" else 0.0
+
+    # Record topology
+    results["dppa_topology"] = dppa_topology
 
     annual_df = financial_kpis.get("_annual_df")
     if isinstance(annual_df, pd.DataFrame):
