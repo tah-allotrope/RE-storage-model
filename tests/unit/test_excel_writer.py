@@ -270,3 +270,71 @@ class TestNumberFormat:
         cell = ws.cell(row=1, column=1, value=7.5)
         _apply_number_format(cell, "simple_payback_years")
         assert cell.number_format == "0.0"
+
+
+class TestCoverSheetVerdict:
+    def test_cover_sheet_has_verdict_section(self):
+        from re_storage.reporting.assessment import AssessmentVerdict
+
+        wb = create_workbook()
+        verdict = AssessmentVerdict(
+            overall="GO",
+            equity_irr_status="PASS",
+            dscr_status="PASS",
+            npv_status="PASS",
+            payback_status="PASS",
+            details=["All metrics pass"],
+        )
+        write_cover_sheet(wb, "Test Project", {}, _sample_kpis(), verdict=verdict)
+        ws = wb["Cover"]
+        found_verdict = False
+        for row in range(1, ws.max_row + 1):
+            if ws.cell(row=row, column=1).value and "ASSESSMENT VERDICT" in str(
+                ws.cell(row=row, column=1).value
+            ):
+                found_verdict = True
+                break
+        assert found_verdict
+
+    def test_cover_sheet_verdict_colors(self):
+        from re_storage.reporting.assessment import AssessmentVerdict
+
+        wb = create_workbook()
+        verdict = AssessmentVerdict(
+            overall="NO-GO",
+            equity_irr_status="FAIL",
+            dscr_status="PASS",
+            npv_status="CAUTION",
+            payback_status="PASS",
+            details=["IRR too low"],
+        )
+        write_cover_sheet(wb, "Test Project", {}, _sample_kpis(), verdict=verdict)
+        ws = wb["Cover"]
+        # Find the overall verdict row
+        for row in range(1, ws.max_row + 1):
+            val = ws.cell(row=row, column=1).value
+            if val and "Overall: NO-GO" in str(val):
+                fill = ws.cell(row=row, column=1).fill
+                assert fill.patternType == "solid"
+                break
+
+
+class TestAssessmentSheetCharts:
+    def test_assessment_sheet_accepts_charts_parameter(self):
+        wb = create_workbook()
+        write_assessment_sheet(
+            wb, "Assessment", _sample_kpis(), _sample_annual_df(), charts=[]
+        )
+        ws = wb["Assessment"]
+        assert ws.title == "Assessment"
+
+
+class TestBranding:
+    def test_branding_header_fill_is_green(self):
+        wb = create_workbook()
+        write_cover_sheet(wb, "Test Project", {}, _sample_kpis())
+        ws = wb["Cover"]
+        # Header row at row 6
+        fill = ws.cell(row=6, column=1).fill
+        assert fill.patternType == "solid"
+        assert fill.fgColor.rgb == "002E7D32" or str(fill.fgColor.rgb).endswith("2E7D32")

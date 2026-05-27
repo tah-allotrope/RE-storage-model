@@ -26,14 +26,14 @@ Complete the client-facing DPPA assessment workbook with three polish layers:
 - [ ] TASK-02-06: Run tests, report skill, git commit/push
 
 ### PHASE-03 — Branding + Integration
-- [ ] TASK-03-01: Create `src/re_storage/reporting/styles.py`
-- [ ] TASK-03-02: Refactor `excel_writer.py` to use styles
-- [ ] TASK-03-03: Update `write_cover_sheet()` with verdict
-- [ ] TASK-03-04: Update `write_assessment_sheet()` with chart embedding
-- [ ] TASK-03-05: Check/add Pillow dependency
-- [ ] TASK-03-06: Update `scripts/generate_dppa_assessment.py`
-- [ ] TASK-03-07: Update `tests/unit/test_excel_writer.py`
-- [ ] TASK-03-08: Run full test suite
+- [x] TASK-03-01: Create `src/re_storage/reporting/styles.py`
+- [x] TASK-03-02: Refactor `excel_writer.py` to use styles
+- [x] TASK-03-03: Update `write_cover_sheet()` with verdict
+- [x] TASK-03-04: Update `write_assessment_sheet()` with chart embedding
+- [x] TASK-03-05: Check/add Pillow dependency (already installed v12.1.0)
+- [x] TASK-03-06: Update `scripts/generate_dppa_assessment.py`
+- [x] TASK-03-07: Update `tests/unit/test_excel_writer.py`
+- [x] TASK-03-08: Run full test suite — 359 passed, 3 pre-existing failures, 4 skipped
 - [ ] TASK-03-09: Manual verification, report skill, git commit/push
 
 ## Notes

@@ -33,6 +33,12 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from re_storage.pipeline import run_full_model, run_model_from_json
+from re_storage.reporting.assessment import assess_project
+from re_storage.reporting.charts import (
+    generate_average_day_dispatch,
+    generate_dscr_line_chart,
+    generate_monthly_generation_bar,
+)
 from re_storage.reporting.excel_writer import (
     create_workbook,
     save_workbook,
@@ -147,6 +153,7 @@ def generate_assessment(
     first_results = None
     first_annual_df = None
     first_exchange_rate = None
+    chart_paths_to_clean: list[Path] = []
 
     for topo in topologies:
         logger.info("Running pipeline for topology: %s", topo)
@@ -155,11 +162,47 @@ def generate_assessment(
         default_results = _run_pipeline_with_topology(input_path, input_type, ppa_option=3, topology=topo)
         exchange_rate = _extract_exchange_rate(default_results)
         annual_df = default_results.get("_annual_df")
+        hourly_df = default_results.get("_hourly_df")
 
         if first_results is None:
             first_results = default_results
             first_annual_df = annual_df
             first_exchange_rate = exchange_rate
+
+        # Assess project
+        verdict = assess_project(default_results)
+
+        # Generate charts
+        charts: list[Path] = []
+        try:
+            if hourly_df is not None:
+                dispatch_chart = generate_average_day_dispatch(
+                    hourly_df, title=f"Average Day Dispatch ({topo.title()})"
+                )
+                charts.append(dispatch_chart)
+                chart_paths_to_clean.append(dispatch_chart)
+        except Exception as exc:
+            logger.warning("Dispatch chart generation failed for %s: %s", topo, exc)
+
+        try:
+            if annual_df is not None:
+                dscr_chart = generate_dscr_line_chart(
+                    annual_df, covenant=1.2, title=f"DSCR Profile ({topo.title()})"
+                )
+                charts.append(dscr_chart)
+                chart_paths_to_clean.append(dscr_chart)
+        except Exception as exc:
+            logger.warning("DSCR chart generation failed for %s: %s", topo, exc)
+
+        try:
+            if annual_df is not None:
+                revenue_chart = generate_monthly_generation_bar(
+                    annual_df, title=f"Annual Revenue Breakdown ({topo.title()})"
+                )
+                charts.append(revenue_chart)
+                chart_paths_to_clean.append(revenue_chart)
+        except Exception as exc:
+            logger.warning("Revenue chart generation failed for %s: %s", topo, exc)
 
         sheet_name = f"Assessment ({topo.title()})"
         write_assessment_sheet(
@@ -168,6 +211,7 @@ def generate_assessment(
             kpis=default_results,
             annual_df=annual_df,
             exchange_rate_usd_vnd=exchange_rate,
+            charts=charts,
         )
 
         # Run all scenarios for comparison
@@ -191,11 +235,13 @@ def generate_assessment(
 
     # Cover sheet (use first/topology=onsite results)
     cover_results = first_results or {}
+    cover_verdict = assess_project(cover_results)
     write_cover_sheet(
         wb,
         project_name=project_name,
         project_metadata=_build_project_metadata(cover_results, input_path),
         kpis=cover_results,
+        verdict=cover_verdict,
     )
     # Move cover to front
     wb.move_sheet("Cover", offset=-len(wb.sheetnames) + 1)
@@ -234,7 +280,16 @@ def generate_assessment(
         assumptions_dict=_extract_assumptions(cover_results),
     )
 
-    return save_workbook(wb, output_path)
+    result = save_workbook(wb, output_path)
+
+    # Clean up temporary chart files
+    for chart_path in chart_paths_to_clean:
+        try:
+            chart_path.unlink(missing_ok=True)
+        except Exception as exc:
+            logger.debug("Failed to clean up chart file %s: %s", chart_path, exc)
+
+    return result
 
 
 def _run_pipeline_with_topology(
