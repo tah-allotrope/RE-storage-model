@@ -34,7 +34,7 @@ Complete the client-facing DPPA assessment workbook with three polish layers:
 - [x] TASK-03-06: Update `scripts/generate_dppa_assessment.py`
 - [x] TASK-03-07: Update `tests/unit/test_excel_writer.py`
 - [x] TASK-03-08: Run full test suite — 359 passed, 3 pre-existing failures, 4 skipped
-- [ ] TASK-03-09: Manual verification, report skill, git commit/push
+- [x] TASK-03-09: Manual verification, report skill, git commit/push
 
 ## Notes
 - Pillow is already installed (v12.1.0), no need to add to pyproject.toml
