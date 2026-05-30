@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Final Report :: Sprint 4 — Two-Component Tariff Settlement Path</title>
+  <meta name="color-scheme" content="dark light">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) return;
+      mermaid.initialize({ startOnLoad: false, theme: 'base', securityLevel: 'loose' });
+      await mermaid.run({ nodes: blocks });
+    }
+    const run = () => initMermaid().catch((error) => console.error('Mermaid render failed', error));
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', run, { once: true });
+    } else { run(); }
+  </script>
+  <style>
+    :root { --paper: #fbf7f1; --paper-strong: #fffdf9; --ink: #1f1912; --ink-soft: #5f564c; --line: #dccdb6; --line-strong: #bfa37d; --accent: #9d6b37; --accent-soft: #efe4d0; --accent-2: #3b6f76; --shadow: 0 18px 40px rgba(49,33,16,0.08); --radius-lg: 24px; --radius-md: 18px; --radius-sm: 12px; --page-width: 1040px; --display-font: Georgia, "Times New Roman", serif; --body-font: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; --mono-font: "Cascadia Code", Consolas, monospace; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; overflow-x: hidden; color: var(--ink); background: radial-gradient(circle at top left, rgba(157,107,55,0.09), transparent 26%), radial-gradient(circle at 88% 10%, rgba(59,111,118,0.08), transparent 22%), linear-gradient(180deg, #f7f1e7 0%, #fbf7f1 28%, #f6efe5 100%); font-family: var(--body-font); line-height: 1.65; letter-spacing: 0.01em; }
+    a { color: var(--accent-2); }
+    code, pre, .technical, .meta-chip, .section-index, .eyebrow, .stat-label, .stat-value, .mermaid { font-family: var(--mono-font); }
+    .page-shell { width: min(var(--page-width), calc(100vw - 32px)); margin: 0 auto; padding: 28px 0 56px; }
+    .hero { padding: 34px; border: 1px solid rgba(159,123,79,0.28); border-radius: 30px; background: linear-gradient(135deg, rgba(157,107,55,0.1), transparent 34%), linear-gradient(180deg, rgba(255,255,255,0.58), rgba(255,255,255,0.86)), var(--paper-strong); box-shadow: var(--shadow); }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.85fr); gap: 24px; align-items: end; }
+    .eyebrow { margin: 0 0 12px; color: var(--accent); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+    .title { margin: 0; max-width: 13ch; font-family: var(--display-font); font-size: clamp(2.6rem, 4.7vw, 4.5rem); line-height: 0.95; letter-spacing: -0.04em; text-wrap: balance; }
+    .lede { margin: 18px 0 0; max-width: 62ch; color: var(--ink-soft); font-size: 1rem; }
+    .takeaway { margin-top: 22px; padding: 18px 20px; border-left: 4px solid var(--accent-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: rgba(59,111,118,0.08); color: #20373a; font-size: 1.02rem; }
+    .meta-grid { display: grid; gap: 12px; }
+    .meta-card, .section, .subcard, .empty-state { border: 1px solid rgba(95,72,46,0.12); background: rgba(255,253,249,0.88); box-shadow: var(--shadow); }
+    .meta-card { padding: 16px 18px; border-radius: var(--radius-md); }
+    .meta-label { color: var(--ink-soft); font-size: 0.76rem; letter-spacing: 0.14em; text-transform: uppercase; }
+    .meta-chip { margin-top: 8px; color: var(--accent); font-size: 1rem; font-weight: 700; word-break: break-word; }
+    .section { margin-top: 22px; padding: 24px; border-radius: var(--radius-lg); break-inside: avoid; page-break-inside: avoid; }
+    .section-header { display: flex; justify-content: space-between; gap: 12px 18px; align-items: end; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .section-index { color: var(--accent); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+    .section-title { margin: 0; font-family: var(--display-font); font-size: clamp(1.45rem, 2vw, 2rem); line-height: 1.05; }
+    .summary-grid, .dual-grid, .phase-grid, .stat-grid, .appendix-grid { display: grid; gap: 16px; }
+    .summary-grid, .dual-grid, .phase-grid, .appendix-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .subcard { padding: 18px; border-radius: var(--radius-md); break-inside: avoid; page-break-inside: avoid; }
+    .subcard h3, .subcard h4 { margin: 0 0 10px; font-size: 1rem; line-height: 1.2; }
+    .subcard p:first-child, .subcard ul:first-child, .subcard ol:first-child { margin-top: 0; }
+    .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; }
+    .stat { padding: 14px 16px; border: 1px solid rgba(59,111,118,0.16); border-radius: var(--radius-sm); background: rgba(59,111,118,0.06); break-inside: avoid; page-break-inside: avoid; }
+    .stat-label { color: var(--ink-soft); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; }
+    .stat-value { margin-top: 8px; color: var(--accent-2); font-size: 1.18rem; font-weight: 700; }
+    .narrative, .chart-frame, .technical-frame, .diagram-frame, .viz-frame { padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(255,255,255,0.54); break-inside: avoid; page-break-inside: avoid; }
+    .diagram-frame { overflow-x: auto; overflow-y: auto; overscroll-behavior-x: contain; overscroll-behavior-y: contain; max-height: min(70vh, 720px); }
+    .chart-frame, .viz-frame { overflow: hidden; }
+    .mermaid { width: 100%; max-width: 100%; min-width: 0; color: var(--ink); }
+    .mermaid svg { display: block; width: auto !important; min-width: 100%; max-width: none !important; height: auto !important; }
+    .chart-frame canvas, .technical-frame > canvas, .viz-frame canvas, canvas.report-chart { display: block; width: 100% !important; max-width: 100%; height: 300px !important; min-height: 300px; max-height: 300px; }
+    .technical-frame table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .technical-frame th, .technical-frame td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    .technical-frame th { color: var(--accent); font-size: 0.76rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .empty-state { padding: 20px; border-radius: var(--radius-md); text-align: center; color: var(--ink-soft); break-inside: avoid; page-break-inside: avoid; }
+    .empty-state strong { display: block; margin-bottom: 6px; color: var(--accent); font-size: 0.84rem; letter-spacing: 0.12em; text-transform: uppercase; }
+    ul, ol { margin: 0; padding-left: 20px; }
+    li { margin-bottom: 8px; }
+    p:last-child, li:last-child { margin-bottom: 0; }
+    .footer-note { margin-top: 18px; color: rgba(95,86,76,0.74); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; text-align: right; }
+    @media (max-width: 920px) { .hero-grid, .summary-grid, .dual-grid, .phase-grid, .stat-grid, .appendix-grid { grid-template-columns: 1fr; } .title { max-width: none; } }
+    @media (max-width: 640px) { .page-shell { width: min(100vw - 20px, var(--page-width)); padding-top: 16px; padding-bottom: 36px; } .hero, .section { padding: 18px; border-radius: 20px; } .title { font-size: clamp(2.1rem, 12vw, 3.2rem); } }
+    @media print { :root { --paper: #ffffff; --paper-strong: #ffffff; --ink: #111111; --ink-soft: #444444; --line: #d6d1c8; } @page { size: A4; margin: 14mm; } body { background: #ffffff; } .page-shell { width: 100%; max-width: none; padding: 0; } .hero, .meta-card, .section, .subcard, .narrative, .chart-frame, .technical-frame, .diagram-frame, .viz-frame, .empty-state, .stat { background: #ffffff; box-shadow: none; } .hero, .section { margin-top: 0; margin-bottom: 10mm; } .diagram-frame { overflow: visible; max-height: none; } .diagram-frame.compact-diagram .mermaid { min-width: 0; } .section-header, .takeaway { break-after: avoid; page-break-after: avoid; } a { color: inherit; text-decoration: none; } }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" id="title-hero">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Final Report / Shareable Analysis Artifact</p>
+          <h1 class="title">Sprint 4 — Two-Component Tariff</h1>
+          <p class="lede">
+            Added support for Vietnam's Decree 146/2025 two-component electricity tariff (capacity charge Cp + lower energy charges Ca) end-to-end — through the simulation pipeline, the input loaders, and the client DPPA assessment workbook — so projects whose offtakers fall in the pilot scope can be assessed accurately.
+          </p>
+          <div class="takeaway">Switching a project to the two-component tariff is now a one-line option. The model captures both sides of the tradeoff: lower energy rates shrink grid-bill savings, while the BESS earns a new demand-charge reduction stream the single-component tariff could never reward.</div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-card"><div class="meta-label">Project</div><div class="meta-chip">RE-Storage Model</div></div>
+          <div class="meta-card"><div class="meta-label">Repository</div><div class="meta-chip">RE-storage-model</div></div>
+          <div class="meta-card"><div class="meta-label">Date</div><div class="meta-chip">2026-05-31</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="executive-summary">
+      <div class="section-header"><div><div class="section-index">01 / Executive Summary</div><h2 class="section-title">Executive Summary</h2></div></div>
+      <div class="summary-grid">
+        <div class="subcard">
+          <h3>What we built</h3>
+          <p>A single <code>tariff_mode</code> switch that runs the existing model under either tariff regime:</p>
+          <ul>
+            <li><strong>Pipeline:</strong> <code>"1-component"</code> (default, unchanged) or <code>"2-component"</code>, which settles energy on the lower Ca rates and activates the capacity-charge (Cp) demand-charge savings that were dormant until now.</li>
+            <li><strong>Loaders:</strong> the two-component Ca rates and Cp are read straight from project inputs (JSON <code>retail_tariff_matrix</code> and Excel) — no hand-coding per project.</li>
+            <li><strong>Workbook:</strong> a <code>--tariff-mode {1-component,2-component,both}</code> flag, a Demand Charge Savings row in the Comparison sheet, and a categorical 1C-vs-2C comparison.</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Why it matters</h3>
+          <p>Decree 146/2025 begins actual two-component billing for ~7,000 large industrial customers (22 kV+, &ge;200 MWh/month) in July 2026.</p>
+          <ul>
+            <li>For in-scope offtakers, demand-charge reduction becomes a real revenue driver — the model now quantifies it.</li>
+            <li>The assessment workbook shows clients the impact side-by-side, regardless of confirmation, so the upcoming tariff change is visible rather than hidden.</li>
+            <li>Rates are parameterised, not hardcoded — pilot values can be updated without code changes.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="background-objective">
+      <div class="section-header"><div><div class="section-index">02 / Background &amp; Objective</div><h2 class="section-title">Background &amp; Objective</h2></div></div>
+      <div class="narrative">
+        <p>Sprints 1–3 built the DPPA assessment workbook: Excel export with payback metrics, onsite/offsite topology, go/no-go verdicts, dispatch charts, and Allotrope branding. The <code>demand_charge.py</code> module existed but always received a capacity charge of zero, so it returned zero savings — the two-component tariff was the last unaddressed gap (GAP-07) before the workbook could represent the post-2026 Vietnamese market.</p>
+        <p>The objective of Sprint 4 was to model the Decree 146/2025 two-component tariff — capacity charge Cp plus lower energy charges Ca — and surface its economic impact in the assessment workbook, making BESS demand-charge reduction a material, visible revenue driver.</p>
+      </div>
+    </section>
+
+    <section class="section" id="inputs-scope">
+      <div class="section-header"><div><div class="section-index">03 / Inputs &amp; Scope</div><h2 class="section-title">Inputs &amp; Scope</h2></div></div>
+      <div class="dual-grid">
+        <div class="subcard">
+          <h3>In scope</h3>
+          <ul>
+            <li><code>tariff_mode</code> parameter through both pipeline entrypoints</li>
+            <li>Ca energy-rate settlement + Cp demand-charge activation</li>
+            <li>Two-component rate loading from JSON and Excel inputs</li>
+            <li><code>--tariff-mode {1-component,2-component,both}</code> CLI flag</li>
+            <li>Demand Charge Savings row in the Comparison sheet</li>
+            <li>Categorical 1C-vs-2C comparison with KPI delta</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Out of scope</h3>
+          <ul>
+            <li>Circular 62/2025 BESS-specific two-part tariff (low confidence on rates)</li>
+            <li>Wind generation modeling</li>
+            <li>Factory NPV analysis</li>
+            <li>A single 16-column topology × mode × PPA comparison matrix (kept as stacked per-mode sheets)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="assumptions-constraints">
+      <div class="section-header"><div><div class="section-index">04 / Assumptions &amp; Constraints</div><h2 class="section-title">Assumptions &amp; Constraints</h2></div></div>
+      <div class="dual-grid">
+        <div class="subcard">
+          <h3>Assumptions</h3>
+          <ul>
+            <li>Two-component pilot rates (22 kV): Cp = 235,414 VND/kW/month; Ca = 859 / 1,275 / 2,182 VND/kWh (off-peak / standard / peak).</li>
+            <li>Demand-charge savings = &Sigma;<sub>months</sub> [(baseline_peak − post-RE_peak) × Cp] / FX.</li>
+            <li>Two-component tariff affects onsite topology only; offsite projects sell at FMP/CfD and pay no retail tariff.</li>
+            <li>Cp is loaded from input (Q-002 default), with a hardcoded fallback.</li>
+            <li>Both tariff modes are shown as a comparison regardless of pilot-scope confirmation (Q-001 default).</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Constraints</h3>
+          <ul>
+            <li>The fixture's <code>retail_tariff_matrix</code> is a <code>tariff_options</code> list keyed by <code>voltage_level</code> (e.g. <code>"22kV-2-component"</code>), not the flat keys the plan assumed — the loader matches on the connection-voltage tier.</li>
+            <li>No real two-component Excel workbook is in-repo, so the Excel path is exercised via synthetic openpyxl fixtures.</li>
+            <li><code>--tariff-mode both</code> with <code>--topology both</code> is ~16 pipeline runs (several minutes) for a one-shot deliverable.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="methodology">
+      <div class="section-header"><div><div class="section-index">05 / Methodology</div><h2 class="section-title">Methodology</h2></div></div>
+      <div class="narrative">
+        <p>Sprint 4 ran as three sequential phases under red/green TDD: write failing tests first, implement to green, then verify the full suite for regressions. PHASE-01 established the pipeline switch with rates passed explicitly; PHASE-02 taught the loaders to supply those rates from real project data and auto-wired them; PHASE-03 surfaced the feature in the client workbook and scenario tooling.</p>
+        <p>Each phase was committed and pushed independently with its own phase report. After each change the suite was diffed against a stashed baseline to prove that the only test movements were the new passes — every remaining failure was confirmed pre-existing and environmental.</p>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Phases</div><div class="stat-value">3</div></div>
+        <div class="stat"><div class="stat-label">Tests Added</div><div class="stat-value">14</div></div>
+        <div class="stat"><div class="stat-label">New Regressions</div><div class="stat-value">0</div></div>
+      </div>
+    </section>
+
+    <section class="section" id="phase-analysis">
+      <div class="section-header"><div><div class="section-index">06 / Phase-by-Phase Analysis</div><h2 class="section-title">Phase-by-Phase Analysis</h2></div></div>
+      <div class="phase-grid">
+        <div class="subcard">
+          <h3>PHASE-01: Tariff Mode in Pipeline</h3>
+          <p>Added <code>tariff_mode</code> + <code>cp_demand_vnd_per_kw</code> + <code>exchange_rate_usd_vnd</code> to the schema and threaded <code>tariff_mode</code> / <code>ca_tariff_rates</code> / <code>cp_demand_vnd_per_kw</code> through both pipeline entrypoints. Cp is gated to 2-component; results expose <code>tariff_mode</code> and <code>demand_charge_savings_usd</code>. Caught and fixed a local variable that shadowed the new parameter. 4 tests.</p>
+        </div>
+        <div class="subcard">
+          <h3>PHASE-02: Load Rates from Inputs</h3>
+          <p><code>load_two_component_tariff_from_json</code> selects the option matching the project's voltage tier and converts Ca VND→USD/kWh; the pipeline auto-loads when 2-component is selected. The Excel loader surfaces <code>cp_demand_vnd_per_kw</code> and detects <code>tariff_mode</code> from sheet labels. 5 tests.</p>
+        </div>
+        <div class="subcard">
+          <h3>PHASE-03: Workbook Integration</h3>
+          <p><code>--tariff-mode</code> CLI flag (incl. <code>both</code>); mode threaded through the scenario runner and sensitivity engine; a Demand Charge Savings row in the Comparison sheet; and <code>run_tariff_mode_comparison</code>, a categorical comparison returning both modes plus the delta. 4 tests, including an end-to-end workbook build. </p>
+        </div>
+        <div class="subcard">
+          <h3>Key transition</h3>
+          <p>The pivotal design choice was making 2-component a <em>mode flag</em> rather than a separate settlement module: the math is identical (energy × rate + demand × Cp), only the rate values change. PHASE-02's auto-load then made the switch usable with no extra arguments, and PHASE-03 exposed it without reworking the existing sheets.</p>
+        </div>
+      </div>
+      <div class="diagram-frame compact-diagram">
+        <div class="mermaid">
+flowchart LR
+    A[PHASE-01<br/>Pipeline switch] --> B[PHASE-02<br/>Load + auto-wire rates]
+    B --> C[PHASE-03<br/>Workbook + scenarios]
+    C --> D[Client Workbook]
+    D --> E[Assessment per mode]
+    D --> F[Comparison + Demand Charge row]
+    D --> G[1C vs 2C delta]
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="findings-recommendation">
+      <div class="section-header"><div><div class="section-index">07 / Findings &amp; Recommendation</div><h2 class="section-title">Findings &amp; Recommendation</h2></div></div>
+      <div class="narrative">
+        <p><strong>Finding 1 — the tradeoff is real and now measurable.</strong> On the Emivest base case (onsite, DPPA CfD), switching to the two-component tariff lowers Year-1 grid energy savings from ~$303.9k to ~$203.1k while opening a new ~$8.0k demand-charge savings stream. The net effect depends on the project's monthly peak-reduction profile.</p>
+        <p><strong>Finding 2 — Ca rates are materially lower across every period</strong> (e.g. standard 0.0705 → 0.0490 USD/kWh), which is exactly why the energy-savings line falls.</p>
+        <p><strong>Finding 3 — the mode-flag design held.</strong> No settlement code was duplicated, and the default 1-component path produces unchanged output, confirmed by zero new test failures.</p>
+        <p><strong>Recommendation:</strong> Present both tariff modes to the client. If the offtaker is confirmed within the 22 kV pilot scope, flip 2-component to the default and keep 1-component as the comparison.</p>
+      </div>
+      <div class="chart-frame">
+        <canvas id="deltaChart" class="report-chart" height="300"></canvas>
+      </div>
+    </section>
+
+    <section class="section" id="implementation-path">
+      <div class="section-header"><div><div class="section-index">08 / Implementation Path</div><h2 class="section-title">Implementation Path</h2></div></div>
+      <div class="phase-grid">
+        <div class="subcard">
+          <h3>How to use it</h3>
+          <ul>
+            <li>CLI: <code>python scripts/generate_dppa_assessment.py --input &lt;project&gt; --project-name "..." --tariff-mode both</code></li>
+            <li>API: <code>run_model_from_json(dir, tariff_mode="2-component")</code> — rates auto-load from the project JSON.</li>
+            <li>Comparison: <code>run_tariff_mode_comparison(project_dir=dir)</code> returns <code>{1-component, 2-component, delta}</code>.</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Cleanup debt (separate from Sprint 4)</h3>
+          <ul>
+            <li>Consolidate the emivest fixture dir — two JSONs break <code>run_model_from_json</code> on the bare directory.</li>
+            <li>Provide the Ecoplexus reference workbook (or mark its regression xfail) so the Excel comparison runs in CI.</li>
+            <li>Resolve the <code>test_waterfall_calculation</code> 210-vs-200 expectation; register the <code>slow</code> pytest mark.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="risks-open-questions">
+      <div class="section-header"><div><div class="section-index">09 / Risks / Open Questions</div><h2 class="section-title">Risks / Open Questions</h2></div></div>
+      <div class="dual-grid">
+        <div class="subcard">
+          <h3>Risks</h3>
+          <ul>
+            <li>Pilot rates may change before July 2026 billing — mitigated by parameterisation, not hardcoding.</li>
+            <li>Demand-charge savings hinge on the dispatch peak-reduction profile; a battery optimised for arbitrage rather than peak-shaving yields modest Cp savings (as seen here).</li>
+            <li>The Excel two-component path lacks a real workbook fixture, so it is covered only by synthetic tests.</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Open questions</h3>
+          <ul>
+            <li>Is the client's offtaker confirmed within the 22 kV+, &ge;200 MWh/month pilot scope? If so, 2-component becomes the default.</li>
+            <li>Should the comparison sheet eventually show all four (topology × mode) columns together, or remain stacked per mode?</li>
+            <li>Should a peak-shaving dispatch variant be offered to maximise demand-charge value under 2-component?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="appendices-evidence">
+      <div class="section-header"><div><div class="section-index">10 / Appendices / Evidence Notes</div><h2 class="section-title">Appendices / Evidence Notes</h2></div></div>
+      <div class="appendix-grid">
+        <div class="subcard">
+          <h3>Files created or modified</h3>
+          <ul>
+            <li><code>src/re_storage/inputs/schemas.py</code> — new tariff fields</li>
+            <li><code>src/re_storage/pipeline.py</code> — mode switch, rate selection, Cp gating</li>
+            <li><code>src/re_storage/inputs/json_loader.py</code> — <code>load_two_component_tariff_from_json</code></li>
+            <li><code>src/re_storage/inputs/loaders.py</code> — Excel Cp + tariff_mode</li>
+            <li><code>src/re_storage/scenarios/runner.py</code>, <code>sensitivity.py</code> — mode forwarding + categorical comparison</li>
+            <li><code>src/re_storage/reporting/excel_writer.py</code> — Demand Charge Savings row</li>
+            <li><code>scripts/generate_dppa_assessment.py</code> — <code>--tariff-mode</code> + mode×topology loop</li>
+            <li>5 test files (<code>test_pipeline_tariff_mode</code>, <code>test_json_loader</code>, <code>test_inputs_loaders</code>, <code>test_tariff_mode_integration</code>, <code>test_dppa_assessment_script</code>)</li>
+          </ul>
+        </div>
+        <div class="subcard">
+          <h3>Two-component pilot rates (Emivest, VND)</h3>
+          <div class="technical-frame" style="padding:0;border:none;background:none;box-shadow:none;">
+            <table>
+              <tr><th>Voltage tier</th><th>Ca off</th><th>Ca std</th><th>Ca peak</th><th>Cp</th></tr>
+              <tr><td>22kV-2-component <strong>(selected)</strong></td><td>859</td><td>1,275</td><td>2,182</td><td>235,414</td></tr>
+              <tr><td>110kV-2-component</td><td>843</td><td>1,253</td><td>2,162</td><td>209,459</td></tr>
+            </table>
+          </div>
+          <h3 style="margin-top:14px;">Verification</h3>
+          <ul>
+            <li>Full suite: 380 passed / 4 skipped / 14 pre-existing environmental failures (zero new).</li>
+            <li>Merged to <code>main</code>: commits <code>189028d</code>, <code>8a95a55</code>, <code>c85a9c9</code> (+ <code>80a62fe</code> pandas freq fix).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-note">designed for html first, printable without reconstruction</div>
+    </section>
+  </main>
+  <script>
+    (function () {
+      if (typeof Chart === 'undefined') return;
+      Chart.defaults.devicePixelRatio = 1;
+      Chart.defaults.animation = false;
+      Chart.defaults.resizeDelay = 150;
+      Chart.defaults.normalized = true;
+      Chart.defaults.maintainAspectRatio = false;
+      Chart.defaults.color = '#5f564c';
+      const ctx = document.getElementById('deltaChart');
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Year-1 Grid Energy Savings (USD)', 'Demand-Charge Savings (USD)'],
+          datasets: [
+            { label: '1-component', data: [303861.69, 0], backgroundColor: 'rgba(157,107,55,0.65)', borderColor: '#9d6b37', borderWidth: 1 },
+            { label: '2-component', data: [203100.84, 8013.54], backgroundColor: 'rgba(59,111,118,0.6)', borderColor: '#3b6f76', borderWidth: 1 }
+          ]
+        },
+        options: {
+          animation: false, resizeDelay: 150, normalized: true,
+          scales: {
+            x: { grid: { color: 'rgba(95,72,46,0.12)' } },
+            y: { grid: { color: 'rgba(95,72,46,0.12)' }, ticks: { callback: function (v) { return '$' + v.toLocaleString(); } } }
+          },
+          plugins: { legend: { labels: { color: '#1f1912' } } }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
