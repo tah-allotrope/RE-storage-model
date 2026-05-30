@@ -51,3 +51,6 @@ web/frontend/node_modules/
 web/frontend/dist/
 web/functions/re_storage/
 *.tsbuildinfo
+
+# Claude Code transient locks
+.claude/scheduled_tasks.lock
