@@ -31,6 +31,7 @@ def run_all_scenarios(
     base_params: dict[str, Any] | None = None,
     ppa_options: list[int] | None = None,
     dppa_topology: str = "onsite",
+    tariff_mode: str = "1-component",
 ) -> dict[int, dict[str, Any]]:
     """
     Run the full pipeline for each PPA option and return a comparison dict.
@@ -75,6 +76,7 @@ def run_all_scenarios(
                     ppa_option=option,
                     base_params=base_params,
                     dppa_topology=dppa_topology,
+                    tariff_mode=tariff_mode,
                 )
             else:
                 kpis = run_model_from_json(
@@ -82,6 +84,7 @@ def run_all_scenarios(
                     ppa_option=option,
                     base_params=base_params,
                     dppa_topology=dppa_topology,
+                    tariff_mode=tariff_mode,
                 )
             kpis = dict(kpis)
             kpis["ppa_option"] = option

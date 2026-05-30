@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -20,6 +21,17 @@ from re_storage.reporting.excel_writer import (
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent / "data" / "projects" / "emivest"
+
+
+@pytest.fixture
+def single_json_project(tmp_path: Path) -> Path:
+    """Isolated project dir with exactly one JSON + one CSV (the shared dir has two JSONs)."""
+    shutil.copy(PROJECT_DIR / "Emivest.json", tmp_path / "Emivest.json")
+    shutil.copy(
+        PROJECT_DIR / "Emivest additional data.csv",
+        tmp_path / "Emivest additional data.csv",
+    )
+    return tmp_path
 
 
 def _sample_kpis() -> dict[str, float]:
@@ -110,6 +122,45 @@ class TestDppaAssessmentScript:
                     found_kpi = True
                     break
             assert found_kpi, "Cover sheet should have at least one non-N/A KPI value"
+
+
+    def test_invalid_tariff_mode_raises(self):
+        """generate_assessment rejects an unknown tariff_mode."""
+        from scripts.generate_dppa_assessment import generate_assessment
+
+        with pytest.raises(ValueError, match="tariff_mode"):
+            generate_assessment(
+                input_path=PROJECT_DIR,
+                project_name="Bad Mode",
+                tariff_mode="3-component",
+            )
+
+    def test_generate_assessment_two_component(self, single_json_project: Path):
+        """2-component workbook surfaces a non-zero demand-charge savings row (onsite)."""
+        from scripts.generate_dppa_assessment import generate_assessment
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "test_two_component.xlsx"
+            result_path = generate_assessment(
+                input_path=single_json_project,
+                project_name="Two-Component Test",
+                output_path=output_path,
+                ppa_options=[3],
+                topology="onsite",
+                tariff_mode="2-component",
+            )
+
+            assert result_path.exists()
+            wb = openpyxl.load_workbook(str(result_path))
+            comparison = next(name for name in wb.sheetnames if "Comparison" in name)
+            ws = wb[comparison]
+            demand_row = None
+            for row in range(1, ws.max_row + 1):
+                if str(ws.cell(row=row, column=1).value or "").startswith("Demand Charge"):
+                    demand_row = row
+                    break
+            assert demand_row is not None, "Comparison sheet missing Demand Charge Savings row"
+            assert float(ws.cell(row=demand_row, column=2).value) > 0.0
 
 
 class TestAssessmentWorkbookIntegration:

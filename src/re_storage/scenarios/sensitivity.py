@@ -626,6 +626,7 @@ def run_sensitivity_for_values(
     base_params: dict[str, Any] | None = None,
     ppa_option: int = 3,
     dppa_topology: str = "onsite",
+    tariff_mode: str = "1-component",
 ) -> dict[float, dict[str, Any]]:
     """
     Run the full pipeline for each value of a single sensitivity variable.
@@ -679,6 +680,7 @@ def run_sensitivity_for_values(
                     ppa_option=ppa_option,
                     base_params=params,
                     dppa_topology=dppa_topology,
+                    tariff_mode=tariff_mode,
                 )
             else:
                 kpis = run_model_from_json(
@@ -686,6 +688,7 @@ def run_sensitivity_for_values(
                     dppa_topology=dppa_topology,
                     ppa_option=ppa_option,
                     base_params=params,
+                    tariff_mode=tariff_mode,
                 )
             kpis = dict(kpis)
             kpis["sensitivity_variable"] = variable_name
@@ -698,5 +701,87 @@ def run_sensitivity_for_values(
                 "sensitivity_value": value,
                 "error": str(exc),
             }
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Categorical sensitivity: tariff mode (1-component vs 2-component)
+# ---------------------------------------------------------------------------
+
+#: KPIs reported in the tariff-mode delta.
+_TARIFF_DELTA_KEYS = (
+    "project_irr",
+    "equity_irr",
+    "npv_usd",
+    "dscr_min",
+    "year1_grid_savings_usd",
+    "demand_charge_savings_usd",
+)
+
+
+def run_tariff_mode_comparison(
+    project_dir: Path | None = None,
+    excel_path: Path | None = None,
+    base_params: dict[str, Any] | None = None,
+    ppa_option: int = 3,
+    dppa_topology: str = "onsite",
+) -> dict[str, dict[str, Any]]:
+    """
+    Run the pipeline under both tariff modes and report the delta.
+
+    Unlike the numeric sweeps, ``tariff_mode`` is a categorical variable, so
+    this runs the full pipeline exactly twice — once as ``"1-component"`` and
+    once as ``"2-component"`` — holding everything else fixed.  Two-component
+    rates (Ca + Cp) are auto-loaded from the project inputs (Sprint 4 PHASE-02).
+
+    One of *project_dir* (JSON+CSV) or *excel_path* must be provided.
+
+    Returns:
+        ``{"1-component": kpis, "2-component": kpis, "delta": {...}}`` where
+        ``delta`` is ``2-component minus 1-component`` for the headline KPIs.
+        A mode that errors stores ``{"error": ...}`` and is skipped in the delta.
+    """
+    from re_storage.pipeline import run_full_model, run_model_from_json
+
+    if dppa_topology not in {"onsite", "offsite"}:
+        raise ValueError(f"dppa_topology must be 'onsite' or 'offsite', got {dppa_topology!r}")
+    if project_dir is None and excel_path is None:
+        raise ValueError("Either project_dir or excel_path must be provided.")
+
+    results: dict[str, dict[str, Any]] = {}
+    for mode in ("1-component", "2-component"):
+        logger.info("Tariff-mode comparison: %s", mode)
+        try:
+            if excel_path is not None:
+                kpis = run_full_model(
+                    Path(excel_path),
+                    ppa_option=ppa_option,
+                    base_params=copy.deepcopy(base_params or {}),
+                    dppa_topology=dppa_topology,
+                    tariff_mode=mode,
+                )
+            else:
+                kpis = run_model_from_json(
+                    Path(project_dir),
+                    ppa_option=ppa_option,
+                    base_params=copy.deepcopy(base_params or {}),
+                    dppa_topology=dppa_topology,
+                    tariff_mode=mode,
+                )
+            results[mode] = dict(kpis)
+        except Exception as exc:
+            logger.warning("Tariff-mode %s failed: %s", mode, exc)
+            results[mode] = {"error": str(exc)}
+
+    one = results.get("1-component", {})
+    two = results.get("2-component", {})
+    delta: dict[str, Any] = {}
+    for key in _TARIFF_DELTA_KEYS:
+        a = one.get(key)
+        b = two.get(key)
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            delta[key] = float(b) - float(a)
+    results["delta"] = delta
 
     return results

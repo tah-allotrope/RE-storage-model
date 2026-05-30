@@ -110,12 +110,16 @@ def _extract_assumptions(results: dict) -> dict:
     return {k: v for k, v in results.items() if k not in skip_keys}
 
 
+_TARIFF_MODE_SHORT = {"1-component": "1C", "2-component": "2C"}
+
+
 def generate_assessment(
     input_path: Path,
     project_name: str,
     output_path: Path | None = None,
     ppa_options: list[int] | None = None,
     topology: str = "both",
+    tariff_mode: str = "1-component",
 ) -> Path:
     """
     Generate a complete DPPA assessment workbook.
@@ -126,17 +130,26 @@ def generate_assessment(
         output_path: Output .xlsx path. Defaults to reports/dppa_assessment_{date}.xlsx.
         ppa_options: List of PPA option IDs to compare. Defaults to [1, 2, 3, 4].
         topology: "onsite", "offsite", or "both" (default).
+        tariff_mode: "1-component" (default), "2-component", or "both". When
+            "both", each topology is assessed under both tariff modes so the
+            workbook shows the Decree 146/2025 demand-charge impact side by side.
 
     Returns:
         Path to the generated workbook.
     """
     if topology not in {"onsite", "offsite", "both"}:
         raise ValueError(f"topology must be 'onsite', 'offsite', or 'both', got {topology!r}")
+    if tariff_mode not in {"1-component", "2-component", "both"}:
+        raise ValueError(
+            f"tariff_mode must be '1-component', '2-component', or 'both', got {tariff_mode!r}"
+        )
 
     if ppa_options is None:
         ppa_options = [1, 2, 3, 4]
 
     topologies = ["onsite", "offsite"] if topology == "both" else [topology]
+    tariff_modes = ["1-component", "2-component"] if tariff_mode == "both" else [tariff_mode]
+    multi_mode = len(tariff_modes) > 1
 
     input_type = _detect_input_type(input_path)
     logger.info("Input type: %s, topology: %s, PPA options: %s", input_type, topology, ppa_options)
@@ -156,82 +169,85 @@ def generate_assessment(
     chart_paths_to_clean: list[Path] = []
 
     for topo in topologies:
-        logger.info("Running pipeline for topology: %s", topo)
+        for mode in tariff_modes:
+            suffix = topo.title() + (f", {_TARIFF_MODE_SHORT[mode]}" if multi_mode else "")
+            logger.info("Running pipeline for topology=%s, tariff_mode=%s", topo, mode)
 
-        # Run default pipeline (PPA option 3 = DPPA CfD)
-        default_results = _run_pipeline_with_topology(input_path, input_type, ppa_option=3, topology=topo)
-        exchange_rate = _extract_exchange_rate(default_results)
-        annual_df = default_results.get("_annual_df")
-        hourly_df = default_results.get("_hourly_df")
+            # Run default pipeline (PPA option 3 = DPPA CfD)
+            default_results = _run_pipeline_with_topology(
+                input_path, input_type, ppa_option=3, topology=topo, tariff_mode=mode
+            )
+            exchange_rate = _extract_exchange_rate(default_results)
+            annual_df = default_results.get("_annual_df")
+            hourly_df = default_results.get("_hourly_df")
 
-        if first_results is None:
-            first_results = default_results
-            first_annual_df = annual_df
-            first_exchange_rate = exchange_rate
+            if first_results is None:
+                first_results = default_results
+                first_annual_df = annual_df
+                first_exchange_rate = exchange_rate
 
-        # Assess project
-        verdict = assess_project(default_results)
+            # Assess project
+            verdict = assess_project(default_results)
 
-        # Generate charts
-        charts: list[Path] = []
-        try:
-            if hourly_df is not None:
-                dispatch_chart = generate_average_day_dispatch(
-                    hourly_df, title=f"Average Day Dispatch ({topo.title()})"
-                )
-                charts.append(dispatch_chart)
-                chart_paths_to_clean.append(dispatch_chart)
-        except Exception as exc:
-            logger.warning("Dispatch chart generation failed for %s: %s", topo, exc)
+            # Generate charts
+            charts: list[Path] = []
+            try:
+                if hourly_df is not None:
+                    dispatch_chart = generate_average_day_dispatch(
+                        hourly_df, title=f"Average Day Dispatch ({suffix})"
+                    )
+                    charts.append(dispatch_chart)
+                    chart_paths_to_clean.append(dispatch_chart)
+            except Exception as exc:
+                logger.warning("Dispatch chart generation failed for %s: %s", suffix, exc)
 
-        try:
-            if annual_df is not None:
-                dscr_chart = generate_dscr_line_chart(
-                    annual_df, covenant=1.2, title=f"DSCR Profile ({topo.title()})"
-                )
-                charts.append(dscr_chart)
-                chart_paths_to_clean.append(dscr_chart)
-        except Exception as exc:
-            logger.warning("DSCR chart generation failed for %s: %s", topo, exc)
+            try:
+                if annual_df is not None:
+                    dscr_chart = generate_dscr_line_chart(
+                        annual_df, covenant=1.2, title=f"DSCR Profile ({suffix})"
+                    )
+                    charts.append(dscr_chart)
+                    chart_paths_to_clean.append(dscr_chart)
+            except Exception as exc:
+                logger.warning("DSCR chart generation failed for %s: %s", suffix, exc)
 
-        try:
-            if annual_df is not None:
-                revenue_chart = generate_monthly_generation_bar(
-                    annual_df, title=f"Annual Revenue Breakdown ({topo.title()})"
-                )
-                charts.append(revenue_chart)
-                chart_paths_to_clean.append(revenue_chart)
-        except Exception as exc:
-            logger.warning("Revenue chart generation failed for %s: %s", topo, exc)
+            try:
+                if annual_df is not None:
+                    revenue_chart = generate_monthly_generation_bar(
+                        annual_df, title=f"Annual Revenue Breakdown ({suffix})"
+                    )
+                    charts.append(revenue_chart)
+                    chart_paths_to_clean.append(revenue_chart)
+            except Exception as exc:
+                logger.warning("Revenue chart generation failed for %s: %s", suffix, exc)
 
-        sheet_name = f"Assessment ({topo.title()})"
-        write_assessment_sheet(
-            wb,
-            sheet_name=sheet_name,
-            kpis=default_results,
-            annual_df=annual_df,
-            exchange_rate_usd_vnd=exchange_rate,
-            charts=charts,
-        )
+            write_assessment_sheet(
+                wb,
+                sheet_name=f"Assessment ({suffix})",
+                kpis=default_results,
+                annual_df=annual_df,
+                exchange_rate_usd_vnd=exchange_rate,
+                charts=charts,
+            )
 
-        # Run all scenarios for comparison
-        logger.info("Running all scenarios for %s topology...", topo)
-        scenario_results = run_all_scenarios(
-            project_dir=input_path if input_type == "json" else None,
-            excel_path=input_path if input_type == "excel" else None,
-            ppa_options=ppa_options,
-            dppa_topology=topo,
-        )
+            # Run all scenarios for comparison
+            logger.info("Running all scenarios for %s...", suffix)
+            scenario_results = run_all_scenarios(
+                project_dir=input_path if input_type == "json" else None,
+                excel_path=input_path if input_type == "excel" else None,
+                ppa_options=ppa_options,
+                dppa_topology=topo,
+                tariff_mode=mode,
+            )
 
-        comparison_sheet_name = f"Comparison ({topo.title()})"
-        write_comparison_sheet(
-            wb,
-            scenario_results=scenario_results,
-            exchange_rate_usd_vnd=exchange_rate,
-        )
-        # Rename the comparison sheet
-        if "Comparison" in wb.sheetnames:
-            wb["Comparison"].title = comparison_sheet_name
+            write_comparison_sheet(
+                wb,
+                scenario_results=scenario_results,
+                exchange_rate_usd_vnd=exchange_rate,
+            )
+            # Rename the comparison sheet
+            if "Comparison" in wb.sheetnames:
+                wb["Comparison"].title = f"Comparison ({suffix})"
 
     # Cover sheet (use first/topology=onsite results)
     cover_results = first_results or {}
@@ -250,6 +266,7 @@ def generate_assessment(
     logger.info("Running sensitivity analysis...")
     sensitivity_results: dict[str, dict[float, dict]] = {}
     default_topo = topologies[0]
+    default_mode = tariff_modes[0]
     for variable_name, test_values in SENSITIVITY_VARIABLES.items():
         try:
             if input_type == "json":
@@ -258,6 +275,7 @@ def generate_assessment(
                     variable_name=variable_name,
                     test_values=test_values,
                     dppa_topology=default_topo,
+                    tariff_mode=default_mode,
                 )
             else:
                 sensitivity_results[variable_name] = run_sensitivity_for_values(
@@ -265,6 +283,7 @@ def generate_assessment(
                     variable_name=variable_name,
                     test_values=test_values,
                     dppa_topology=default_topo,
+                    tariff_mode=default_mode,
                 )
         except Exception as exc:
             logger.warning("Sensitivity for %s failed: %s", variable_name, exc)
@@ -297,11 +316,16 @@ def _run_pipeline_with_topology(
     input_type: str,
     ppa_option: int,
     topology: str,
+    tariff_mode: str = "1-component",
 ) -> dict:
-    """Run the pipeline with a specific topology."""
+    """Run the pipeline with a specific topology and tariff mode."""
     if input_type == "excel":
-        return run_full_model(input_path, ppa_option=ppa_option, dppa_topology=topology)
-    return run_model_from_json(input_path, ppa_option=ppa_option, dppa_topology=topology)
+        return run_full_model(
+            input_path, ppa_option=ppa_option, dppa_topology=topology, tariff_mode=tariff_mode
+        )
+    return run_model_from_json(
+        input_path, ppa_option=ppa_option, dppa_topology=topology, tariff_mode=tariff_mode
+    )
 
 
 def main() -> None:
@@ -341,6 +365,16 @@ def main() -> None:
         help="Topology mode: 'onsite', 'offsite', or 'both' (default: both).",
     )
     parser.add_argument(
+        "--tariff-mode",
+        type=str,
+        default="1-component",
+        choices=["1-component", "2-component", "both"],
+        help=(
+            "Tariff mode: '1-component' (default), '2-component' (Decree 146/2025), "
+            "or 'both' to assess each topology under both modes."
+        ),
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose logging.",
@@ -361,6 +395,7 @@ def main() -> None:
         output_path=args.output,
         ppa_options=ppa_options,
         topology=args.topology,
+        tariff_mode=args.tariff_mode,
     )
 
     print(f"\nWorkbook saved to: {output_path}")

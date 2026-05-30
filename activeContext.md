@@ -27,13 +27,27 @@
 - [x] Report: `reports/2026-05-31-sprint4-phase02.html`
 - [x] Commit + push
 
-## PHASE-03 — Assessment Workbook Integration
-- [ ] `--tariff-mode {1-component,2-component,both}` in `scripts/generate_dppa_assessment.py`
-- [ ] Thread `tariff_mode` through `run_all_scenarios` + `run_sensitivity_for_values`
-- [ ] Comparison sheet shows demand-charge savings per mode
-- [ ] Categorical `tariff_mode` sensitivity (run twice, return delta)
-- [ ] Extend integration test
-- [ ] Report + commit + push
+## PHASE-03 — Assessment Workbook Integration ✅
+- [x] `--tariff-mode {1-component,2-component,both}` in `scripts/generate_dppa_assessment.py`; `generate_assessment(tariff_mode=...)` loops modes × topologies
+- [x] Thread `tariff_mode` through `run_all_scenarios` + `run_sensitivity_for_values`
+- [x] Comparison sheet shows Demand Charge Savings row (per mode)
+- [x] Categorical `run_tariff_mode_comparison()` (runs both modes, returns delta)
+- [x] Extended integration test (isolated single-JSON dir) + 3 unit tests — all green
+- [x] Report: `reports/2026-05-31-sprint4-phase03.html`
+- [x] Commit + push
 
 ## Review / Results
-_(to be filled in after each phase)_
+
+**Sprint 4 complete — all 3 phases shipped on `sprint4-two-component-tariff`.**
+
+- **PHASE-01:** `tariff_mode` parameter in the pipeline; Ca-rate settlement + Cp demand-charge activation; validation; new result keys. 4 tests.
+- **PHASE-02:** `load_two_component_tariff_from_json` (voltage-tier matched) + pipeline auto-load; Excel `cp_demand_vnd_per_kw`/`tariff_mode` surfaced. 5 tests.
+- **PHASE-03:** `--tariff-mode {1-component,2-component,both}` CLI; mode threaded through scenarios + sensitivity; `run_tariff_mode_comparison` categorical delta; Demand Charge Savings row in Comparison sheet. 4 tests (incl. end-to-end workbook).
+
+**Verification:** Full suite `pytest tests/ --ignore=tests/unit/test_battery.py` → **377 passed, 4 skipped, 17 failed**. The 17 failures are confirmed pre-existing/environmental (stashed-baseline comparison): pandas dropped `freq="H"`, the shared emivest dir holds two JSONs, and the Ecoplexus Excel workbook isn't present. **Zero new regressions** introduced by Sprint 4 (baseline was 367 passed / same 17 failed).
+
+**Behavioural result (Emivest, onsite, PPA 3):** switching 1-component → 2-component trades ~$303.9k → ~$203.1k Year-1 grid energy savings for a new ~$8.0k demand-charge savings stream.
+
+**Reports:** `reports/2026-05-30-sprint4-phase01.html`, `reports/2026-05-31-sprint4-phase02.html`, `reports/2026-05-31-sprint4-phase03.html`.
+
+**Out-of-scope items flagged (not fixed):** pandas `freq="H"` test breakage (spun off as a task); emivest 2-JSON dir consolidation; `pytest.mark.slow` registration. Open product question: confirm offtaker is in the 22 kV two-component pilot scope (Grill-Me Q-001).
