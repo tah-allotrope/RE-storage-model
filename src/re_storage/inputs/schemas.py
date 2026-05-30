@@ -81,6 +81,19 @@ class SystemAssumptions(BaseModel):
     # Tariff version tag — e.g. "2024" or "2026" — for traceability across scenario runs
     tariff_version: str | None = Field(default=None, description="EVN TOU tariff schedule version")
 
+    # Two-component tariff (Decree 146/2025). "1-component" (default) preserves
+    # existing single energy-rate behaviour; "2-component" activates the capacity
+    # charge (Cp) demand-charge savings alongside lower Ca energy rates.
+    tariff_mode: str = Field(
+        default="1-component", description="'1-component' or '2-component' tariff"
+    )
+    cp_demand_vnd_per_kw: float = Field(
+        ge=0.0, default=0.0, description="Capacity charge Cp (VND/kW/month)"
+    )
+    exchange_rate_usd_vnd: float = Field(
+        gt=0.0, default=25_000.0, description="VND per USD exchange rate"
+    )
+
     @property
     def scale_factor(self) -> float:
         """Output scale factor to convert simulation to actual capacity."""

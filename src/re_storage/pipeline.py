@@ -88,6 +88,17 @@ from re_storage.validation.checks import validate_financial_solver_freshness
 
 logger = logging.getLogger(__name__)
 
+#: Accepted values for the two-component tariff mode (Sprint 4).
+VALID_TARIFF_MODES = {"1-component", "2-component"}
+
+
+def _validate_tariff_mode(tariff_mode: str) -> None:
+    """Raise ValueError when *tariff_mode* is not a recognised mode."""
+    if tariff_mode not in VALID_TARIFF_MODES:
+        raise ValueError(
+            f"tariff_mode must be one of {sorted(VALID_TARIFF_MODES)}, got {tariff_mode!r}"
+        )
+
 
 _ASSUMPTION_OVERRIDE_KEYS = set(SystemAssumptions.model_fields)
 _FINANCIAL_OVERRIDE_KEYS = {
@@ -962,6 +973,9 @@ def run_full_model(
     ppa_option: int | None = None,
     base_params: dict[str, Any] | None = None,
     dppa_topology: str = "onsite",
+    tariff_mode: str = "1-component",
+    cp_demand_vnd_per_kw: float | None = None,
+    ca_tariff_rates: dict[TimePeriod, float] | None = None,
 ) -> dict[str, float]:
     """
     Run the full RE-Storage simulation pipeline on an Excel input file.
@@ -998,9 +1012,15 @@ def run_full_model(
     """
     if dppa_topology not in {"onsite", "offsite"}:
         raise ValueError(f"dppa_topology must be 'onsite' or 'offsite', got {dppa_topology!r}")
+    _validate_tariff_mode(tariff_mode)
 
     excel_path = Path(excel_path)
-    logger.info("Running full model on %s (topology: %s)", excel_path.name, dppa_topology)
+    logger.info(
+        "Running full model on %s (topology: %s, tariff: %s)",
+        excel_path.name,
+        dppa_topology,
+        tariff_mode,
+    )
 
     financial_params = load_financial_params_from_cells(excel_path)
     assumption_updates, financial_updates = _split_pipeline_overrides(base_params, financial_params)
@@ -1075,11 +1095,20 @@ def run_full_model(
     if tariff_rates is None:
         tariff_rates = load_tariff_rates_from_cells(excel_path)
 
+    # For 2-component tariff, settle energy on the lower Ca rates when supplied.
+    effective_tariff_rates = (
+        ca_tariff_rates
+        if tariff_mode == "2-component" and ca_tariff_rates
+        else tariff_rates
+    )
+
     # --- Stage A: Physics ---
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
 
     # --- Stage B: Settlement ---
-    settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates, dppa_topology)
+    settlement_result = _run_settlement(
+        hourly_result, assumptions, effective_tariff_rates, dppa_topology
+    )
 
     # --- Stage C: Aggregation ---
     agg = _run_aggregation(
@@ -1096,17 +1125,26 @@ def run_full_model(
     # For 2-component (energy+capacity) EVN tariff, the capacity component is
     # in USD/MW/year (Financial!H32). Convert to VND/kW for the shared helper:
     #   cp_vnd_per_kw = (USD/MW/year × FX) / (kW/MW) = USD/kW/year × FX
-    capacity_demand_rate_usd_per_mw = float(
-        financial_params.get("capacity_demand_rate_usd_per_mw", 0.0)
-    )
-    cp_demand_vnd_per_kw = (
-        capacity_demand_rate_usd_per_mw / 1000.0 * exchange_rate_effective
-        if capacity_demand_rate_usd_per_mw > 0 and exchange_rate_effective > 0
-        else 0.0
-    )
+    # Demand-charge savings are a two-component-tariff feature: under a single
+    # energy rate there is no capacity charge to reduce, so Cp stays zero.
+    if tariff_mode == "2-component":
+        if cp_demand_vnd_per_kw is not None:
+            cp_demand_effective = float(cp_demand_vnd_per_kw)
+        else:
+            capacity_demand_rate_usd_per_mw = float(
+                financial_params.get("capacity_demand_rate_usd_per_mw", 0.0)
+            )
+            cp_demand_effective = (
+                capacity_demand_rate_usd_per_mw / 1000.0 * exchange_rate_effective
+                if capacity_demand_rate_usd_per_mw > 0 and exchange_rate_effective > 0
+                else float(financial_params.get("cp_demand_vnd_per_kw", 0.0))
+            )
+    else:
+        cp_demand_effective = 0.0
+
     demand_savings_yr1 = calculate_annual_demand_savings(
         monthly_data=agg["monthly"],
-        cp_demand_vnd_per_kw=cp_demand_vnd_per_kw,
+        cp_demand_vnd_per_kw=cp_demand_effective,
         exchange_rate_usd_vnd=exchange_rate_effective,
     )
 
@@ -1187,8 +1225,10 @@ def run_full_model(
     year1_grid_savings = float(year1.loc[1, "total_grid_savings_usd"])
     results["year1_grid_savings_usd"] = year1_grid_savings if dppa_topology == "onsite" else 0.0
 
-    # Record topology
+    # Record topology and tariff mode
     results["dppa_topology"] = dppa_topology
+    results["tariff_mode"] = tariff_mode
+    results["demand_charge_savings_usd"] = float(demand_savings_yr1)
 
     logger.info(
         "Model complete — Project IRR: %.4f, Equity IRR: %.4f, NPV: %.0f",
@@ -1206,15 +1246,24 @@ def run_model_from_json(
     ppa_option: int | None = None,
     base_params: dict[str, Any] | None = None,
     dppa_topology: str = "onsite",
+    tariff_mode: str = "1-component",
+    cp_demand_vnd_per_kw: float | None = None,
+    ca_tariff_rates: dict[TimePeriod, float] | None = None,
 ) -> dict[str, Any]:
     """
     Run the full RE-Storage pipeline using JSON+CSV project inputs.
 
     Returns the same scalar KPI keys as run_full_model, plus report-friendly
     DataFrames under underscore-prefixed keys: _hourly_df and _lifetime_df.
+
+    When ``tariff_mode == "2-component"`` the energy settlement uses
+    ``ca_tariff_rates`` (lower Ca rates) when supplied, and the capacity charge
+    ``cp_demand_vnd_per_kw`` activates demand-charge savings.  Both fall back to
+    the project JSON's ``retail_tariff_matrix`` values when not passed explicitly.
     """
     if dppa_topology not in {"onsite", "offsite"}:
         raise ValueError(f"dppa_topology must be 'onsite' or 'offsite', got {dppa_topology!r}")
+    _validate_tariff_mode(tariff_mode)
 
     project_dir = Path(project_dir)
     if not project_dir.exists() or not project_dir.is_dir():
@@ -1291,8 +1340,17 @@ def run_model_from_json(
         }
     )
 
+    # For 2-component tariff, settle energy on the lower Ca rates when supplied.
+    effective_tariff_rates = (
+        ca_tariff_rates
+        if tariff_mode == "2-component" and ca_tariff_rates
+        else tariff_rates
+    )
+
     hourly_result = _run_physics(hourly_data, assumptions, schedule)
-    settlement_result = _run_settlement(hourly_result, assumptions, tariff_rates, dppa_topology)
+    settlement_result = _run_settlement(
+        hourly_result, assumptions, effective_tariff_rates, dppa_topology
+    )
     rev_esc = float(
         financial_params.get(
             "revenue_escalation_pct", financial_params.get("dppa_escalation_rate", 0.05)
@@ -1313,14 +1371,22 @@ def run_model_from_json(
 
     initial_capex_usd = float(financial_params["initial_capex_usd"])
 
-    # Compute demand charge savings for JSON path
+    # Compute demand-charge savings for JSON path. These are a two-component
+    # tariff feature; under a single energy rate Cp stays zero.
     exchange_rate_usd_vnd = float(financial_params.get("exchange_rate_usd_vnd", 25_000.0))
-    cp_demand_vnd_per_kw = float(financial_params.get("cp_demand_vnd_per_kw", 0.0))
+    if tariff_mode == "2-component":
+        cp_demand_effective = (
+            float(cp_demand_vnd_per_kw)
+            if cp_demand_vnd_per_kw is not None
+            else float(financial_params.get("cp_demand_vnd_per_kw", 0.0))
+        )
+    else:
+        cp_demand_effective = 0.0
     demand_savings_yr1 = 0.0
-    if cp_demand_vnd_per_kw > 0 and exchange_rate_usd_vnd > 0:
+    if cp_demand_effective > 0 and exchange_rate_usd_vnd > 0:
         demand_savings_yr1 = calculate_annual_demand_savings(
             monthly_data=agg["monthly"],
-            cp_demand_vnd_per_kw=cp_demand_vnd_per_kw,
+            cp_demand_vnd_per_kw=cp_demand_effective,
             exchange_rate_usd_vnd=exchange_rate_usd_vnd,
         )
     # Topology masking for offsite
@@ -1394,8 +1460,10 @@ def run_model_from_json(
     year1_grid_savings = float(year1.loc[1, "total_grid_savings_usd"])
     results["year1_grid_savings_usd"] = year1_grid_savings if dppa_topology == "onsite" else 0.0
 
-    # Record topology
+    # Record topology and tariff mode
     results["dppa_topology"] = dppa_topology
+    results["tariff_mode"] = tariff_mode
+    results["demand_charge_savings_usd"] = float(demand_savings_yr1)
 
     annual_df = financial_kpis.get("_annual_df")
     if isinstance(annual_df, pd.DataFrame):
