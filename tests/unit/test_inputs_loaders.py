@@ -307,6 +307,71 @@ def test_load_financial_params_from_cells_converts_tax_year_markers_to_durations
     assert params["second_discount_years"] == 2
 
 
+def test_load_financial_params_from_cells_reads_two_component_tariff(
+    tmp_path: Path,
+) -> None:
+    """Cp_demand and a 2-component tariff structure are surfaced from O/Q labels."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        raise RuntimeError("Workbook active sheet unavailable")
+    ws.title = "Assumption"
+
+    # Minimal required labels (the loader fills the rest from defaults).
+    ws["I2"] = "Project Lifetime"
+    ws["K2"] = 25
+    ws["C2"] = "Actual installation capacity"
+    ws["E2"] = 40360
+    ws["C3"] = "Total BESS Storage Capacity"
+    ws["E3"] = 66000
+
+    ws["O20"] = "PPA Setting Option"
+    ws["Q20"] = 3
+    ws["O56"] = "Tariff Structure"
+    ws["Q56"] = "22kV-2-component"
+    ws["O58"] = "Cp_demand"
+    ws["Q58"] = 235_414.0
+
+    path = tmp_path / "two_component.xlsx"
+    wb.save(path)
+    wb.close()
+
+    params = load_financial_params_from_cells(path)
+
+    assert params["tariff_mode"] == "2-component"
+    assert params["cp_demand_vnd_per_kw"] == pytest.approx(235_414.0)
+
+
+def test_load_financial_params_from_cells_defaults_to_one_component(
+    tmp_path: Path,
+) -> None:
+    """Absent a tariff-structure label, the loader reports 1-component / Cp=0."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        raise RuntimeError("Workbook active sheet unavailable")
+    ws.title = "Assumption"
+    ws["I2"] = "Project Lifetime"
+    ws["K2"] = 25
+    ws["C2"] = "Actual installation capacity"
+    ws["E2"] = 40360
+    ws["C3"] = "Total BESS Storage Capacity"
+    ws["E3"] = 66000
+
+    path = tmp_path / "one_component.xlsx"
+    wb.save(path)
+    wb.close()
+
+    params = load_financial_params_from_cells(path)
+
+    assert params["tariff_mode"] == "1-component"
+    assert params["cp_demand_vnd_per_kw"] == pytest.approx(0.0)
+
+
 class TestLoadDegradationTable:
     """Tests for load_degradation_table."""
 

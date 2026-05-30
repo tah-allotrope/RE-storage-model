@@ -62,6 +62,17 @@ def test_2component_activates_demand_savings(project_dir: Path) -> None:
     assert results["demand_charge_savings_usd"] > 0.0
 
 
+def test_2component_autoloads_rates_from_json(project_dir: Path) -> None:
+    """2-component mode auto-loads Ca rates + Cp from the project JSON (PHASE-02)."""
+    base = run_model_from_json(project_dir)
+    auto = run_model_from_json(project_dir, tariff_mode="2-component")
+
+    # Without explicit ca_tariff_rates/cp the pipeline pulls them from
+    # retail_tariff_matrix: demand savings activate and grid savings drop.
+    assert auto["demand_charge_savings_usd"] > 0.0
+    assert auto["year1_grid_savings_usd"] < base["year1_grid_savings_usd"]
+
+
 def test_2component_lowers_energy_rates(project_dir: Path) -> None:
     """Supplying lower Ca energy rates changes Year-1 grid savings vs 1-component."""
     base = run_model_from_json(project_dir)

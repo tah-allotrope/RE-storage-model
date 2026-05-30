@@ -407,6 +407,62 @@ def load_tariff_rates_from_json(json_path: Path) -> dict[TimePeriod, float]:
     }
 
 
+def load_two_component_tariff_from_json(
+    json_path: Path,
+) -> tuple[dict[TimePeriod, float], float] | None:
+    """
+    Load Decree 146/2025 two-component tariff rates from a project JSON file.
+
+    Reads ``retail_tariff_matrix.tariff_options`` — a list of options keyed by
+    ``voltage_level`` such as ``"22kV-2-component"`` — and selects the
+    two-component entry matching the project's connection voltage tier
+    (``>= 100 kV`` → 110 kV tier, otherwise 22 kV tier).
+
+    The Ca energy rates (``Ca_offpeak``/``Ca_normal``/``Ca_peak``) are stored in
+    VND/kWh and converted to USD/kWh using ``financial_input.exchange_rate_USD_VND``.
+    ``Cp_demand`` (the capacity charge) is returned unconverted in VND/kW/month,
+    matching ``calculate_annual_demand_savings``'s expected unit.
+
+    Returns:
+        ``(ca_tariff_rates_usd_per_kwh, cp_demand_vnd_per_kw)`` when a matching
+        two-component option exists, otherwise ``None`` so callers can fall back
+        to the single-component path.
+    """
+    data = _load_json(Path(json_path))
+
+    matrix = data.get("retail_tariff_matrix")
+    if not isinstance(matrix, dict):
+        return None
+    options = matrix.get("tariff_options")
+    if not isinstance(options, list):
+        return None
+
+    connection_voltage_kv = float(
+        _nested_get(data, "grid_connection_and_tariff", "connection_voltage_level_kV")
+    )
+    tier = "110kV" if connection_voltage_kv >= 100 else "22kV"
+    target = f"{tier}-2-component"
+
+    exchange_rate = float(_nested_get(data, "financial_input", "exchange_rate_USD_VND"))
+    if exchange_rate <= 0:
+        raise InputValidationError("exchange_rate_USD_VND must be positive")
+
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        if str(option.get("voltage_level", "")).strip().lower() != target.lower():
+            continue
+        ca_rates = {
+            TimePeriod.OFF_PEAK: float(_nested_get(option, "Ca_offpeak")) / exchange_rate,
+            TimePeriod.STANDARD: float(_nested_get(option, "Ca_normal")) / exchange_rate,
+            TimePeriod.PEAK: float(_nested_get(option, "Ca_peak")) / exchange_rate,
+        }
+        cp_demand_vnd_per_kw = float(_nested_get(option, "Cp_demand"))
+        return ca_rates, cp_demand_vnd_per_kw
+
+    return None
+
+
 def load_financial_params_from_json(json_path: Path) -> dict[str, Any]:
     data = _load_json(Path(json_path))
 

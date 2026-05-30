@@ -19,12 +19,13 @@
 - [x] Report: `reports/2026-05-30-sprint4-phase01.html`
 - [x] Commit + push
 
-## PHASE-02 — Load Two-Component Rates from Inputs
-- [ ] `load_two_component_tariff_from_json()` → `ca_tariff_rates` + `cp_demand_vnd_per_kw` from `retail_tariff_matrix`, matched on connection voltage
-- [ ] Wire JSON loader output into `run_model_from_json`
-- [ ] Excel loader: return `cp_demand_vnd_per_kw` (Ca labels already supported)
-- [ ] Extend `tests/unit/test_json_loader.py`, `test_inputs_loaders.py`
-- [ ] Report + commit + push
+## PHASE-02 — Load Two-Component Rates from Inputs ✅
+- [x] `load_two_component_tariff_from_json()` → `ca_tariff_rates` + `cp_demand_vnd_per_kw` from `retail_tariff_matrix`, matched on connection voltage tier
+- [x] Auto-wire JSON loader output into `run_model_from_json` (2-component mode loads rates when not passed)
+- [x] Excel loader: `load_financial_params_from_cells` surfaces `cp_demand_vnd_per_kw` + `tariff_mode`; `load_tariff_rates_from_cells` already selects Ca rates
+- [x] Extended `tests/unit/test_json_loader.py` (+2), `test_inputs_loaders.py` (+2), `test_pipeline_tariff_mode.py` (+1 autoload) — 51 passed / 3 skipped
+- [x] Report: `reports/2026-05-31-sprint4-phase02.html`
+- [x] Commit + push
 
 ## PHASE-03 — Assessment Workbook Integration
 - [ ] `--tariff-mode {1-component,2-component,both}` in `scripts/generate_dppa_assessment.py`

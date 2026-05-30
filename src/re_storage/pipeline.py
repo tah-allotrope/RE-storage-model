@@ -57,6 +57,7 @@ from re_storage.inputs.json_loader import (
     load_hourly_data_from_csv,
     load_tariff_rates_from_json,
     load_tariff_schedule_from_json,
+    load_two_component_tariff_from_json,
 )
 from re_storage.inputs.loaders import (
     load_assumptions_from_cells,
@@ -1339,6 +1340,17 @@ def run_model_from_json(
             **assumption_updates,
         }
     )
+
+    # Auto-load two-component Ca rates / Cp from the project JSON when the
+    # caller selected 2-component mode but did not pass them explicitly.
+    if tariff_mode == "2-component" and (ca_tariff_rates is None or cp_demand_vnd_per_kw is None):
+        loaded = load_two_component_tariff_from_json(json_path)
+        if loaded is not None:
+            loaded_ca, loaded_cp = loaded
+            if ca_tariff_rates is None:
+                ca_tariff_rates = loaded_ca
+            if cp_demand_vnd_per_kw is None:
+                cp_demand_vnd_per_kw = loaded_cp
 
     # For 2-component tariff, settle energy on the lower Ca rates when supplied.
     effective_tariff_rates = (

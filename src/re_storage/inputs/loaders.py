@@ -790,6 +790,17 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
     # Capacity/demand tariff (USD/MW/year, Financial!H32 = Assumption!Q57)
     capacity_demand_rate_usd_per_mw = _oq_float("capacity", default=0.0)
 
+    # Two-component tariff (Decree 146/2025). Cp_demand is the capacity charge
+    # in VND/kW/month; tariff_mode is detected from a "Tariff Structure" label.
+    cp_demand_vnd_per_kw = _oq_float("cp_demand", default=0.0)
+    tariff_structure = ""
+    for label, raw_value in oq_map.items():
+        normalized = label.strip().lower()
+        if ("tariff structure" in normalized or "tariff mode" in normalized) and raw_value:
+            tariff_structure = str(raw_value).strip().lower()
+            break
+    tariff_mode = "2-component" if "2-component" in tariff_structure else "1-component"
+
     return {
         "project_years": project_years,
         "interest_rate_pct": (base_rate + debt_margin) * 100.0,
@@ -838,6 +849,8 @@ def load_financial_params_from_cells(path: Path) -> dict[str, float | int | str]
         "revenue_escalation_pct": revenue_escalation_pct,
         "fmp_descent_pct": fmp_descent_pct,
         "capacity_demand_rate_usd_per_mw": capacity_demand_rate_usd_per_mw,
+        "cp_demand_vnd_per_kw": cp_demand_vnd_per_kw,
+        "tariff_mode": tariff_mode,
     }
 
 

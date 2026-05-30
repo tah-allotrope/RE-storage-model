@@ -17,6 +17,7 @@ from re_storage.inputs.json_loader import (
     load_financial_params_from_json,
     load_hourly_data_from_csv,
     load_tariff_rates_from_json,
+    load_two_component_tariff_from_json,
 )
 from re_storage.inputs.schemas import SystemAssumptions
 
@@ -105,6 +106,34 @@ def test_load_degradation_from_json() -> None:
 
     for col in ["pv_factor", "battery_factor_no_replacement", "battery_factor_with_replacement"]:
         assert ((df[col] > 0) & (df[col] <= 1)).all()
+
+
+# --- Sprint 4 PHASE-02: two-component tariff loading ---
+
+EXCHANGE_RATE = 26_000.0
+
+
+def test_load_two_component_tariff_from_emivest() -> None:
+    """Ca rates + Cp are extracted from retail_tariff_matrix for the 22 kV tier."""
+    result = load_two_component_tariff_from_json(JSON_PATH)
+
+    assert result is not None
+    ca_rates, cp_demand_vnd_per_kw = result
+
+    # Emivest connection voltage is 22 kV → "22kV-2-component" option.
+    assert cp_demand_vnd_per_kw == pytest.approx(235_414.0)
+    assert ca_rates[TimePeriod.OFF_PEAK] == pytest.approx(859.0 / EXCHANGE_RATE)
+    assert ca_rates[TimePeriod.STANDARD] == pytest.approx(1275.0 / EXCHANGE_RATE)
+    assert ca_rates[TimePeriod.PEAK] == pytest.approx(2182.0 / EXCHANGE_RATE)
+
+
+def test_two_component_ca_rates_below_single_component() -> None:
+    """Ca energy rates are materially lower than the 1-component EVN rates."""
+    single = load_tariff_rates_from_json(JSON_PATH)
+    ca_rates, _ = load_two_component_tariff_from_json(JSON_PATH)
+
+    for period in (TimePeriod.OFF_PEAK, TimePeriod.STANDARD, TimePeriod.PEAK):
+        assert ca_rates[period] < single[period]
 
 
 def test_load_tariff_rates_from_json() -> None:
