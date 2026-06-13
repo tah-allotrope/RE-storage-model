@@ -198,6 +198,121 @@ body {
   color: #8a4d11;
 }
 
+/* --- Go/No-Go verdict banner (GAP-01) --- */
+.verdict-banner {
+  border: 1px solid var(--line);
+  border-left-width: 6px;
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+
+.verdict-go {
+  border-left-color: #2e7d4f;
+  background: linear-gradient(180deg, #f1faf3 0%, #e7f4ec 100%);
+}
+
+.verdict-caution {
+  border-left-color: #c98a1e;
+  background: linear-gradient(180deg, #fff8ec 0%, #fdf0d9 100%);
+}
+
+.verdict-nogo {
+  border-left-color: #b3372f;
+  background: linear-gradient(180deg, #fdf1f0 0%, #fbe3e1 100%);
+}
+
+.verdict-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 18px;
+}
+
+.verdict-overall-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verdict-overall {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.verdict-go .verdict-overall {
+  color: #1f6b41;
+}
+
+.verdict-caution .verdict-overall {
+  color: #8a5a11;
+}
+
+.verdict-nogo .verdict-overall {
+  color: #9f2f2f;
+}
+
+.verdict-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.verdict-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #eef3f6;
+  color: var(--muted);
+}
+
+.verdict-chip-pass {
+  background: #e3f1e8;
+  color: #23593b;
+}
+
+.verdict-chip-marginal {
+  background: #fff1df;
+  color: #8a4d11;
+}
+
+.verdict-chip-fail {
+  background: #fbe3e1;
+  color: #9f2f2f;
+}
+
+.verdict-details {
+  margin-top: 12px;
+}
+
+.verdict-details-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.verdict-details ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.verdict-details li {
+  margin: 4px 0;
+}
+
 .panel,
 .results-shell,
 .chart-card {

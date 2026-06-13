@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase Report :: GAP-01 PHASE-02 — Verdict Banner UI</title>
+  <meta name="color-scheme" content="dark">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) return;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+      await mermaid.run({ nodes: blocks });
+    }
+    const run = () => initMermaid().catch((e) => console.error('Mermaid render failed', e));
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+    else run();
+  </script>
+  <style>
+    :root { --bg:#0d0d0d; --panel:rgba(13,13,13,0.88); --panel-strong:rgba(19,19,19,0.96); --line:rgba(0,245,255,0.26); --text:#e9f6ff; --muted:#8ea3ad; --blue:#00f5ff; --green:#39ff14; --amber:#ffb454; --red:#ff5470; --glow-blue:0 0 18px rgba(0,245,255,0.42); --glow-green:0 0 18px rgba(57,255,20,0.28); --shadow:0 14px 40px rgba(0,0,0,0.32); --nf:"Segoe UI","Helvetica Neue",Arial,sans-serif; --tf:"Cascadia Code","Fira Code",Consolas,monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; overflow-x:hidden; background:radial-gradient(circle at top left,rgba(0,245,255,0.12),transparent 28%),radial-gradient(circle at 85% 12%,rgba(57,255,20,0.08),transparent 24%),linear-gradient(180deg,#050505,#0d0d0d 36%,#090909); color:var(--text); font-family:var(--nf); line-height:1.6; }
+    a { color:var(--blue); }
+    code, pre, .tf, .meta-chip, .kicker, .pill, .tag { font-family:var(--tf); }
+    .shell { width:min(1100px,calc(100vw - 32px)); margin:0 auto; padding:32px 0 72px; }
+    .hero { padding:28px; margin-bottom:24px; border:1px solid var(--line); border-radius:28px; background:linear-gradient(145deg,rgba(0,245,255,0.08),transparent 28%),var(--panel-strong); box-shadow:var(--shadow); }
+    .kicker { margin:0 0 12px; color:var(--green); font-size:0.76rem; font-weight:700; text-transform:uppercase; letter-spacing:0.22em; text-shadow:var(--glow-green); }
+    .title { margin:0; font-size:clamp(2rem,4vw,3.4rem); line-height:0.96; letter-spacing:-0.04em; color:#f5feff; text-transform:uppercase; text-shadow:0 0 24px rgba(0,245,255,0.2); }
+    .lede { margin:18px 0 0; max-width:72ch; color:var(--muted); }
+    .meta-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .meta-chip { padding:8px 14px; border:1px solid rgba(57,255,20,0.2); border-radius:999px; background:rgba(255,255,255,0.025); color:var(--blue); font-size:0.82rem; font-weight:700; text-shadow:var(--glow-blue); }
+    .section { position:relative; margin-top:22px; padding:24px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:var(--shadow); }
+    .section::before { content:""; position:absolute; left:24px; right:24px; top:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,245,255,0.9),rgba(57,255,20,0.9),transparent); transform:translateY(-1px); }
+    .s-index { color:var(--green); font-size:0.74rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; text-shadow:var(--glow-green); }
+    .s-title { margin:6px 0 16px; font-size:clamp(1.15rem,2vw,1.6rem); color:#f0feff; }
+    .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .card { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); }
+    .card h4 { margin:0 0 10px; color:var(--blue); font-size:0.82rem; text-transform:uppercase; letter-spacing:0.14em; text-shadow:var(--glow-blue); }
+    ul { margin:8px 0; padding-left:20px; } li { margin:5px 0; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:11px 10px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; vertical-align:top; font-size:0.92rem; }
+    th { color:var(--green); font-size:0.74rem; text-transform:uppercase; letter-spacing:0.1em; }
+    code { background:rgba(0,245,255,0.08); padding:2px 6px; border-radius:6px; font-size:0.86rem; }
+    .frame { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); overflow:auto; max-height:min(70vh,640px); }
+    .mermaid { width:100%; color:var(--text); }
+    .chart-wrap { position:relative; height:260px; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:0.74rem; font-weight:700; }
+    .go { background:rgba(57,255,20,0.14); color:var(--green); border:1px solid rgba(57,255,20,0.4); }
+    .caution { background:rgba(255,180,84,0.14); color:var(--amber); border:1px solid rgba(255,180,84,0.4); }
+    .nogo { background:rgba(255,84,112,0.14); color:var(--red); border:1px solid rgba(255,84,112,0.4); }
+    .ok { color:var(--green); } .warn { color:var(--amber); }
+    pre { margin:0; white-space:pre-wrap; font-size:0.84rem; color:#d6f6ff; }
+    /* mock of the rendered banner (light surface inside dark report) */
+    .mock { border-radius:14px; padding:16px 18px; border:1px solid #d6e0e8; border-left:6px solid #2e7d4f; background:linear-gradient(180deg,#f1faf3,#e7f4ec); color:#122a3a; }
+    .mock .mk { color:#4f6472; font-size:0.7rem; letter-spacing:0.14em; text-transform:uppercase; }
+    .mock .ov { font-size:1.5rem; font-weight:800; color:#1f6b41; }
+    .mchip { display:inline-block; border-radius:999px; padding:5px 11px; font-size:0.76rem; font-weight:700; margin:4px 4px 0 0; }
+    .mp { background:#e3f1e8; color:#23593b; } .mf { background:#fbe3e1; color:#9f2f2f; } .mm { background:#fff1df; color:#8a4d11; }
+    @media (max-width:720px){ .grid2{grid-template-columns:1fr;} }
+    @media print { body{background:#fff;color:#111;} .section,.hero,.card,.frame{box-shadow:none;border-color:#ccc;} .title,.kicker,.s-index{text-shadow:none;color:#111;} }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- 1. PHASE HEADER -->
+  <header class="hero">
+    <p class="kicker">Phase Report &middot; GAP-01 &middot; PHASE-02</p>
+    <h1 class="title">Verdict Banner UI</h1>
+    <p class="lede">Make the Go/No-Go recommendation visible. PHASE-01 put a <code>verdict</code> block in the API response; this phase renders it as the dashboard's lead element — a color-coded <span class="pill go">GO</span> / <span class="pill caution">CAUTION</span> / <span class="pill nogo">NO-GO</span> headline with four per-metric status chips and collapsible reasoning, rendered defensively so older verdict-less responses never break the page.</p>
+    <div class="meta-row">
+      <span class="meta-chip">2026-06-13</span>
+      <span class="meta-chip">Project: RE-Storage</span>
+      <span class="meta-chip">Repo: RE-storage-model</span>
+      <span class="meta-chip">Build: tsc -b PASS</span>
+      <span class="meta-chip">React + TypeScript</span>
+    </div>
+  </header>
+
+  <!-- 2. INPUT -> OUTPUT -->
+  <section class="section">
+    <span class="s-index">01 &middot; Input &rarr; Output</span>
+    <h2 class="s-title">What went in, what came out</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Inputs</h4>
+        <ul>
+          <li><code>verdict</code> block from the PHASE-01 API response</li>
+          <li>Existing dashboard shell (<code>ResultsDashboard.tsx</code>, <code>KpiGrid</code>) and light-theme tokens in <code>styles.css</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Outputs</h4>
+        <ul>
+          <li><code>Verdict</code> / <code>VerdictStatus</code> / <code>VerdictOverall</code> types; optional <code>verdict</code> on <code>ModelResponse</code></li>
+          <li>New <code>VerdictBanner.tsx</code> component</li>
+          <li>Banner mounted above the KPI grid</li>
+          <li>~120 lines of verdict CSS (green/amber/red)</li>
+          <li><span class="ok">Production build green</span>, no type errors</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. LOGIC FLOW -->
+  <section class="section">
+    <span class="s-index">02 &middot; Logic Flow</span>
+    <h2 class="s-title">Render path</h2>
+    <div class="frame">
+      <div class="mermaid">
+flowchart LR
+  A[API response] --> B{verdict present?}
+  B -->|no| C[render nothing -- defensive null]
+  B -->|yes| D[VerdictBanner]
+  D --> E[overall -> banner colour class]
+  D --> F[4 metric statuses -> chips]
+  D --> G[details array -> collapsible list]
+  E --> H[Dashboard: banner above KpiGrid]
+  F --> H
+  G --> H
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. MATH / ALGORITHM -->
+  <section class="section">
+    <span class="s-index">03 &middot; Math / Algorithm</span>
+    <h2 class="s-title">No math — a presentation mapping</h2>
+    <p style="color:var(--muted);max-width:74ch">This phase introduces no computation. All scoring happened server-side in PHASE-01. The only logic here is a deterministic mapping from verdict values to CSS classes, kept as lookup tables to avoid conditional sprawl:</p>
+    <table>
+      <thead><tr><th>Verdict field</th><th>Value</th><th>Visual</th></tr></thead>
+      <tbody>
+        <tr><td><code>overall</code></td><td>GO / CAUTION / NO-GO</td><td>left-border + headline colour (green / amber / red)</td></tr>
+        <tr><td>metric status</td><td>PASS</td><td><span class="mchip mp">green chip</span></td></tr>
+        <tr><td>metric status</td><td>MARGINAL</td><td><span class="mchip mm">amber chip</span></td></tr>
+        <tr><td>metric status</td><td>FAIL</td><td><span class="mchip mf">red chip</span></td></tr>
+        <tr><td><code>details[]</code></td><td>strings</td><td>collapsible bullet list</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 5. TOOLS / METHODS -->
+  <section class="section">
+    <span class="s-index">04 &middot; Tools / Methods</span>
+    <h2 class="s-title">How it was built &amp; verified</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Surfaces touched</h4>
+        <ul>
+          <li><code>types/model.ts</code> — verdict types + optional field</li>
+          <li><code>components/results/VerdictBanner.tsx</code> (new)</li>
+          <li><code>components/results/ResultsDashboard.tsx</code> — import + mount</li>
+          <li><code>styles.css</code> — verdict banner + chip styles</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Verification</h4>
+        <ul>
+          <li><code>npm run build</code> &rarr; <code>tsc -b</code> clean, Vite bundle emitted</li>
+          <li>Only pre-existing chunk-size advisory remained</li>
+          <li><code>dist/</code> confirmed gitignored &rarr; no stale build committed</li>
+          <li>Recommended: local color-switch check across GO + NO-GO fixtures before deploy</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. RESULTS & VISUALIZATIONS -->
+  <section class="section">
+    <span class="s-index">05 &middot; Results &amp; Visualizations</span>
+    <h2 class="s-title">The rendered banner &amp; build delta</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Banner mock (GO state)</h4>
+        <div class="mock">
+          <div class="mk">Go / No-Go Assessment</div>
+          <div class="ov">GO</div>
+          <div>
+            <span class="mchip mp">Equity IRR: PASS</span>
+            <span class="mchip mp">Min DSCR: PASS</span>
+            <span class="mchip mp">NPV: PASS</span>
+            <span class="mchip mp">Payback: PASS</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Bundle composition</h4>
+        <div class="chart-wrap"><canvas id="bundleChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. LIMITATIONS -->
+  <section class="section">
+    <span class="s-index">06 &middot; Limitations / Alternative</span>
+    <h2 class="s-title">Boundaries of this phase</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Limitations</h4>
+        <ul>
+          <li>Visual proof is via build + type-check; a live color-switch run across fixtures is still the recommended manual gate</li>
+          <li>Verdict shown only for the primary run, not scenario/sensitivity sub-views</li>
+          <li>Thresholds remain fixed defaults (PHASE-03 deferred)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Second-best alternative (rejected)</h4>
+        <ul>
+          <li>Inline the verdict into <code>KpiGrid</code> as another card</li>
+          <li>Rejected: a recommendation deserves headline prominence above the KPIs, REopt-style, not a co-equal tile</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. ERRORS / WARNINGS -->
+  <section class="section">
+    <span class="s-index">07 &middot; Errors / Warnings / Flags</span>
+    <h2 class="s-title">Encountered &amp; resolved</h2>
+    <table>
+      <thead><tr><th>Flag</th><th>Detail</th><th>Resolution</th></tr></thead>
+      <tbody>
+        <tr><td class="warn">Chunk &gt; 500 kB</td><td>Vite advisory on the single JS bundle</td><td>Pre-existing, unrelated to this change; left as-is</td></tr>
+        <tr><td class="ok">Type safety</td><td>Restricted chip metric keys to the four status fields</td><td>Avoids <code>details</code> leaking into the chip map; <code>tsc</code> clean</td></tr>
+        <tr><td class="ok">Backward compat</td><td>Responses without <code>verdict</code></td><td><code>verdict</code> optional + early <code>null</code> return; no crash</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 9. OPEN QUESTIONS / NEXT -->
+  <section class="section">
+    <span class="s-index">08 &middot; Open Questions / Next</span>
+    <h2 class="s-title">Where this lands</h2>
+    <ul>
+      <li><strong>GAP-01 Sprint 1 is complete</strong> (PHASE-01 backend + PHASE-02 UI). A final report synthesizes both phases.</li>
+      <li><strong>Recommended before deploy:</strong> run the structured form locally and confirm the banner switches color across a GO and a NO-GO fixture (the one manual gate not covered by build/type checks).</li>
+      <li><strong>Deferred fast-follow (PHASE-03):</strong> expose the four hurdle inputs in <code>FinancialStep.tsx</code> feeding the existing <code>thresholds</code> seam.</li>
+      <li><strong>Future:</strong> carry verdicts into the scenario-comparison and sensitivity sub-views.</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+  Chart.defaults.devicePixelRatio = 1;
+  Chart.defaults.animation = false;
+  Chart.defaults.resizeDelay = 150;
+  Chart.defaults.normalized = true;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.color = '#8ea3ad';
+  new Chart(document.getElementById('bundleChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['JS (gzip)', 'CSS (gzip)'],
+      datasets: [{ data: [185.77, 3.20], backgroundColor: ['rgba(0,245,255,0.55)', 'rgba(57,255,20,0.6)'], borderColor: '#0d0d0d', borderWidth: 2 }]
+    },
+    options: {
+      animation: false, resizeDelay: 150, normalized: true,
+      plugins: { legend: { labels: { color: '#e9f6ff' } }, tooltip: { callbacks: { label: (c) => `${c.label}: ${c.parsed} kB` } } }
+    }
+  });
+</script>
+</body>
+</html>

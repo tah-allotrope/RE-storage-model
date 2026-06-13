@@ -70,8 +70,23 @@ export interface DispatchSampleRow {
   grid_load_after_re_kw?: number | null;
 }
 
+export type VerdictStatus = "PASS" | "MARGINAL" | "FAIL";
+export type VerdictOverall = "GO" | "CAUTION" | "NO-GO";
+
+export interface Verdict {
+  overall: VerdictOverall;
+  equity_irr_status: VerdictStatus;
+  dscr_status: VerdictStatus;
+  npv_status: VerdictStatus;
+  payback_status: VerdictStatus;
+  details: string[];
+}
+
 export interface ModelResponse {
   kpis: ModelKpis;
+  // Optional so the dashboard renders defensively against older responses
+  // produced before the assessment-verdict backend (GAP-01 PHASE-01).
+  verdict?: Verdict;
   lifetime: LifetimeRow[];
   annual: AnnualRow[];
   cashflow: CashflowRow[];

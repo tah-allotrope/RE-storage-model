@@ -15,6 +15,7 @@ import { KpiGrid } from "./KpiGrid";
 import { LifetimeRevenueChart } from "./LifetimeRevenueChart";
 import { ScenarioComparisonTable } from "./ScenarioComparisonTable";
 import { SensitivityPanel } from "./SensitivityPanel";
+import { VerdictBanner } from "./VerdictBanner";
 
 interface ResultsDashboardProps {
   result: ModelResponse;
@@ -98,6 +99,8 @@ export function ResultsDashboard({
           </button>
         </div>
       </div>
+
+      <VerdictBanner verdict={result.verdict} />
 
       <KpiGrid kpis={result.kpis} currency={currency} exchangeRate={exchangeRate} />
 
