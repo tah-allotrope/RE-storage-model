@@ -76,3 +76,38 @@ piecemeal — either fix all handlers at once in a typed-cleanup PR or accept
 the pre-existing systemic warning.
 **Reference:** `web/functions/handlers/run_excel.py:20-44`,
 `web/functions/handlers/run_report.py`.
+
+### L-007 — JSON loader does NOT auto-read `tariff_structure` from the payload
+**Pattern:** When wiring `tariff_mode` into the web tool (GAP-03), it was
+tempting to assume `run_model_from_json(project_dir)` would pick the mode up
+from the project JSON's `grid_connection_and_tariff.tariff_structure` field —
+since the Excel loader does exactly that (parses a "Tariff Structure" cell
+into `tariff_mode`). It does not. The JSON pipeline path requires the
+`tariff_mode` kwarg to be passed explicitly; the payload field is documentation
+only on the JSON path.
+**Rule:** When threading a new pipeline kwarg through a web handler, pass it
+**explicitly** as a kwarg to `run_model_from_json` / `run_full_model` even if
+the same value lives in the JSON payload. The JSON loader is not symmetric
+with the Excel loader on every field. Verify in the pipeline source before
+relying on payload-side wiring.
+**Reference:** `web/functions/handlers/run_json.py::handle_run_json`,
+`src/re_storage/pipeline.py::run_model_from_json` (signature: `tariff_mode: str = "1-component"`).
+
+### L-008 — Test fakes need `**kwargs` when handler signatures grow
+**Pattern:** Adding a new kwarg to a pipeline call (e.g. `tariff_mode`,
+`cp_demand_vnd_per_kw`) in a handler broke 8 pre-existing tests in
+`test_web_handlers.py` because their `monkeypatch.setattr(..., fake_fn)` fakes
+were narrowly typed (`def fake_run_full_model(_: Path) -> dict[str, float]`)
+and rejected the new kwargs with `TypeError`, which surfaced as a 500 from
+the catch-all `except Exception`. The real bug was in the test, not the
+handler, but the 500 hid that.
+**Rule:** Mock fakes for pipeline entrypoints (`run_full_model`,
+`run_model_from_json`, `run_all_scenarios`, `run_sensitivity_for_values`,
+`run_tariff_mode_comparison`) should accept `**_kwargs: Any` from day one.
+Sketch:
+```python
+def fake_run_full_model(_: Path, **_kwargs: Any) -> dict[str, float]:
+    ...
+```
+**Reference:** `tests/unit/test_web_handlers.py::test_handle_run_excel_success`
+and 7 other fakes updated in commit `bcb52e4`.

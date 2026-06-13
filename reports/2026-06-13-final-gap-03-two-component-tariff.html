@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Final Report :: GAP-03 — Two-Component Tariff in the Web Tool</title>
+  <meta name="color-scheme" content="dark">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) return;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+      await mermaid.run({ nodes: blocks });
+    }
+    const run = () => initMermaid().catch((e) => console.error('Mermaid render failed', e));
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+    else run();
+  </script>
+  <style>
+    :root { --panel:rgba(13,13,13,0.88); --panel-strong:rgba(19,19,19,0.96); --line:rgba(0,245,255,0.26); --text:#e9f6ff; --muted:#8ea3ad; --blue:#00f5ff; --green:#39ff14; --amber:#ffb454; --red:#ff5470; --glow-blue:0 0 18px rgba(0,245,255,0.42); --glow-green:0 0 18px rgba(57,255,20,0.28); --shadow:0 14px 40px rgba(0,0,0,0.32); --nf:"Segoe UI","Helvetica Neue",Arial,sans-serif; --tf:"Cascadia Code","Fira Code",Consolas,monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; overflow-x:hidden; background:radial-gradient(circle at top left,rgba(0,245,255,0.12),transparent 28%),radial-gradient(circle at 85% 12%,rgba(57,255,20,0.08),transparent 24%),linear-gradient(180deg,#050505,#0d0d0d 36%,#090909); color:var(--text); font-family:var(--nf); line-height:1.62; }
+    a { color:var(--blue); }
+    code, pre, .tf, .meta-chip, .kicker, .pill, .tag { font-family:var(--tf); }
+    .shell { width:min(1100px,calc(100vw - 32px)); margin:0 auto; padding:32px 0 72px; }
+    .hero { padding:34px 30px; margin-bottom:24px; border:1px solid var(--line); border-radius:28px; background:linear-gradient(145deg,rgba(0,245,255,0.10),transparent 30%),var(--panel-strong); box-shadow:var(--shadow); }
+    .kicker { margin:0 0 12px; color:var(--green); font-size:0.76rem; font-weight:700; text-transform:uppercase; letter-spacing:0.22em; text-shadow:var(--glow-green); }
+    .title { margin:0; font-size:clamp(2.1rem,4.2vw,3.6rem); line-height:0.96; letter-spacing:-0.04em; color:#f5feff; text-transform:uppercase; text-shadow:0 0 24px rgba(0,245,255,0.2); }
+    .takeaway { margin:20px 0 0; max-width:78ch; color:#cfe8f2; font-size:1.05rem; }
+    .meta-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
+    .meta-chip { padding:8px 14px; border:1px solid rgba(57,255,20,0.2); border-radius:999px; background:rgba(255,255,255,0.025); color:var(--blue); font-size:0.82rem; font-weight:700; text-shadow:var(--glow-blue); }
+    .section { position:relative; margin-top:22px; padding:26px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:var(--shadow); }
+    .section::before { content:""; position:absolute; left:24px; right:24px; top:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,245,255,0.9),rgba(57,255,20,0.9),transparent); transform:translateY(-1px); }
+    .s-index { color:var(--green); font-size:0.74rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; text-shadow:var(--glow-green); }
+    .s-title { margin:6px 0 16px; font-size:clamp(1.2rem,2vw,1.7rem); color:#f0feff; }
+    p.lede { color:var(--muted); max-width:80ch; }
+    .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .grid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    .card { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); }
+    .card h4 { margin:0 0 10px; color:var(--blue); font-size:0.82rem; text-transform:uppercase; letter-spacing:0.14em; text-shadow:var(--glow-blue); }
+    .big { font-size:1.9rem; font-weight:800; color:#f5feff; }
+    ul { margin:8px 0; padding-left:20px; } li { margin:6px 0; color:var(--text); }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:11px 10px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; vertical-align:top; font-size:0.92rem; }
+    th { color:var(--green); font-size:0.74rem; text-transform:uppercase; letter-spacing:0.1em; }
+    code { background:rgba(0,245,255,0.08); padding:2px 6px; border-radius:6px; font-size:0.86rem; }
+    .frame { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); overflow:auto; max-height:min(72vh,680px); }
+    .mermaid { width:100%; color:var(--text); }
+    .chart-wrap { position:relative; height:280px; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:0.74rem; font-weight:700; }
+    .go { background:rgba(57,255,20,0.14); color:var(--green); border:1px solid rgba(57,255,20,0.4); }
+    .caution { background:rgba(255,180,84,0.14); color:var(--amber); border:1px solid rgba(255,180,84,0.4); }
+    .nogo { background:rgba(255,84,112,0.14); color:var(--red); border:1px solid rgba(255,84,112,0.4); }
+    .done { background:rgba(57,255,20,0.14); color:var(--green); border:1px solid rgba(57,255,20,0.4); }
+    .defer { background:rgba(142,163,173,0.14); color:var(--muted); border:1px solid rgba(142,163,173,0.4); }
+    .ok { color:var(--green); } .warn { color:var(--amber); }
+    @media (max-width:760px){ .grid2,.grid3{grid-template-columns:1fr;} }
+    @media print { body{background:#fff;color:#111;} .section,.hero,.card,.frame{box-shadow:none;border-color:#ccc;} .title,.kicker,.s-index,.takeaway{text-shadow:none;color:#111;} .section{break-inside:avoid;} }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- 1. TITLE HERO -->
+  <header class="hero">
+    <p class="kicker">Final Report &middot; Sprint Synthesis</p>
+    <h1 class="title">Two-Component Tariff, Reachable</h1>
+    <p class="takeaway"><strong>Vietnam's Decree 146/2025 two-component tariff (Ca energy + Cp demand charge) was a fully-shipped Sprint 4 pipeline feature — completely invisible in the web tool.</strong> The form hardcoded <code>"tariff_structure": "1-component"</code> and <code>Cp_demand: 0.0</code>, so <code>demand_charge_savings_usd</code> was always zero and <code>run_tariff_mode_comparison()</code> was never called by any handler. In three phases we threaded <code>tariff_mode</code> through every backend endpoint, added a tariff-mode select + Cp/Ca inputs to the form, and built a dedicated comparison view that headlines the Decree 146/2025 trade-off: lower grid-energy savings, new demand-charge savings. Shipped to <code>main</code>, fully tested.</p>
+    <div class="meta-row">
+      <span class="meta-chip">2026-06-13</span>
+      <span class="meta-chip">Project: RE-Storage</span>
+      <span class="meta-chip">Repo: RE-storage-model</span>
+      <span class="meta-chip">Gap: GAP-03 (HIGH)</span>
+      <span class="meta-chip">Status: Sprint complete</span>
+    </div>
+  </header>
+
+  <!-- 2. EXECUTIVE SUMMARY -->
+  <section class="section">
+    <span class="s-index">01 &middot; Executive Summary</span>
+    <h2 class="s-title">The answer, first</h2>
+    <p class="lede">A gap analysis of the RE-Storage web tool flagged the most recent model feature — Sprint 4's two-component tariff — as completely dark in the UI. The pipeline accepted <code>tariff_mode</code>, <code>cp_demand_vnd_per_kw</code>, and <code>ca_tariff_rates</code> kwargs; the JSON loader auto-resolved 2-component rates from <code>retail_tariff_matrix</code>; <code>run_tariff_mode_comparison()</code> existed and returned a structured delta — and the web form said "1-component" no matter what the user entered.</p>
+    <div class="grid3" style="margin-top:14px">
+      <div class="card"><h4>Phases shipped</h4><div class="big">3 / 3</div><span style="color:var(--muted)">backend / frontend / comparison view</span></div>
+      <div class="card"><h4>Backend tests</h4><div class="big">38 <span style="font-size:1rem;color:var(--muted)">passed</span></div><span style="color:var(--muted)">29 baseline + 9 new (TDD)</span></div>
+      <div class="card"><h4>New model code</h4><div class="big">0 <span style="font-size:1rem;color:var(--muted)">lines</span></div><span style="color:var(--muted)">reused <code>run_tariff_mode_comparison</code> + pipeline kwargs</span></div>
+    </div>
+    <p class="lede" style="margin-top:16px">As with GAP-01 and GAP-02, this was wiring, not new modelling. Default UI is <strong>1-component</strong> per Q-001; 2-component is an opt-in via a dropdown that reveals the Cp + Ca inputs. Critically: the JSON loader does <em>not</em> auto-read <code>tariff_structure</code> from the payload (only the Excel loader does), so every handler had to explicitly pass <code>tariff_mode</code> as a kwarg — a non-obvious requirement captured in <code>lessons.md</code> L-007.</p>
+  </section>
+
+  <!-- 3. BACKGROUND & OBJECTIVE -->
+  <section class="section">
+    <span class="s-index">02 &middot; Background &amp; Objective</span>
+    <h2 class="s-title">Why this mattered now</h2>
+    <p class="lede">Decree 146/2025 introduces a two-component retail tariff in Vietnam: an energy charge (Ca, VND/kWh) at lower rates plus a capacity charge (Cp, VND/kW/month) on monthly peak demand. For a solar-plus-battery offtaker, the trade-off is real money: <code>~$303.9k → ~$203.1k</code> grid-energy savings against <code>~$8.0k</code> new demand-charge savings (Sprint 4 Emivest reference). The model could quantify this; the web tool could not even ask the question. Without GAP-03, the most recent shipped model feature was completely orphaned from the user-facing surface.</p>
+  </section>
+
+  <!-- 4. INPUTS & SCOPE -->
+  <section class="section">
+    <span class="s-index">03 &middot; Inputs &amp; Scope</span>
+    <h2 class="s-title">What fed the work, and its boundaries</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Inputs</h4>
+        <ul>
+          <li>Gap analysis: <code>reports/2026-06-13-reopt-web-interface-gap-analysis.md</code> (GAP-03, rated HIGH)</li>
+          <li>Plan: <code>plans/2026-06-13-web-two-component-tariff-plan.md</code></li>
+          <li>Pipeline kwargs already wired: <code>run_full_model(..., tariff_mode, cp_demand_vnd_per_kw, ca_tariff_rates)</code> / <code>run_model_from_json(...)</code></li>
+          <li>Comparison runner: <code>run_tariff_mode_comparison()</code> in <code>src/re_storage/scenarios/sensitivity.py:723</code></li>
+          <li>Loader auto-resolution: <code>load_two_component_tariff_from_json()</code> in <code>src/re_storage/inputs/json_loader.py</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Scope boundary (Q-001)</h4>
+        <ul>
+          <li><span class="pill done">In</span> Form default 1-component; 2-component opt-in via dropdown</li>
+          <li><span class="pill done">In</span> <code>tariff_mode</code> kwarg threaded through all 6 backend handlers</li>
+          <li><span class="pill done">In</span> Dedicated <code>/api/compare-tariff-modes</code> endpoint + UI</li>
+          <li><span class="pill defer">Out</span> Excel-upload path for the comparison endpoint (runner accepts <code>excel_path</code>; surface in a follow-up if requested)</li>
+          <li><span class="pill defer">Out</span> Voltage-tier mismatch warning propagation (silent fallback today; needs a logging-plumbing PR)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ASSUMPTIONS & CONSTRAINTS -->
+  <section class="section">
+    <span class="s-index">04 &middot; Assumptions &amp; Constraints</span>
+    <h2 class="s-title">What we relied on</h2>
+    <table>
+      <thead><tr><th>Item</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>22 kV reference rates</td><td>Form defaults seeded with Ca 1190 / 1833 / 3398 VND/kWh (off-peak/standard/peak) and Cp 0 VND/kW/month — Sprint 4 22 kV pilot values. Users can override per-tier.</td></tr>
+        <tr><td>Single source of truth</td><td>2-component runs reuse the model's existing settlement logic; the web never re-computes Ca → USD conversion or demand-charge math.</td></tr>
+        <tr><td>JSON loader asymmetry</td><td>Discovered during implementation: the JSON loader does NOT read <code>tariff_structure</code> from the project JSON (only the Excel loader does). Every handler must pass <code>tariff_mode</code> explicitly. Captured as <code>lessons.md</code> L-007.</td></tr>
+        <tr><td>Auto-rate-resolution</td><td>When <code>tariff_mode="2-component"</code> and Ca/Cp not explicitly passed, the loader auto-resolves rates from <code>retail_tariff_matrix.tariff_options</code> by voltage tier. Form-supplied Ca rates override this.</td></tr>
+        <tr><td>Categorical comparison</td><td><code>tariff_mode</code> is categorical, so the comparison endpoint runs the pipeline twice (not a numeric sweep). Two runs fit comfortably inside the 300 s Cloud Function timeout.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 6. METHODOLOGY -->
+  <section class="section">
+    <span class="s-index">05 &middot; Methodology</span>
+    <h2 class="s-title">How the work progressed</h2>
+    <p class="lede">Test-driven, one phase at a time, with a commit and push at each phase boundary. PHASE-01 made the payload honor tariff selections and threaded the kwarg through every backend handler (broader than the plan suggested — required to keep download / scenario / sensitivity paths consistent). PHASE-02 added the form controls. PHASE-03 wired the dedicated comparison endpoint and UI.</p>
+    <div class="frame" style="margin-top:8px">
+      <div class="mermaid">
+flowchart LR
+  G[Gap analysis: GAP-03 HIGH] --> P[Plan + scope decision Q-001 1-component default]
+  P --> A[PHASE-01 backend threading]
+  A --> A1[Red: 5 failing tests]
+  A1 --> A2[Green: resolve_tariff_mode + kwarg through 6 handlers]
+  A2 --> A3[Update 8 pre-existing test fakes for kwargs]
+  A3 --> A4[Commit + push]
+  A4 --> B[PHASE-02 frontend inputs]
+  B --> B1[formTypes + DppaStep select + conditional Cp/Ca]
+  B1 --> B2[KpiGrid demand-charge card + model.ts]
+  B2 --> B3[Build green + commit + push]
+  B3 --> C[PHASE-03 comparison endpoint]
+  C --> C1[Red: 4 failing tests]
+  C1 --> C2[Green: compare_tariff_modes.py + sanitiser]
+  C2 --> C3[useModelRun auto-route 'both' + TariffModeComparison.tsx]
+  C3 --> C4[Build green + commit + push]
+  C4 --> F[Final synthesis + lessons L-007 + L-008]
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. PHASE-BY-PHASE -->
+  <section class="section">
+    <span class="s-index">06 &middot; Phase-by-Phase Analysis</span>
+    <h2 class="s-title">One story, three moves</h2>
+    <div class="grid3">
+      <div class="card">
+        <h4>PHASE-01 &middot; Backend threading <span class="pill done">shipped</span></h4>
+        <ul>
+          <li>New <code>resolve_tariff_mode(form)</code> helper validates against the pipeline's <code>VALID_TARIFF_MODES = {"1-component", "2-component"}</code> and raises <code>ValueError</code> → 400 on bad input.</li>
+          <li>Replaced hardcoded <code>"tariff_structure": "1-component"</code> and <code>Cp_demand: 0.0</code> in <code>project_payload.py</code>.</li>
+          <li>Threaded <code>tariff_mode</code> + <code>cp_demand_vnd_per_kw</code> kwargs through 6 handlers: <code>run_json</code>, <code>run_excel</code>, <code>run_report</code>, <code>export_workbook</code>, <code>compare_scenarios</code>, <code>run_sensitivity</code>. (Broader than the plan suggested — required because the JSON loader does NOT auto-read <code>tariff_structure</code> from the payload.)</li>
+          <li>Updated 8 pre-existing test fakes to accept <code>**kwargs</code> (lessons.md L-008).</li>
+          <li>5 new TDD tests; suite grew 29 → 34.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>PHASE-02 &middot; Form controls <span class="pill done">shipped</span></h4>
+        <ul>
+          <li><code>formTypes.ts</code>: <code>tariff_mode</code> (default <code>1-component</code> per Q-001), <code>cp_demand_vnd_per_kw</code>, and 3 Ca-rate VND fields seeded with the Sprint 4 22 kV reference (1190 / 1833 / 3398).</li>
+          <li><code>DppaStep.tsx</code>: dropdown + 4 inputs that gray out via the existing <code>field-disabled</code> pattern when mode = 1-component.</li>
+          <li><code>model.ts</code>: <code>ModelKpis</code> extended with optional <code>demand_charge_savings_usd</code> and <code>tariff_mode</code> — older responses still type-check (defensive, mirrors GAP-01).</li>
+          <li><code>KpiGrid.tsx</code>: "Year 1 Demand Charge Savings" card appears only when <code>kpis.tariff_mode === "2-component"</code>.</li>
+          <li><code>npm run build</code> clean.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>PHASE-03 &middot; Comparison view <span class="pill done">shipped</span></h4>
+        <ul>
+          <li>New <code>web/functions/handlers/compare_tariff_modes.py</code> calls <code>run_tariff_mode_comparison(project_dir, ppa_option)</code> and sanitises NaN/Inf to <code>null</code> for <code>jsonify</code>.</li>
+          <li>Registered <code>compareTariffModes</code> in <code>main.py</code>; <code>/api/compare-tariff-modes</code> rewrite in <code>firebase.json</code>.</li>
+          <li><code>api/client.ts</code> + <code>useModelRun.ts</code>: when form <code>tariff_mode === "both"</code>, route to comparison endpoint; new <code>tariffComparison</code> state surfaces in <code>App.tsx</code>.</li>
+          <li>New <code>TariffModeComparison.tsx</code> table: 4 columns (Metric / 1C / 2C / Delta) over 5 headline KPIs incl. demand-charge savings; surfaces per-mode <code>error</code> strings without crashing.</li>
+          <li>4 new TDD tests (method, missing csv, success delta, NaN sanitisation); suite grew 34 → 38.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h4>Commit trail on <code>main</code></h4>
+      <ul>
+        <li><code>bcb52e4</code> — feat(web/gap-03-phase1): thread tariff_mode + Cp_demand through web pipeline</li>
+        <li><code>10698e2</code> — feat(web/gap-03-phase2): expose tariff-mode selector and demand-charge KPI</li>
+        <li><code>10bf03c</code> — feat(web/gap-03-phase3): add tariff-mode comparison endpoint and UI</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 8. FINDINGS & RECOMMENDATION -->
+  <section class="section">
+    <span class="s-index">07 &middot; Findings &amp; Recommendation</span>
+    <h2 class="s-title">What we found, what we advise</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Findings</h4>
+        <ul>
+          <li>The plan's assumption that the JSON loader picks up <code>tariff_structure</code> from the payload was wrong — only the Excel loader does that. Required threading <code>tariff_mode</code> as a kwarg through every handler, including the download endpoints (otherwise downloads would silently revert to 1-component after a 2-component run).</li>
+          <li>Validating <code>tariff_mode</code> at the payload-build boundary (<code>resolve_tariff_mode</code>) lets every handler share the same 400-on-bad-input path with zero extra plumbing.</li>
+          <li>Categorical comparison (run-the-pipeline-twice) is qualitatively different from a numeric sweep and gets its own endpoint and UI rather than being squeezed into the existing scenario / sensitivity surfaces.</li>
+          <li>Older API responses lack <code>demand_charge_savings_usd</code> / <code>tariff_mode</code> — making those fields optional on <code>ModelKpis</code> preserves backward compat for free.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Test growth (TDD)</h4>
+        <div class="chart-wrap"><canvas id="testChart"></canvas></div>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:16px"><strong>Recommendation:</strong> ship as-is. The Sprint 4 model feature is now end-to-end reachable, the comparison view headlines the Decree 146/2025 trade-off, and the 1-component default keeps the form simple for users not on the pilot. Surface voltage-tier warnings (RISK-01-01) only if the silent-fallback shows up in production — most projects will be on 22 kV where the matrix is complete.</p>
+  </section>
+
+  <!-- 9. IMPLEMENTATION PATH -->
+  <section class="section">
+    <span class="s-index">08 &middot; Implementation Path</span>
+    <h2 class="s-title">From here</h2>
+    <table>
+      <thead><tr><th>Step</th><th>Action</th><th>Owner / Dependency</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Pre-deploy manual gate: run Emivest at 22 kV with <code>tariff_mode=2-component</code> via the structured form; confirm "Year 1 Demand Charge Savings" card shows ~$8k. Then switch to "Compare both modes" and confirm the table shows ~$303.9k → ~$203.1k grid-savings delta.</td><td>Web — before next deploy</td></tr>
+        <tr><td>2</td><td>Deploy (first production deploy is GAP-04) so the dropdown reaches real users.</td><td>Depends on GAP-04 PHASE-01</td></tr>
+        <tr><td>3</td><td>Extend <code>/api/compare-tariff-modes</code> to accept Excel uploads (runner already supports <code>excel_path</code>). Only worth doing if Excel users ask for it.</td><td>Web — optional</td></tr>
+        <tr><td>4</td><td>Propagate loader warnings (voltage-tier mismatch, hidden fallback to 1-component) into the API response — Risk R6/R8 from the gap analysis.</td><td>Web — when the silent fallback bites</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 10. RISKS / OPEN QUESTIONS -->
+  <section class="section">
+    <span class="s-index">09 &middot; Risks / Open Questions</span>
+    <h2 class="s-title">What to watch</h2>
+    <ul>
+      <li><strong>Silent fallback for non-22 kV voltage tiers:</strong> if <code>retail_tariff_matrix.tariff_options</code> lacks a <code>2-component</code> entry for the requested voltage tier, the loader logs a warning and runs 1-component. The web tool never sees that warning today. Mitigation deferred (Step 4 above); for now, document in <code>activeContext.md</code> and warn pilot users to manually verify.</li>
+      <li><strong>Manual UI verification outstanding:</strong> 38 backend tests + frontend build pass, but the dropdown → form-reveal → comparison-table flow has not been exercised against a live backend. Step 1 above is the gate.</li>
+      <li><strong>Default Ca rates are 22 kV specific:</strong> 1190 / 1833 / 3398 VND/kWh are the Sprint 4 22 kV reference. If non-22 kV users opt into 2-component without overriding these, the numbers will be wrong by tier. Field labels mention "(VND/kWh)" but not the voltage assumption.</li>
+      <li><strong>Pre-existing mypy noise:</strong> the systemic <code>tuple[Response, int]</code> warnings still apply (lessons.md L-006). No new regressions.</li>
+      <li><strong>Not yet live:</strong> users benefit only once GAP-04 deploys the app for real.</li>
+    </ul>
+  </section>
+
+  <!-- 11. APPENDICES / EVIDENCE -->
+  <section class="section">
+    <span class="s-index">10 &middot; Appendices / Evidence Notes</span>
+    <h2 class="s-title">Traceability</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Artifacts</h4>
+        <ul>
+          <li>Plan: <code>plans/2026-06-13-web-two-component-tariff-plan.md</code></li>
+          <li>Gap analysis: <code>reports/2026-06-13-reopt-web-interface-gap-analysis.md</code></li>
+          <li>Active context log: <code>activeContext.md</code></li>
+          <li>Lessons (updated): <code>lessons.md</code> L-007 (JSON loader asymmetry), L-008 (test fakes need <code>**kwargs</code>).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Endpoint surface (added this sprint)</h4>
+        <table>
+          <thead><tr><th>Route</th><th>Function</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /api/compare-tariff-modes</code></td><td><code>compareTariffModes</code></td><td><code>{"1-component", "2-component", "delta"}</code> KPI dicts</td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--muted);font-size:0.84rem;margin-top:10px">Existing run / download / scenario / sensitivity endpoints all now honor <code>tariff_mode</code> from the form — invisible behavior change to the URL surface, but corrects a previous silent 1-component fallback on downloads.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  Chart.defaults.devicePixelRatio = 1;
+  Chart.defaults.animation = false;
+  Chart.defaults.resizeDelay = 150;
+  Chart.defaults.normalized = true;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.color = '#8ea3ad';
+  new Chart(document.getElementById('testChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Baseline', 'After PHASE-01', 'After PHASE-02', 'After PHASE-03'],
+      datasets: [
+        { label: 'Existing tests', data: [29, 29, 29, 29], backgroundColor: 'rgba(0,245,255,0.5)' },
+        { label: 'PHASE-01 threading tests', data: [0, 5, 5, 5], backgroundColor: 'rgba(57,255,20,0.6)' },
+        { label: 'PHASE-03 comparison tests', data: [0, 0, 0, 4], backgroundColor: 'rgba(255,180,84,0.6)' }
+      ]
+    },
+    options: {
+      animation: false, resizeDelay: 150, normalized: true,
+      scales: { x: { stacked: true, grid: { color: 'rgba(255,255,255,0.06)' } },
+                y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' } } },
+      plugins: { legend: { labels: { color: '#e9f6ff' } } }
+    }
+  });
+</script>
+</body>
+</html>
