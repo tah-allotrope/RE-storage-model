@@ -8,6 +8,7 @@ from flask_cors import cross_origin
 from handlers.compare_scenarios import handle_compare_scenarios
 from handlers.run_excel import handle_run_excel
 from handlers.run_json import handle_run_json
+from handlers.run_report import handle_run_report
 from handlers.run_sensitivity import handle_run_sensitivity
 
 
@@ -33,3 +34,9 @@ def compareScenarios(request: Request):  # noqa: N802
 @cross_origin()
 def runSensitivity(request: Request):  # noqa: N802
     return handle_run_sensitivity(request)
+
+
+@functions_framework.http
+@cross_origin(expose_headers=["Content-Disposition"])
+def runReport(request: Request):  # noqa: N802
+    return handle_run_report(request)

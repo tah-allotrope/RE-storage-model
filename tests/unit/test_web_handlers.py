@@ -22,6 +22,7 @@ if str(FUNCTIONS_DIR) not in sys.path:
 from handlers.compare_scenarios import handle_compare_scenarios  # noqa: E402
 from handlers.run_excel import handle_run_excel  # noqa: E402
 from handlers.run_json import _build_project_payload, handle_run_json  # noqa: E402
+from handlers.run_report import handle_run_report  # noqa: E402
 from handlers.run_sensitivity import handle_run_sensitivity  # noqa: E402
 from utils.serialise import serialise_results  # noqa: E402
 
@@ -410,3 +411,167 @@ def test_build_project_payload_includes_loader_required_financial_defaults() -> 
         {"year": 2, "pct": 0.3},
         {"year": 3, "pct": 0.3},
     ]
+
+
+def test_handle_run_report_requires_post(app: Flask) -> None:
+    with app.test_request_context("/api/run-report", method="GET"):
+        response = handle_run_report(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    assert status == 405
+
+
+def test_handle_run_report_json_path_returns_html(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    def fake_run_model_from_json(_: Path) -> dict[str, Any]:
+        return {
+            "project_irr": 0.08,
+            "_lifetime_df": "lifetime-sentinel",
+            "_hourly_df": "hourly-sentinel",
+        }
+
+    captured: dict[str, Any] = {}
+
+    def fake_generate_report(
+        project_config: dict[str, Any],
+        model_results: dict[str, Any],
+        reference_kpis: Any,
+        lifetime_df: Any,
+        hourly_df: Any,
+    ) -> str:
+        captured["project_config"] = project_config
+        captured["model_results"] = model_results
+        captured["reference_kpis"] = reference_kpis
+        captured["lifetime_df"] = lifetime_df
+        captured["hourly_df"] = hourly_df
+        return "<html><body>RE-Storage Report</body></html>"
+
+    monkeypatch.setattr("handlers.run_report.run_model_from_json", fake_run_model_from_json)
+    monkeypatch.setattr("handlers.run_report.generate_report", fake_generate_report)
+
+    form_data = {
+        "project_name": "Test Report Project",
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/run-report", method="POST", data=form_data):
+        response = handle_run_report(request)
+
+    flask_response = response[0] if isinstance(response, tuple) else response
+    status = response[1] if isinstance(response, tuple) else flask_response.status_code
+
+    assert status == 200
+    assert flask_response.mimetype == "text/html"
+    assert "attachment" in flask_response.headers["Content-Disposition"]
+    assert "test-report-project" in flask_response.headers["Content-Disposition"]
+    assert flask_response.headers["Access-Control-Expose-Headers"] == "Content-Disposition"
+    assert b"RE-Storage Report" in flask_response.get_data()
+
+    assert captured["reference_kpis"] is None
+    assert captured["lifetime_df"] == "lifetime-sentinel"
+    assert captured["hourly_df"] == "hourly-sentinel"
+    assert "_lifetime_df" not in captured["model_results"]
+    assert captured["model_results"]["project_irr"] == 0.08
+    assert "system_input" in captured["project_config"]
+
+
+def test_handle_run_report_json_path_requires_hourly_csv(app: Flask) -> None:
+    with app.test_request_context("/api/run-report", method="POST", data={}):
+        response = handle_run_report(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert "hourly_csv" in str(payload["error"])
+
+
+def test_handle_run_report_excel_path_returns_html(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    def fake_run_full_model(_: Path) -> dict[str, Any]:
+        return {
+            "project_irr": 0.07,
+            "_lifetime_df": "lifetime-sentinel",
+            "_hourly_df": "hourly-sentinel",
+        }
+
+    def fake_generate_report(**_: Any) -> str:
+        return "<html>Excel Report</html>"
+
+    monkeypatch.setattr("handlers.run_report.run_full_model", fake_run_full_model)
+    monkeypatch.setattr("handlers.run_report.generate_report", fake_generate_report)
+
+    data = {
+        "source": "excel",
+        "file": (io.BytesIO(b"dummy"), "project.xlsx"),
+    }
+    with app.test_request_context("/api/run-report", method="POST", data=data):
+        response = handle_run_report(request)
+
+    flask_response = response[0] if isinstance(response, tuple) else response
+    status = response[1] if isinstance(response, tuple) else flask_response.status_code
+
+    assert status == 200
+    assert flask_response.mimetype == "text/html"
+    assert b"Excel Report" in flask_response.get_data()
+
+
+def test_handle_run_report_excel_path_requires_file(app: Flask) -> None:
+    with app.test_request_context(
+        "/api/run-report", method="POST", data={"source": "excel"}
+    ):
+        response = handle_run_report(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert "file" in str(payload["error"])
+
+
+def test_handle_run_report_excel_path_rejects_non_xlsx(app: Flask) -> None:
+    data = {
+        "source": "excel",
+        "file": (io.BytesIO(b"dummy"), "project.csv"),
+    }
+    with app.test_request_context("/api/run-report", method="POST", data=data):
+        response = handle_run_report(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert ".xlsx" in str(payload["error"])
+
+
+def test_handle_run_report_missing_dataframes_returns_422(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    def fake_run_model_from_json(_: Path) -> dict[str, Any]:
+        return {"project_irr": 0.04, "_lifetime_df": None, "_hourly_df": None}
+
+    monkeypatch.setattr("handlers.run_report.run_model_from_json", fake_run_model_from_json)
+
+    form_data = {
+        "project_name": "No DataFrames",
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/run-report", method="POST", data=form_data):
+        response = handle_run_report(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 422
+    assert "lifetime" in str(payload["error"]).lower() or "hourly" in str(payload["error"]).lower()
