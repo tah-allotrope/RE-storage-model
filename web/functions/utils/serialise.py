@@ -7,6 +7,12 @@ from typing import Any
 
 import pandas as pd
 
+from re_storage.reporting.assessment import (
+    AssessmentThresholds,
+    AssessmentVerdict,
+    assess_project,
+)
+
 ANNUAL_COLUMNS = [
     "year",
     "dppa_revenue_usd",
@@ -71,13 +77,36 @@ def _serialise_dataframe_rows(dataframe: pd.DataFrame, columns: list[str]) -> li
     return rows
 
 
-def serialise_results(results: dict[str, Any]) -> dict[str, Any]:
-    """Convert model output to JSON-safe payload for API clients."""
+def serialise_verdict(verdict: AssessmentVerdict) -> dict[str, Any]:
+    """Convert an AssessmentVerdict dataclass into a JSON-safe dict."""
+    return {
+        "overall": verdict.overall,
+        "equity_irr_status": verdict.equity_irr_status,
+        "dscr_status": verdict.dscr_status,
+        "npv_status": verdict.npv_status,
+        "payback_status": verdict.payback_status,
+        "details": list(verdict.details),
+    }
+
+
+def serialise_results(
+    results: dict[str, Any],
+    thresholds: AssessmentThresholds | None = None,
+) -> dict[str, Any]:
+    """Convert model output to JSON-safe payload for API clients.
+
+    The payload includes a ``verdict`` block derived from
+    :func:`re_storage.reporting.assessment.assess_project`. ``thresholds``
+    overrides the default go/no-go hurdle rates when supplied (the seam used
+    by the deferred user-adjustable-thresholds phase).
+    """
     kpis: dict[str, Any] = {}
     for key, value in results.items():
         if key.startswith("_"):
             continue
         kpis[key] = _sanitize_value(value)
+
+    verdict = serialise_verdict(assess_project(kpis, thresholds))
 
     lifetime_df = results.get("_lifetime_df")
     lifetime: list[dict[str, Any]] = []
@@ -103,6 +132,7 @@ def serialise_results(results: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "kpis": kpis,
+        "verdict": verdict,
         "lifetime": lifetime,
         "annual": annual,
         "cashflow": cashflow,

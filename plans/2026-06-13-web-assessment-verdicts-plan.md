@@ -33,7 +33,9 @@ Surface the model's existing Go/No-Go recommendation in the web UI. `assess_proj
 |---|---|---|---|
 | PHASE-01 | Compute + serialise verdict in handlers | None | `verdict` field in run responses; handler tests |
 | PHASE-02 | Render verdict banner + metric chips in dashboard | PHASE-01 | `VerdictBanner.tsx`, `model.ts` types, wired dashboard |
-| PHASE-03 | Optional threshold overrides from the form | PHASE-01 | Threshold inputs → `AssessmentThresholds` |
+| PHASE-03 (DEFERRED) | Optional threshold overrides from the form | PHASE-01 | Threshold inputs → `AssessmentThresholds` |
+
+> **Scope decision (2026-06-13, Q-001):** Sprint 1 ships PHASE-01 + PHASE-02 only, with the fixed default hurdles (`equity_irr_hurdle=0.12`, `dscr_covenant=1.2`, `max_payback_years=15`, `npv_floor_usd=0`). PHASE-03 (user-adjustable thresholds) is a deferred fast-follow — keep the `serialise_results(..., thresholds=None)` seam from TASK-01-02 so it can be added without rework.
 
 ## Detailed Phases
 
@@ -85,7 +87,7 @@ The dashboard leads with a color-coded verdict and per-metric pass/fail chips.
 **Phase Risks**
 - **RISK-02-01:** Older cached API responses lack `verdict`; render defensively (`verdict?` optional) so the dashboard never crashes on a missing field.
 
-### PHASE-03 - Optional threshold overrides
+### PHASE-03 - Optional threshold overrides (DEFERRED — fast-follow, not in Sprint 1)
 **Goal**
 Let users tune hurdle rates and see the verdict recompute.
 
@@ -116,10 +118,9 @@ Let users tune hurdle rates and see the verdict recompute.
 - **ALT-001:** Compute the verdict client-side in TypeScript. Rejected: duplicates tested Python banding logic and risks divergence.
 
 ## Grill Me
-1. **Q-001:** Should threshold overrides (PHASE-03) ship in this plan, or stay defaults-only for Sprint 1?
-   - **Recommended default:** Ship PHASE-01 + PHASE-02 now; defer PHASE-03 to a fast-follow.
-   - **Why this matters:** Determines Sprint 1 scope and form complexity.
-   - **If answered differently:** Include PHASE-03 fields in the same PR and extend handler tests for threshold parsing.
+1. **Q-001 (RESOLVED 2026-06-13):** Should threshold overrides (PHASE-03) ship in this plan, or stay defaults-only for Sprint 1?
+   - **Answer:** Defer PHASE-03. Sprint 1 = PHASE-01 + PHASE-02 with fixed default hurdles; PHASE-03 is a fast-follow.
+   - **Implication:** Keep the optional `thresholds` argument seam in `serialise_results` so the deferred phase needs no rework.
 
 ## Suggested Next Step
-Answer Q-001, then implement PHASE-01 (TDD against `test_web_handlers.py`) before touching the frontend.
+Implement PHASE-01 (TDD against `tests/unit/test_web_handlers.py`), then PHASE-02. Skip PHASE-03 for Sprint 1.

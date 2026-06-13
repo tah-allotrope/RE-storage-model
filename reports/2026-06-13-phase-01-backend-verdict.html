@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase Report :: GAP-01 PHASE-01 — Backend Assessment Verdict</title>
+  <meta name="color-scheme" content="dark">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) return;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+      await mermaid.run({ nodes: blocks });
+    }
+    const run = () => initMermaid().catch((e) => console.error('Mermaid render failed', e));
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+    else run();
+  </script>
+  <style>
+    :root { --bg:#0d0d0d; --panel:rgba(13,13,13,0.88); --panel-strong:rgba(19,19,19,0.96); --line:rgba(0,245,255,0.26); --text:#e9f6ff; --muted:#8ea3ad; --blue:#00f5ff; --green:#39ff14; --amber:#ffb454; --red:#ff5470; --glow-blue:0 0 18px rgba(0,245,255,0.42); --glow-green:0 0 18px rgba(57,255,20,0.28); --shadow:0 14px 40px rgba(0,0,0,0.32); --nf:"Segoe UI","Helvetica Neue",Arial,sans-serif; --tf:"Cascadia Code","Fira Code",Consolas,monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; overflow-x:hidden; background:radial-gradient(circle at top left,rgba(0,245,255,0.12),transparent 28%),radial-gradient(circle at 85% 12%,rgba(57,255,20,0.08),transparent 24%),linear-gradient(180deg,#050505,#0d0d0d 36%,#090909); color:var(--text); font-family:var(--nf); line-height:1.6; }
+    a { color:var(--blue); }
+    code, pre, .tf, .meta-chip, .kicker, .pill, .tag { font-family:var(--tf); }
+    .shell { width:min(1100px,calc(100vw - 32px)); margin:0 auto; padding:32px 0 72px; }
+    .hero { padding:28px; margin-bottom:24px; border:1px solid var(--line); border-radius:28px; background:linear-gradient(145deg,rgba(0,245,255,0.08),transparent 28%),var(--panel-strong); box-shadow:var(--shadow); }
+    .kicker { margin:0 0 12px; color:var(--green); font-size:0.76rem; font-weight:700; text-transform:uppercase; letter-spacing:0.22em; text-shadow:var(--glow-green); }
+    .title { margin:0; font-size:clamp(2rem,4vw,3.4rem); line-height:0.96; letter-spacing:-0.04em; color:#f5feff; text-transform:uppercase; text-shadow:0 0 24px rgba(0,245,255,0.2); }
+    .lede { margin:18px 0 0; max-width:70ch; color:var(--muted); }
+    .meta-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .meta-chip { padding:8px 14px; border:1px solid rgba(57,255,20,0.2); border-radius:999px; background:rgba(255,255,255,0.025); color:var(--blue); font-size:0.82rem; font-weight:700; text-shadow:var(--glow-blue); }
+    .section { position:relative; margin-top:22px; padding:24px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:var(--shadow); }
+    .section::before { content:""; position:absolute; left:24px; right:24px; top:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,245,255,0.9),rgba(57,255,20,0.9),transparent); transform:translateY(-1px); }
+    .s-index { color:var(--green); font-size:0.74rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; text-shadow:var(--glow-green); }
+    .s-title { margin:6px 0 16px; font-size:clamp(1.15rem,2vw,1.6rem); color:#f0feff; }
+    .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .card { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); }
+    .card h4 { margin:0 0 10px; color:var(--blue); font-size:0.82rem; text-transform:uppercase; letter-spacing:0.14em; text-shadow:var(--glow-blue); }
+    ul { margin:8px 0; padding-left:20px; } li { margin:5px 0; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:11px 10px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; vertical-align:top; font-size:0.92rem; }
+    th { color:var(--green); font-size:0.74rem; text-transform:uppercase; letter-spacing:0.1em; }
+    code { background:rgba(0,245,255,0.08); padding:2px 6px; border-radius:6px; font-size:0.86rem; }
+    .frame { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); overflow:auto; max-height:min(70vh,640px); }
+    .mermaid { width:100%; color:var(--text); }
+    .chart-wrap { position:relative; height:260px; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:0.74rem; font-weight:700; letter-spacing:0.04em; }
+    .go { background:rgba(57,255,20,0.14); color:var(--green); border:1px solid rgba(57,255,20,0.4); }
+    .caution { background:rgba(255,180,84,0.14); color:var(--amber); border:1px solid rgba(255,180,84,0.4); }
+    .nogo { background:rgba(255,84,112,0.14); color:var(--red); border:1px solid rgba(255,84,112,0.4); }
+    .ok { color:var(--green); } .warn { color:var(--amber); }
+    pre { margin:0; white-space:pre-wrap; font-size:0.84rem; color:#d6f6ff; }
+    @media (max-width:720px){ .grid2{grid-template-columns:1fr;} }
+    @media print { body{background:#fff;color:#111;} .section,.hero,.card,.frame{box-shadow:none;border-color:#ccc;} .title,.kicker,.s-index{text-shadow:none;color:#111;} }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- 1. PHASE HEADER -->
+  <header class="hero">
+    <p class="kicker">Phase Report &middot; GAP-01 &middot; PHASE-01</p>
+    <h1 class="title">Backend Assessment Verdict</h1>
+    <p class="lede">Expose the model's existing Go/No-Go recommendation through the web API. <code>assess_project()</code> already turns KPIs into a <span class="pill go">GO</span> / <span class="pill caution">CAUTION</span> / <span class="pill nogo">NO-GO</span> verdict with per-metric PASS/MARGINAL/FAIL status — but the Cloud Function response never carried it. This phase wires the verdict into <code>serialise_results()</code> so both run paths emit it, with a threshold-override seam left for the deferred PHASE-03.</p>
+    <div class="meta-row">
+      <span class="meta-chip">2026-06-13</span>
+      <span class="meta-chip">Project: RE-Storage</span>
+      <span class="meta-chip">Repo: RE-storage-model</span>
+      <span class="meta-chip">Tests: 11 &rarr; 16 PASS</span>
+      <span class="meta-chip">TDD: Red &rarr; Green</span>
+    </div>
+  </header>
+
+  <!-- 2. INPUT -> OUTPUT SUMMARY -->
+  <section class="section">
+    <span class="s-index">01 &middot; Input &rarr; Output</span>
+    <h2 class="s-title">What went in, what came out</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Inputs</h4>
+        <ul>
+          <li>Model KPI dict from <code>run_full_model</code> / <code>run_model_from_json</code> (includes <code>equity_irr</code>, <code>dscr_min</code>, <code>npv_usd</code>, <code>simple_payback_years</code>)</li>
+          <li>Existing, tested <code>assess_project()</code> + <code>AssessmentThresholds</code> / <code>AssessmentVerdict</code> (Sprint 3)</li>
+          <li>Optional <code>thresholds</code> override (default hurdles when omitted)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Outputs</h4>
+        <ul>
+          <li>New <code>verdict</code> block in every run response: <code>overall</code> + four metric statuses + <code>details[]</code></li>
+          <li><code>serialise_verdict()</code> helper (dataclass &rarr; JSON-safe dict)</li>
+          <li>5 new tests; full web suite <span class="ok">16 passed</span></li>
+          <li>Both <code>/api/run-json</code> and <code>/api/run-excel</code> inherit the verdict (shared serialiser)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. LOGIC FLOW -->
+  <section class="section">
+    <span class="s-index">02 &middot; Logic Flow</span>
+    <h2 class="s-title">Where the verdict is computed</h2>
+    <div class="frame">
+      <div class="mermaid">
+flowchart LR
+  A[POST /api/run-json or /api/run-excel] --> B[run model pipeline]
+  B --> C[serialise_results kpis dict]
+  C --> D{assess_project kpis, thresholds}
+  D -->|all PASS| E[GO]
+  D -->|any FAIL| F[NO-GO]
+  D -->|else| G[CAUTION]
+  E --> H[serialise_verdict -> JSON]
+  F --> H
+  G --> H
+  H --> I[response: kpis + verdict + series]
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. MATH / ALGORITHM -->
+  <section class="section">
+    <span class="s-index">03 &middot; Math / Algorithm</span>
+    <h2 class="s-title">The banding rule (reused verbatim from the model)</h2>
+    <p style="color:var(--muted);max-width:74ch">Each metric is scored against a threshold with a marginal band; the overall verdict is the aggregate. No new math was introduced — the phase reuses <code>assess_project</code> so the web verdict can never diverge from the Excel workbook's own verdict logic.</p>
+    <table>
+      <thead><tr><th>Metric</th><th>Default hurdle</th><th>PASS</th><th>MARGINAL</th><th>FAIL</th></tr></thead>
+      <tbody>
+        <tr><td>Equity IRR</td><td>&ge; 12%</td><td>&ge; hurdle</td><td>&ge; 80% of hurdle</td><td>below band / missing</td></tr>
+        <tr><td>Min DSCR</td><td>&ge; 1.2</td><td>&ge; covenant</td><td>&ge; 90% of covenant</td><td>below band / missing</td></tr>
+        <tr><td>NPV</td><td>&ge; $0</td><td>&ge; floor</td><td>&ge; floor &minus; $1M</td><td>below band / missing</td></tr>
+        <tr><td>Simple Payback</td><td>&le; 15 yrs</td><td>&le; max</td><td>within marginal band</td><td>exceeds / missing</td></tr>
+      </tbody>
+    </table>
+    <p style="color:var(--muted);margin-top:14px"><strong>Aggregate:</strong> all four PASS &rarr; <span class="pill go">GO</span>; any FAIL &rarr; <span class="pill nogo">NO-GO</span>; otherwise &rarr; <span class="pill caution">CAUTION</span>. A missing/NaN metric (e.g. <code>simple_payback_years = None</code>) safely degrades to FAIL rather than raising.</p>
+  </section>
+
+  <!-- 5. TOOLS / METHODS -->
+  <section class="section">
+    <span class="s-index">04 &middot; Tools / Methods</span>
+    <h2 class="s-title">How it was built</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Method — Red/Green TDD</h4>
+        <ul>
+          <li>Wrote 5 failing tests first; confirmed <code>KeyError: 'verdict'</code> (red)</li>
+          <li>Implemented the serialiser change; re-ran to green</li>
+          <li>Verified no regression on the 11 pre-existing tests</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Surfaces touched</h4>
+        <ul>
+          <li><code>web/functions/utils/serialise.py</code> — verdict computation + helper + <code>thresholds</code> param</li>
+          <li><code>tests/unit/test_web_handlers.py</code> — 5 new tests</li>
+          <li><code>activeContext.md</code> — phase tracking</li>
+          <li>Handlers unchanged — both already route through <code>serialise_results</code></li>
+        </ul>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h4>Core change</h4>
+<pre>verdict = serialise_verdict(assess_project(kpis, thresholds))
+return { "kpis": kpis, "verdict": verdict, "lifetime": ..., "annual": ..., ... }</pre>
+    </div>
+  </section>
+
+  <!-- 6. RESULTS & VISUALIZATIONS -->
+  <section class="section">
+    <span class="s-index">05 &middot; Results &amp; Visualizations</span>
+    <h2 class="s-title">Test outcome &amp; verdict behaviour</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Web handler suite</h4>
+        <div class="chart-wrap"><canvas id="testChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h4>Verdict cases proven by tests</h4>
+        <table>
+          <thead><tr><th>Scenario</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>IRR 15%, DSCR 1.4, NPV +$2M, payback 9y</td><td><span class="pill go">GO</span></td></tr>
+            <tr><td>IRR 2%, DSCR 0.9, NPV &minus;$5M, payback 30y</td><td><span class="pill nogo">NO-GO</span></td></tr>
+            <tr><td>Strong KPIs, payback = <code>None</code></td><td><span class="pill nogo">NO-GO</span> (payback FAIL, no crash)</td></tr>
+            <tr><td>DSCR 1.25 with strict covenant 1.5</td><td><span class="pill nogo">NO-GO</span> (override seam works)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. LIMITATIONS / SECOND-BEST -->
+  <section class="section">
+    <span class="s-index">06 &middot; Limitations / Alternative</span>
+    <h2 class="s-title">What this phase deliberately does not do</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Limitations</h4>
+        <ul>
+          <li>Verdict is invisible to users until PHASE-02 renders it (this phase is API-only)</li>
+          <li>Thresholds are fixed defaults; user editing is deferred (PHASE-03)</li>
+          <li>Scenario-comparison and sensitivity sub-views do not yet carry verdicts</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Second-best alternative (rejected)</h4>
+        <ul>
+          <li>Compute the verdict client-side in TypeScript</li>
+          <li>Rejected: would duplicate tested Python banding logic and risk drift from the Excel workbook verdict</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. ERRORS / WARNINGS / FLAGS -->
+  <section class="section">
+    <span class="s-index">07 &middot; Errors / Warnings / Flags</span>
+    <h2 class="s-title">Encountered &amp; resolved</h2>
+    <table>
+      <thead><tr><th>Flag</th><th>Detail</th><th>Resolution</th></tr></thead>
+      <tbody>
+        <tr><td class="warn">flask missing in main venv</td><td><code>ModuleNotFoundError: flask</code> — main <code>.venv</code> lacks web deps; suite auto-skipped</td><td>Ran with <code>web/functions/.venv</code> python per README</td></tr>
+        <tr><td class="warn">Stale vendored re_storage</td><td><code>web/functions/re_storage/reporting/</code> absent in the cached vendor copy</td><td>Confirmed harmless: <code>prepare_firebase_functions.py</code> re-copies full <code>src/re_storage</code> at predeploy; dir is gitignored</td></tr>
+        <tr><td class="ok">Lint</td><td>ruff + black on changed files</td><td>All checks passed</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 9. OPEN QUESTIONS / NEXT PHASE -->
+  <section class="section">
+    <span class="s-index">08 &middot; Open Questions / Next Phase</span>
+    <h2 class="s-title">Seeds for PHASE-02</h2>
+    <ul>
+      <li><strong>PHASE-02 (next):</strong> add a <code>Verdict</code> type to <code>model.ts</code>; build <code>VerdictBanner.tsx</code> (GO/CAUTION/NO-GO pill + four chips + collapsible <code>details</code>); render at the top of <code>ResultsDashboard.tsx</code>; add color tokens to <code>styles.css</code>; render defensively so older responses without <code>verdict</code> never crash.</li>
+      <li><strong>Deferred (PHASE-03):</strong> surface the four hurdle inputs in <code>FinancialStep.tsx</code> under an "Advanced" section, feeding the <code>thresholds</code> seam already in place.</li>
+      <li><strong>Open:</strong> should the deploy hook be hardened to fail loudly if vendoring misses a subpackage? (tracked as GAP-04 build-hygiene)</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+  Chart.defaults.devicePixelRatio = 1;
+  Chart.defaults.animation = false;
+  Chart.defaults.resizeDelay = 150;
+  Chart.defaults.normalized = true;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.color = '#8ea3ad';
+  new Chart(document.getElementById('testChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Baseline', 'After PHASE-01'],
+      datasets: [
+        { label: 'Existing tests', data: [11, 11], backgroundColor: 'rgba(0,245,255,0.5)' },
+        { label: 'New verdict tests', data: [0, 5], backgroundColor: 'rgba(57,255,20,0.6)' }
+      ]
+    },
+    options: {
+      animation: false, resizeDelay: 150, normalized: true,
+      scales: { x: { stacked: true, grid: { color: 'rgba(255,255,255,0.06)' } },
+                y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' } } },
+      plugins: { legend: { labels: { color: '#e9f6ff' } } }
+    }
+  });
+</script>
+</body>
+</html>

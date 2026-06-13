@@ -23,6 +23,7 @@ from handlers.compare_scenarios import handle_compare_scenarios  # noqa: E402
 from handlers.run_excel import handle_run_excel  # noqa: E402
 from handlers.run_json import _build_project_payload, handle_run_json  # noqa: E402
 from handlers.run_sensitivity import handle_run_sensitivity  # noqa: E402
+from utils.serialise import serialise_results  # noqa: E402
 
 
 @pytest.fixture
@@ -290,6 +291,94 @@ def test_build_project_payload_includes_all_ppa_options() -> None:
     assert payload["ppa_settings"]["option_3_dppa"][
         "avg_sun_hours_market_price_descent_pct_pa"
     ] == pytest.approx(-0.03)
+
+
+def test_serialise_results_includes_go_verdict() -> None:
+    results = {
+        "equity_irr": 0.15,
+        "dscr_min": 1.4,
+        "npv_usd": 2_000_000.0,
+        "simple_payback_years": 9.0,
+    }
+
+    payload = serialise_results(results)
+    verdict = payload["verdict"]
+
+    assert verdict["overall"] == "GO"
+    assert verdict["equity_irr_status"] == "PASS"
+    assert verdict["dscr_status"] == "PASS"
+    assert verdict["npv_status"] == "PASS"
+    assert verdict["payback_status"] == "PASS"
+    assert isinstance(verdict["details"], list)
+    assert len(verdict["details"]) == 4
+
+
+def test_serialise_results_no_go_verdict_on_failures() -> None:
+    results = {
+        "equity_irr": 0.02,
+        "dscr_min": 0.9,
+        "npv_usd": -5_000_000.0,
+        "simple_payback_years": 30.0,
+    }
+
+    payload = serialise_results(results)
+
+    assert payload["verdict"]["overall"] == "NO-GO"
+
+
+def test_serialise_results_verdict_handles_missing_payback() -> None:
+    results = {
+        "equity_irr": 0.15,
+        "dscr_min": 1.4,
+        "npv_usd": 2_000_000.0,
+        "simple_payback_years": None,
+    }
+
+    payload = serialise_results(results)
+
+    # Missing payback degrades to FAIL rather than raising.
+    assert payload["verdict"]["payback_status"] == "FAIL"
+    assert payload["verdict"]["overall"] == "NO-GO"
+
+
+def test_serialise_results_accepts_threshold_override() -> None:
+    from re_storage.reporting.assessment import AssessmentThresholds
+
+    results = {
+        "equity_irr": 0.15,
+        "dscr_min": 1.25,
+        "npv_usd": 2_000_000.0,
+        "simple_payback_years": 9.0,
+    }
+
+    # Default covenant (1.2): DSCR 1.25 passes.
+    assert serialise_results(results)["verdict"]["dscr_status"] == "PASS"
+
+    # Stricter covenant (1.5): DSCR 1.25 fails, dragging the verdict to NO-GO.
+    strict = serialise_results(results, thresholds=AssessmentThresholds(dscr_covenant=1.5))
+    assert strict["verdict"]["dscr_status"] == "FAIL"
+    assert strict["verdict"]["overall"] == "NO-GO"
+
+
+def test_run_excel_success_response_carries_verdict(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    def fake_run_full_model(_: Path) -> dict[str, float]:
+        return {
+            "equity_irr": 0.15,
+            "dscr_min": 1.4,
+            "npv_usd": 2_000_000.0,
+            "simple_payback_years": 9.0,
+        }
+
+    monkeypatch.setattr("handlers.run_excel.run_full_model", fake_run_full_model)
+
+    data = {"file": (io.BytesIO(b"dummy"), "project.xlsx")}
+    with app.test_request_context("/api/run-excel", method="POST", data=data):
+        response = handle_run_excel(request)
+
+    payload = _extract_response_json(response)
+    assert payload["verdict"]["overall"] == "GO"
 
 
 def test_build_project_payload_includes_loader_required_financial_defaults() -> None:
