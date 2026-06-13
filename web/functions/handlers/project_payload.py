@@ -5,6 +5,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
+# Tariff modes accepted by the model pipeline. Keep aligned with
+# ``re_storage.pipeline.VALID_TARIFF_MODES`` - both must accept these.
+VALID_TARIFF_MODES = {"1-component", "2-component"}
+
 
 def to_float(form: dict[str, str], key: str, default: float) -> float:
     raw = form.get(key)
@@ -27,6 +31,28 @@ def to_bool(form: dict[str, str], key: str, default: bool) -> bool:
     return raw.lower() in {"1", "true", "yes", "on"}
 
 
+def to_str(form: dict[str, str], key: str, default: str) -> str:
+    raw = form.get(key)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip()
+
+
+def resolve_tariff_mode(form: dict[str, str]) -> str:
+    """Read ``tariff_mode`` from the form and validate against the pipeline.
+
+    Returns the validated mode (default ``"1-component"``). Raises
+    ``ValueError`` for anything outside :data:`VALID_TARIFF_MODES` so handlers
+    can return a 400 to the client.
+    """
+    mode = to_str(form, "tariff_mode", "1-component")
+    if mode not in VALID_TARIFF_MODES:
+        raise ValueError(
+            f"tariff_mode must be one of {sorted(VALID_TARIFF_MODES)}, got {mode!r}"
+        )
+    return mode
+
+
 def build_project_payload(form: dict[str, str]) -> dict[str, Any]:
     actual_capacity_kwp = to_float(form, "actual_capacity_kwp", 0.0)
     simulation_capacity_kwp = to_float(form, "simulation_capacity_kwp", actual_capacity_kwp)
@@ -39,6 +65,9 @@ def build_project_payload(form: dict[str, str]) -> dict[str, Any]:
     kpp_110 = to_float(form, "kpp_110", 1.008525)
     project_years = to_int(form, "project_years", 20)
     ppa_option = to_int(form, "ppa_option", 3)
+
+    tariff_mode = resolve_tariff_mode(form)
+    cp_demand_vnd = to_float(form, "cp_demand_vnd_per_kw", 0.0)
 
     degradation_json = form.get("degradation_json", "")
     if degradation_json.strip() == "":
@@ -100,9 +129,9 @@ def build_project_payload(form: dict[str, str]) -> dict[str, Any]:
         },
         "grid_connection_and_tariff": {
             "connection_voltage_level_kV": connection_voltage_kv,
-            "tariff_structure": "1-component",
+            "tariff_structure": tariff_mode,
             "evn_retail_tariff_VND": {
-                "Cp_demand": 0.0,
+                "Cp_demand": cp_demand_vnd,
                 "Ca_normal": to_float(form, "evn_tariff_standard_vnd", 1833.0),
                 "Ca_peak": to_float(form, "evn_tariff_peak_vnd", 3398.0),
                 "Ca_offpeak": to_float(form, "evn_tariff_off_peak_vnd", 1190.0),

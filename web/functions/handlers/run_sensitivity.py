@@ -10,7 +10,7 @@ from typing import Any
 from flask import Request, Response, jsonify
 from utils.validate import ensure_post_method, ensure_uploaded_file
 
-from handlers.project_payload import build_project_payload
+from handlers.project_payload import build_project_payload, resolve_tariff_mode
 from re_storage.core.exceptions import REStorageError
 from re_storage.scenarios.sensitivity import run_sensitivity_for_values
 
@@ -70,6 +70,7 @@ def handle_run_sensitivity(request: Request) -> Response:
         payload = build_project_payload(form)
         test_values = _parse_test_values(form)
         ppa_option = int(float(form.get("ppa_option", "3")))
+        tariff_mode = resolve_tariff_mode(form)
     except ValueError as exc:
         if isinstance(exc, json.JSONDecodeError):
             return jsonify({"error": f"Invalid JSON field: {exc}", "type": "JSONDecodeError"}), 400
@@ -90,6 +91,7 @@ def handle_run_sensitivity(request: Request) -> Response:
                 project_dir=project_dir,
                 base_params=_build_base_params(form),
                 ppa_option=ppa_option,
+                tariff_mode=tariff_mode,
             )
             return jsonify(
                 {

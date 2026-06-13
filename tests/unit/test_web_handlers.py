@@ -60,7 +60,7 @@ def test_handle_run_excel_rejects_missing_file(app: Flask) -> None:
 
 
 def test_handle_run_excel_success(monkeypatch: pytest.MonkeyPatch, app: Flask) -> None:
-    def fake_run_full_model(_: Path) -> dict[str, float]:
+    def fake_run_full_model(_: Path, **_kwargs: Any) -> dict[str, float]:
         return {
             "project_irr": 0.05,
             "npv_usd": 1000.0,
@@ -96,7 +96,7 @@ def test_handle_run_json_requires_hourly_csv(app: Flask) -> None:
 
 
 def test_handle_run_json_success(monkeypatch: pytest.MonkeyPatch, app: Flask) -> None:
-    def fake_run_model_from_json(_: Path) -> dict[str, Any]:
+    def fake_run_model_from_json(_: Path, **_kwargs: Any) -> dict[str, Any]:
         return {
             "project_irr": 0.04,
             "_lifetime_df": None,
@@ -147,7 +147,7 @@ def test_handle_compare_scenarios_requires_hourly_csv(app: Flask) -> None:
 
 
 def test_handle_compare_scenarios_success(monkeypatch: pytest.MonkeyPatch, app: Flask) -> None:
-    def fake_run_all_scenarios(*, project_dir: Path) -> dict[int, dict[str, Any]]:
+    def fake_run_all_scenarios(*, project_dir: Path, **_kwargs: Any) -> dict[int, dict[str, Any]]:
         assert project_dir.exists()
         return {
             1: {"ppa_option": 1, "project_irr": 0.11, "ppa_label": "Bundled Discount"},
@@ -203,6 +203,7 @@ def test_handle_run_sensitivity_success(monkeypatch: pytest.MonkeyPatch, app: Fl
         project_dir: Path,
         base_params: dict[str, Any],
         ppa_option: int,
+        **_kwargs: Any,
     ) -> dict[float, dict[str, Any]]:
         assert variable_name == "strike_price_vnd"
         assert test_values == [1600.0, 1800.0, 2000.0]
@@ -365,7 +366,7 @@ def test_serialise_results_accepts_threshold_override() -> None:
 def test_run_excel_success_response_carries_verdict(
     monkeypatch: pytest.MonkeyPatch, app: Flask
 ) -> None:
-    def fake_run_full_model(_: Path) -> dict[str, float]:
+    def fake_run_full_model(_: Path, **_kwargs: Any) -> dict[str, float]:
         return {
             "equity_irr": 0.15,
             "dscr_min": 1.4,
@@ -425,7 +426,7 @@ def test_handle_run_report_requires_post(app: Flask) -> None:
 def test_handle_run_report_json_path_returns_html(
     monkeypatch: pytest.MonkeyPatch, app: Flask
 ) -> None:
-    def fake_run_model_from_json(_: Path) -> dict[str, Any]:
+    def fake_run_model_from_json(_: Path, **_kwargs: Any) -> dict[str, Any]:
         return {
             "project_irr": 0.08,
             "_lifetime_df": "lifetime-sentinel",
@@ -495,7 +496,7 @@ def test_handle_run_report_json_path_requires_hourly_csv(app: Flask) -> None:
 def test_handle_run_report_excel_path_returns_html(
     monkeypatch: pytest.MonkeyPatch, app: Flask
 ) -> None:
-    def fake_run_full_model(_: Path) -> dict[str, Any]:
+    def fake_run_full_model(_: Path, **_kwargs: Any) -> dict[str, Any]:
         return {
             "project_irr": 0.07,
             "_lifetime_df": "lifetime-sentinel",
@@ -554,7 +555,7 @@ def test_handle_run_report_excel_path_rejects_non_xlsx(app: Flask) -> None:
 def test_handle_run_report_missing_dataframes_returns_422(
     monkeypatch: pytest.MonkeyPatch, app: Flask
 ) -> None:
-    def fake_run_model_from_json(_: Path) -> dict[str, Any]:
+    def fake_run_model_from_json(_: Path, **_kwargs: Any) -> dict[str, Any]:
         return {"project_irr": 0.04, "_lifetime_df": None, "_hourly_df": None}
 
     monkeypatch.setattr("handlers.run_report.run_model_from_json", fake_run_model_from_json)
@@ -629,7 +630,7 @@ def test_handle_export_workbook_json_path_returns_xlsx(
         }
     )
 
-    def fake_run_model_from_json(_: Path) -> dict[str, Any]:
+    def fake_run_model_from_json(_: Path, **_kwargs: Any) -> dict[str, Any]:
         results = _kpis_for_workbook()
         results["_annual_df"] = annual_df
         return results
@@ -700,7 +701,7 @@ def test_handle_export_workbook_excel_path_returns_xlsx(
         }
     )
 
-    def fake_run_full_model(_: Path) -> dict[str, Any]:
+    def fake_run_full_model(_: Path, **_kwargs: Any) -> dict[str, Any]:
         results = _kpis_for_workbook()
         results["_annual_df"] = annual_df
         return results
@@ -749,3 +750,115 @@ def test_handle_export_workbook_excel_path_rejects_non_xlsx(app: Flask) -> None:
 
     assert status == 400
     assert ".xlsx" in str(payload["error"])
+
+
+# ---------------------------------------------------------------------------
+# Two-component tariff (GAP-03 PHASE-01)
+# ---------------------------------------------------------------------------
+
+
+def test_build_project_payload_defaults_to_one_component() -> None:
+    payload = _build_project_payload(
+        {
+            "actual_capacity_kwp": "1000",
+            "simulation_capacity_kwp": "100",
+        }
+    )
+
+    tariff = payload["grid_connection_and_tariff"]
+    assert tariff["tariff_structure"] == "1-component"
+    assert tariff["evn_retail_tariff_VND"]["Cp_demand"] == pytest.approx(0.0)
+
+
+def test_build_project_payload_threads_two_component_tariff_mode() -> None:
+    payload = _build_project_payload(
+        {
+            "actual_capacity_kwp": "1000",
+            "simulation_capacity_kwp": "100",
+            "tariff_mode": "2-component",
+            "cp_demand_vnd_per_kw": "15000",
+            "evn_tariff_standard_vnd": "1900",
+            "evn_tariff_peak_vnd": "3500",
+            "evn_tariff_off_peak_vnd": "1100",
+        }
+    )
+
+    tariff = payload["grid_connection_and_tariff"]
+    assert tariff["tariff_structure"] == "2-component"
+    assert tariff["evn_retail_tariff_VND"]["Cp_demand"] == pytest.approx(15000.0)
+    assert tariff["evn_retail_tariff_VND"]["Ca_normal"] == pytest.approx(1900.0)
+    assert tariff["evn_retail_tariff_VND"]["Ca_peak"] == pytest.approx(3500.0)
+    assert tariff["evn_retail_tariff_VND"]["Ca_offpeak"] == pytest.approx(1100.0)
+
+
+def test_build_project_payload_rejects_invalid_tariff_mode() -> None:
+    with pytest.raises(ValueError, match="tariff_mode"):
+        _build_project_payload(
+            {
+                "actual_capacity_kwp": "1000",
+                "simulation_capacity_kwp": "100",
+                "tariff_mode": "3-component",
+            }
+        )
+
+
+def test_handle_run_json_passes_tariff_mode_to_pipeline(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_run_model_from_json(project_dir: Path, **kwargs: Any) -> dict[str, Any]:
+        captured["project_dir"] = project_dir
+        captured["kwargs"] = kwargs
+        mode = kwargs.get("tariff_mode", "1-component")
+        return {
+            "project_irr": 0.07,
+            "tariff_mode": mode,
+            "demand_charge_savings_usd": 8_000.0 if mode == "2-component" else 0.0,
+            "_annual_df": None,
+            "_lifetime_df": None,
+        }
+
+    monkeypatch.setattr("handlers.run_json.run_model_from_json", fake_run_model_from_json)
+
+    form_data = {
+        "project_name": "2C Test",
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "tariff_mode": "2-component",
+        "cp_demand_vnd_per_kw": "12000",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/run-json", method="POST", data=form_data):
+        response = handle_run_json(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 200
+    assert captured["kwargs"].get("tariff_mode") == "2-component"
+    assert payload["kpis"]["tariff_mode"] == "2-component"
+    assert payload["kpis"]["demand_charge_savings_usd"] == pytest.approx(8000.0)
+
+
+def test_handle_run_json_rejects_invalid_tariff_mode(app: Flask) -> None:
+    form_data = {
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "tariff_mode": "nonsense",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/run-json", method="POST", data=form_data):
+        response = handle_run_json(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert "tariff_mode" in str(payload["error"])

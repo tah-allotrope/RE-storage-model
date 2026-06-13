@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import Request, Response, jsonify
 from utils.validate import ensure_post_method, ensure_uploaded_file
 
-from handlers.project_payload import build_project_payload
+from handlers.project_payload import build_project_payload, resolve_tariff_mode
 from re_storage.core.exceptions import REStorageError
 from re_storage.scenarios.runner import run_all_scenarios
 
@@ -34,6 +34,7 @@ def handle_compare_scenarios(request: Request) -> Response:
 
     try:
         payload = build_project_payload(form)
+        tariff_mode = resolve_tariff_mode(form)
     except ValueError as exc:
         if isinstance(exc, json.JSONDecodeError):
             return jsonify(
@@ -50,7 +51,10 @@ def handle_compare_scenarios(request: Request) -> Response:
         uploaded_csv.save(str(csv_path))
 
         try:
-            scenario_results = run_all_scenarios(project_dir=project_dir)
+            scenario_results = run_all_scenarios(
+                project_dir=project_dir,
+                tariff_mode=tariff_mode,
+            )
             return jsonify({"scenarios": _serialise_scenario_results(scenario_results)})
         except REStorageError as exc:
             return jsonify({"error": str(exc), "type": type(exc).__name__}), 422

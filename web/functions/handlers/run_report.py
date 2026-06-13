@@ -21,7 +21,7 @@ from typing import Any
 from flask import Request, Response, jsonify
 from utils.validate import ensure_post_method, ensure_uploaded_file
 
-from handlers.project_payload import build_project_payload
+from handlers.project_payload import build_project_payload, resolve_tariff_mode, to_float
 from re_storage.core.exceptions import REStorageError
 from re_storage.pipeline import run_full_model, run_model_from_json
 from re_storage.reporting.html_report import generate_report
@@ -66,6 +66,15 @@ def _render_html(project_config: dict[str, Any], results: dict[str, Any]) -> str
     )
 
 
+def _resolve_tariff_kwargs(form: dict[str, str]) -> dict[str, object]:
+    tariff_mode = resolve_tariff_mode(form)
+    cp_demand_raw = form.get("cp_demand_vnd_per_kw", "").strip()
+    cp_demand_vnd: float | None = (
+        to_float(form, "cp_demand_vnd_per_kw", 0.0) if cp_demand_raw else None
+    )
+    return {"tariff_mode": tariff_mode, "cp_demand_vnd_per_kw": cp_demand_vnd}
+
+
 def _handle_json_source(request: Request, form: dict[str, str]) -> Response:
     file_error = ensure_uploaded_file(request, "hourly_csv")
     if file_error is not None:
@@ -73,13 +82,14 @@ def _handle_json_source(request: Request, form: dict[str, str]) -> Response:
 
     uploaded_csv = request.files["hourly_csv"]
     payload = build_project_payload(form)
+    tariff_kwargs = _resolve_tariff_kwargs(form)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         project_dir = Path(tmp_dir)
         (project_dir / "project.json").write_text(json.dumps(payload), encoding="utf-8")
         uploaded_csv.save(str(project_dir / "hourly.csv"))
 
-        results = run_model_from_json(project_dir)
+        results = run_model_from_json(project_dir, **tariff_kwargs)
         html = _render_html(payload, results)
         return _html_response(html, form.get("project_name"))
 
@@ -94,13 +104,15 @@ def _handle_excel_source(request: Request, form: dict[str, str]) -> Response:
     if not filename.lower().endswith(".xlsx"):
         return jsonify({"error": "Uploaded file must have .xlsx extension"}), 400
 
+    tariff_kwargs = _resolve_tariff_kwargs(form)
+
     tmp_path = ""
     try:
         with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
             uploaded.save(tmp.name)
             tmp_path = tmp.name
 
-        results = run_full_model(Path(tmp_path))
+        results = run_full_model(Path(tmp_path), **tariff_kwargs)
         html = _render_html({}, results)
         return _html_response(html, form.get("project_name"))
     finally:
