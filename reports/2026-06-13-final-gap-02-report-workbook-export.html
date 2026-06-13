@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Final Report :: GAP-02 — HTML Report &amp; Excel Workbook Export</title>
+  <meta name="color-scheme" content="dark">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    async function initMermaid() {
+      const blocks = document.querySelectorAll('.mermaid');
+      if (!blocks.length) return;
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+      await mermaid.run({ nodes: blocks });
+    }
+    const run = () => initMermaid().catch((e) => console.error('Mermaid render failed', e));
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+    else run();
+  </script>
+  <style>
+    :root { --panel:rgba(13,13,13,0.88); --panel-strong:rgba(19,19,19,0.96); --line:rgba(0,245,255,0.26); --text:#e9f6ff; --muted:#8ea3ad; --blue:#00f5ff; --green:#39ff14; --amber:#ffb454; --red:#ff5470; --glow-blue:0 0 18px rgba(0,245,255,0.42); --glow-green:0 0 18px rgba(57,255,20,0.28); --shadow:0 14px 40px rgba(0,0,0,0.32); --nf:"Segoe UI","Helvetica Neue",Arial,sans-serif; --tf:"Cascadia Code","Fira Code",Consolas,monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; overflow-x:hidden; background:radial-gradient(circle at top left,rgba(0,245,255,0.12),transparent 28%),radial-gradient(circle at 85% 12%,rgba(57,255,20,0.08),transparent 24%),linear-gradient(180deg,#050505,#0d0d0d 36%,#090909); color:var(--text); font-family:var(--nf); line-height:1.62; }
+    a { color:var(--blue); }
+    code, pre, .tf, .meta-chip, .kicker, .pill, .tag { font-family:var(--tf); }
+    .shell { width:min(1100px,calc(100vw - 32px)); margin:0 auto; padding:32px 0 72px; }
+    .hero { padding:34px 30px; margin-bottom:24px; border:1px solid var(--line); border-radius:28px; background:linear-gradient(145deg,rgba(0,245,255,0.10),transparent 30%),var(--panel-strong); box-shadow:var(--shadow); }
+    .kicker { margin:0 0 12px; color:var(--green); font-size:0.76rem; font-weight:700; text-transform:uppercase; letter-spacing:0.22em; text-shadow:var(--glow-green); }
+    .title { margin:0; font-size:clamp(2.1rem,4.2vw,3.6rem); line-height:0.96; letter-spacing:-0.04em; color:#f5feff; text-transform:uppercase; text-shadow:0 0 24px rgba(0,245,255,0.2); }
+    .takeaway { margin:20px 0 0; max-width:78ch; color:#cfe8f2; font-size:1.05rem; }
+    .meta-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
+    .meta-chip { padding:8px 14px; border:1px solid rgba(57,255,20,0.2); border-radius:999px; background:rgba(255,255,255,0.025); color:var(--blue); font-size:0.82rem; font-weight:700; text-shadow:var(--glow-blue); }
+    .section { position:relative; margin-top:22px; padding:26px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:var(--shadow); }
+    .section::before { content:""; position:absolute; left:24px; right:24px; top:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,245,255,0.9),rgba(57,255,20,0.9),transparent); transform:translateY(-1px); }
+    .s-index { color:var(--green); font-size:0.74rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; text-shadow:var(--glow-green); }
+    .s-title { margin:6px 0 16px; font-size:clamp(1.2rem,2vw,1.7rem); color:#f0feff; }
+    p.lede { color:var(--muted); max-width:80ch; }
+    .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .grid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    .card { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); }
+    .card h4 { margin:0 0 10px; color:var(--blue); font-size:0.82rem; text-transform:uppercase; letter-spacing:0.14em; text-shadow:var(--glow-blue); }
+    .big { font-size:1.9rem; font-weight:800; color:#f5feff; }
+    ul { margin:8px 0; padding-left:20px; } li { margin:6px 0; color:var(--text); }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:11px 10px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; vertical-align:top; font-size:0.92rem; }
+    th { color:var(--green); font-size:0.74rem; text-transform:uppercase; letter-spacing:0.1em; }
+    code { background:rgba(0,245,255,0.08); padding:2px 6px; border-radius:6px; font-size:0.86rem; }
+    .frame { padding:18px; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(7,7,7,0.82); overflow:auto; max-height:min(72vh,680px); }
+    .mermaid { width:100%; color:var(--text); }
+    .chart-wrap { position:relative; height:280px; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:0.74rem; font-weight:700; }
+    .go { background:rgba(57,255,20,0.14); color:var(--green); border:1px solid rgba(57,255,20,0.4); }
+    .caution { background:rgba(255,180,84,0.14); color:var(--amber); border:1px solid rgba(255,180,84,0.4); }
+    .nogo { background:rgba(255,84,112,0.14); color:var(--red); border:1px solid rgba(255,84,112,0.4); }
+    .done { background:rgba(57,255,20,0.14); color:var(--green); border:1px solid rgba(57,255,20,0.4); }
+    .defer { background:rgba(142,163,173,0.14); color:var(--muted); border:1px solid rgba(142,163,173,0.4); }
+    .ok { color:var(--green); } .warn { color:var(--amber); }
+    @media (max-width:760px){ .grid2,.grid3{grid-template-columns:1fr;} }
+    @media print { body{background:#fff;color:#111;} .section,.hero,.card,.frame{box-shadow:none;border-color:#ccc;} .title,.kicker,.s-index,.takeaway{text-shadow:none;color:#111;} .section{break-inside:avoid;} }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- 1. TITLE HERO -->
+  <header class="hero">
+    <p class="kicker">Final Report &middot; Sprint Synthesis</p>
+    <h1 class="title">Download buttons for real artifacts</h1>
+    <p class="takeaway"><strong>The web tool can now hand users the artifacts a financial-model platform is expected to produce.</strong> The model has shipped a polished HTML report and a branded Excel workbook for months — the dashboard let you download nothing but raw JSON. In three phases we exposed both: a <span class="pill go">Download HTML Report</span> and a <span class="pill go">Download Excel Workbook</span> button now appear next to the existing JSON button, re-running the model from the last submitted inputs and streaming the artifact back with the correct file type and filename. Shipped to <code>main</code>, fully tested, with the multi-scenario workbook deliberately deferred.</p>
+    <div class="meta-row">
+      <span class="meta-chip">2026-06-13</span>
+      <span class="meta-chip">Project: RE-Storage</span>
+      <span class="meta-chip">Repo: RE-storage-model</span>
+      <span class="meta-chip">Gap: GAP-02 (HIGH)</span>
+      <span class="meta-chip">Status: Sprint complete</span>
+    </div>
+  </header>
+
+  <!-- 2. EXECUTIVE SUMMARY -->
+  <section class="section">
+    <span class="s-index">01 &middot; Executive Summary</span>
+    <h2 class="s-title">The answer, first</h2>
+    <p class="lede">A gap analysis of the RE-Storage web tool flagged a glaring asymmetry: the model already produced a self-contained HTML report (charts + KPI cards + reference comparison) and a branded multi-sheet Excel workbook (cover + assumptions + assessment with the Go/No-Go verdict) — but the dashboard exposed only a <code>Download JSON Results</code> button. Users could view results in the browser, but could not take anything client-ready away.</p>
+    <div class="grid3" style="margin-top:14px">
+      <div class="card"><h4>Phases shipped</h4><div class="big">3 / 3</div><span style="color:var(--muted)">backend ×2 + frontend; multi-scenario deferred</span></div>
+      <div class="card"><h4>Backend tests</h4><div class="big">29 <span style="font-size:1rem;color:var(--muted)">passed</span></div><span style="color:var(--muted)">16 baseline + 13 new (TDD)</span></div>
+      <div class="card"><h4>New model code</h4><div class="big">0 <span style="font-size:1rem;color:var(--muted)">lines</span></div><span style="color:var(--muted)">reused <code>generate_report</code> + <code>excel_writer</code></span></div>
+    </div>
+    <p class="lede" style="margin-top:16px">As with GAP-01, this was wiring, not new computation: the report and workbook code existed in <code>src/re_storage/reporting/</code> and was already used by <code>scripts/generate_dppa_assessment.py</code>. Both new endpoints reuse those exact functions, so the web export can never disagree with the CLI-produced artifacts. All three phases merged to <code>main</code> and verified.</p>
+  </section>
+
+  <!-- 3. BACKGROUND & OBJECTIVE -->
+  <section class="section">
+    <span class="s-index">02 &middot; Background &amp; Objective</span>
+    <h2 class="s-title">Why this mattered now</h2>
+    <p class="lede">RE-Storage is benchmarked against NREL's REopt. REopt-style tools are expected to produce client-shareable artifacts — a printable summary and a structured workbook investors can drop into their own due-diligence stack. The model side of RE-Storage had both. The web side, despite shipping a verdict banner (GAP-01) the week prior, still forced users to copy KPI cards by hand or re-run the model in the CLI to get the artifact. The objective: close that gap so anyone with browser access to the tool can produce the same artifacts a developer could produce locally.</p>
+  </section>
+
+  <!-- 4. INPUTS & SCOPE -->
+  <section class="section">
+    <span class="s-index">03 &middot; Inputs &amp; Scope</span>
+    <h2 class="s-title">What fed the work, and its boundaries</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Inputs</h4>
+        <ul>
+          <li>Gap analysis: <code>reports/2026-06-13-reopt-web-interface-gap-analysis.md</code> (GAP-02, rated HIGH)</li>
+          <li>Plan: <code>plans/2026-06-13-web-report-workbook-export-plan.md</code></li>
+          <li>Existing report logic: <code>generate_report()</code> in <code>src/re_storage/reporting/html_report.py</code></li>
+          <li>Existing workbook logic: <code>create_workbook</code>, <code>write_cover_sheet</code>, <code>write_assumptions_sheet</code>, <code>write_assessment_sheet</code>, <code>save_workbook</code> in <code>excel_writer.py</code></li>
+          <li>Orchestration reference: <code>scripts/generate_dppa_assessment.py</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Scope boundary (Q-001)</h4>
+        <ul>
+          <li><span class="pill done">In</span> HTML report download (both JSON form &amp; Excel upload paths)</li>
+          <li><span class="pill done">In</span> Single-run Excel workbook: Cover + Assumptions + Assessment sheets</li>
+          <li><span class="pill done">In</span> Frontend run-context resend (no re-upload of inputs)</li>
+          <li><span class="pill defer">Out</span> Multi-scenario / sensitivity workbook (gated behind future <code>?full=true</code> flag — needs timeout testing first)</li>
+          <li><span class="pill defer">Out</span> PDF export, email-on-completion, persistent report archive (touches GAP-04)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ASSUMPTIONS & CONSTRAINTS -->
+  <section class="section">
+    <span class="s-index">04 &middot; Assumptions &amp; Constraints</span>
+    <h2 class="s-title">What we relied on</h2>
+    <table>
+      <thead><tr><th>Item</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>Stateless functions</td><td>Cloud Function instances have no shared <code>/tmp</code> across requests, so the export endpoints re-run the model from posted inputs rather than caching DataFrames. Model runtime (~2–10 s) is the price of zero infrastructure coupling.</td></tr>
+        <tr><td>Single source of truth</td><td>HTML uses <code>generate_report</code>; xlsx uses the same <code>write_*_sheet</code> helpers as the CLI script — the web export can never diverge from local artifacts.</td></tr>
+        <tr><td>Matplotlib headless</td><td><code>html_report.py</code> already calls <code>matplotlib.use("Agg")</code>, so chart rendering inside a Cloud Function needs no extra config.</td></tr>
+        <tr><td>Dependencies present</td><td><code>matplotlib</code> and <code>openpyxl</code> were already in <code>web/functions/requirements.txt</code> — no new function runtime deps.</td></tr>
+        <tr><td>CORS filename round-trip</td><td>Browsers hide <code>Content-Disposition</code> from <code>fetch()</code> unless <code>Access-Control-Expose-Headers</code> is set; both the handler response and the <code>@cross_origin</code> decorator declare it.</td></tr>
+        <tr><td>Verification limit</td><td>Backend proof is 29 passing tests including in-memory xlsx unzip; live download UX gate remains a recommended pre-deploy manual check.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 6. METHODOLOGY -->
+  <section class="section">
+    <span class="s-index">05 &middot; Methodology</span>
+    <h2 class="s-title">How the work progressed</h2>
+    <p class="lede">Test-driven, one phase at a time, with a commit and push at each phase boundary. PHASE-01 delivered the HTML endpoint; PHASE-02 added the xlsx endpoint reusing the same dual-source pattern; PHASE-03 wired the frontend with run-context resend so users don't re-upload inputs. Backend phases shipped before any frontend code, so each phase's tests could run independently.</p>
+    <div class="frame" style="margin-top:8px">
+      <div class="mermaid">
+flowchart LR
+  G[Gap analysis: GAP-02 HIGH] --> P[Plan + scope decision Q-001 single-run]
+  P --> A[PHASE-01 HTML endpoint]
+  A --> A1[Red: 7 failing tests]
+  A1 --> A2[Green: run_report.py + main.py wiring]
+  A2 --> A3[Commit + push]
+  A3 --> B[PHASE-02 xlsx endpoint]
+  B --> B1[Red: 6 failing tests]
+  B1 --> B2[Green: export_workbook.py + firebase rewrites]
+  B2 --> B3[Commit + push]
+  B3 --> C[PHASE-03 frontend]
+  C --> C1[useModelRun: persist source + payload]
+  C1 --> C2[client.ts: blob fetch + filename parse]
+  C2 --> C3[ResultsDashboard: 2 new buttons]
+  C3 --> C4[Build green + commit + push]
+  C4 --> F[Final synthesis]
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. PHASE-BY-PHASE -->
+  <section class="section">
+    <span class="s-index">06 &middot; Phase-by-Phase Analysis</span>
+    <h2 class="s-title">One story, three moves</h2>
+    <div class="grid3">
+      <div class="card">
+        <h4>PHASE-01 &middot; HTML endpoint <span class="pill done">shipped</span></h4>
+        <ul>
+          <li>New <code>web/functions/handlers/run_report.py</code> with <code>handle_run_report</code>.</li>
+          <li>Dual-source switch (<code>source=json|excel</code>) — JSON path reuses <code>build_project_payload</code> + <code>run_model_from_json</code>; Excel path uses <code>run_full_model</code>.</li>
+          <li>Calls <code>generate_report(...)</code> with <code>reference_kpis=None</code>; returns <code>text/html</code> with attachment filename derived from <code>project_name</code>.</li>
+          <li>7 TDD tests; suite grew 16 → 23.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>PHASE-02 &middot; Excel workbook <span class="pill done">shipped</span></h4>
+        <ul>
+          <li>New <code>web/functions/handlers/export_workbook.py</code> mirroring the dual-source pattern.</li>
+          <li>Single-run scope (Q-001): Cover + Assumptions + Assessment sheets. Cover carries the <code>assess_project()</code> verdict; Assumptions sheet excludes KPI keys (mirrors <code>scripts/generate_dppa_assessment.py</code>).</li>
+          <li>Tests open the response bytes with <code>openpyxl.load_workbook</code> and assert expected sheets <em>are</em> present and Comparison/Sensitivity <em>are not</em> (scope guard).</li>
+          <li>Adds <code>/api/run-report</code> &amp; <code>/api/export-workbook</code> rewrites to <code>firebase.json</code>. 6 TDD tests; suite grew 23 → 29.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>PHASE-03 &middot; Frontend wiring <span class="pill done">shipped</span></h4>
+        <ul>
+          <li><code>useModelRun</code> tracks <code>lastRunSource</code> + last <code>FormData</code> (JSON) + last <code>File</code> (Excel).</li>
+          <li><code>api/client.ts</code>: <code>downloadReport</code>, <code>downloadWorkbook</code> use <code>fetch → blob()</code>; <code>parseContentDispositionFilename</code> reads the backend filename when CORS exposes it (fallback otherwise); <code>triggerBrowserDownload</code> drives the anchor click.</li>
+          <li>Two new buttons next to <code>Download JSON Results</code> with per-button spinners (<em>Generating HTML...</em>, <em>Generating Excel...</em>).</li>
+          <li><code>npm run build</code> clean — no type errors.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h4>Commit trail on <code>main</code></h4>
+      <ul>
+        <li><code>bf7f864</code> — feat(web/gap-02-phase1): add HTML report download endpoint</li>
+        <li><code>47f20b3</code> — feat(web/gap-02-phase2): add Excel workbook download endpoint</li>
+        <li><code>6f0af11</code> — feat(web/gap-02-phase3): add HTML report and Excel workbook download buttons</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 8. FINDINGS & RECOMMENDATION -->
+  <section class="section">
+    <span class="s-index">07 &middot; Findings &amp; Recommendation</span>
+    <h2 class="s-title">What we found, what we advise</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Findings</h4>
+        <ul>
+          <li>The largest gap was again presentation, not computation — both artifacts existed, only the URL surface was missing.</li>
+          <li>The <code>source=json|excel</code> form-field switch let one endpoint serve both run paths, halving the URL count and keeping the frontend simple.</li>
+          <li>Re-running the model in the export request (rather than caching the heavy DataFrames) is cheap (~2–10 s) and avoids coupling GAP-02 to Firestore/Storage (GAP-04).</li>
+          <li>Loading the xlsx response with <code>openpyxl.load_workbook(BytesIO)</code> in tests caught what a plain "is non-empty zip" assertion would miss — a workbook with the wrong sheets.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Test growth (TDD)</h4>
+        <div class="chart-wrap"><canvas id="testChart"></canvas></div>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:16px"><strong>Recommendation:</strong> ship as-is. The single-run scope covers the 95% case (one PPA option, one topology). Treat the multi-scenario workbook (<code>?full=true</code>, requires <code>run_all_scenarios</code>) as a fast-follow only after measuring whether it fits inside the 300 s Cloud Function timeout on production fixtures.</p>
+  </section>
+
+  <!-- 9. IMPLEMENTATION PATH -->
+  <section class="section">
+    <span class="s-index">08 &middot; Implementation Path</span>
+    <h2 class="s-title">From here</h2>
+    <table>
+      <thead><tr><th>Step</th><th>Action</th><th>Owner / Dependency</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Pre-deploy manual gate: locally <code>functions-framework --target runReport</code> + <code>functions-framework --target exportWorkbook</code>, then trigger the dashboard buttons via the Vite dev proxy. Confirm HTML opens with charts, xlsx opens in Excel with three sheets, and the filename round-trips.</td><td>Web — before next deploy</td></tr>
+        <tr><td>2</td><td>Deploy (first production deploy is GAP-04) so users get the buttons in the wild.</td><td>Depends on GAP-04 PHASE-01</td></tr>
+        <tr><td>3</td><td>Measure <code>run_all_scenarios</code> runtime + memory on Emivest fixture in the Cloud Function environment. If &lt; 200 s and &lt; 1 GB, unlock the <code>?full=true</code> flag and expose a "Full Workbook" button.</td><td>Web — optional</td></tr>
+        <tr><td>4</td><td>Once GAP-04 ships Firestore + run persistence, revisit the re-run cost: cache the latest <code>_hourly_df</code>/<code>_lifetime_df</code> per run id so exports skip the second compute.</td><td>Web — after GAP-04</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 10. RISKS / OPEN QUESTIONS -->
+  <section class="section">
+    <span class="s-index">09 &middot; Risks / Open Questions</span>
+    <h2 class="s-title">What to watch</h2>
+    <ul>
+      <li><strong>Manual download UX outstanding:</strong> backend tests &amp; frontend build pass, but the button → spinner → file-saved flow has not been exercised against a live backend. Do this before deploy (Step 1 above).</li>
+      <li><strong>HTML response size:</strong> <code>generate_report</code> embeds matplotlib PNGs as base64; on long-lifetime projects the response can grow to several MB. Cloud Function Gen 1 caps responses at 10 MB; Gen 2 at 32 MB. <code>firebase.json</code> does not declare a generation explicitly — confirm Gen 2 at deploy, or add a chart-count / DPI gate if Gen 1 is the target.</li>
+      <li><strong>Re-upload cost on Excel path:</strong> every export click resends the full <code>.xlsx</code> from the browser. Acceptable for MVP; document as a candidate for GAP-04 caching.</li>
+      <li><strong>Default report title:</strong> the HTML <code>&lt;title&gt;</code> still says "Emivest Model Report" (hardcoded in <code>html_report.py</code>); the attachment filename uses the project slug, but the in-browser title is wrong for other projects. Cosmetic, not blocking.</li>
+      <li><strong>Pre-existing mypy noise:</strong> all web handlers (run_excel, run_json, run_report, export_workbook) have <code>Incompatible return value type (got tuple[Response, int])</code> errors. Systemic, not introduced by GAP-02. Treat as a separate typed-cleanup PR.</li>
+      <li><strong>Not yet live:</strong> users benefit only once GAP-04 deploys the app for real.</li>
+    </ul>
+  </section>
+
+  <!-- 11. APPENDICES / EVIDENCE -->
+  <section class="section">
+    <span class="s-index">10 &middot; Appendices / Evidence Notes</span>
+    <h2 class="s-title">Traceability</h2>
+    <div class="grid2">
+      <div class="card">
+        <h4>Artifacts</h4>
+        <ul>
+          <li>Plan: <code>plans/2026-06-13-web-report-workbook-export-plan.md</code></li>
+          <li>Gap analysis: <code>reports/2026-06-13-reopt-web-interface-gap-analysis.md</code></li>
+          <li>Active context log: <code>activeContext.md</code></li>
+          <li>Lessons (new): <code>lessons.md</code> — captures the dual-source handler pattern, CORS expose-headers requirement, and xlsx-test assertion guidance.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Endpoint surface (added this sprint)</h4>
+        <table>
+          <thead><tr><th>Route</th><th>Function</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /api/run-report</code></td><td><code>runReport</code></td><td><code>text/html</code> + <code>re-storage-report-&lt;slug&gt;.html</code></td></tr>
+            <tr><td><code>POST /api/export-workbook</code></td><td><code>exportWorkbook</code></td><td><code>.xlsx</code> + <code>re-storage-workbook-&lt;slug&gt;-YYYYMMDD.xlsx</code></td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--muted);font-size:0.84rem;margin-top:10px">Both accept <code>source=json</code> (default) or <code>source=excel</code> and re-run the model from posted inputs.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  Chart.defaults.devicePixelRatio = 1;
+  Chart.defaults.animation = false;
+  Chart.defaults.resizeDelay = 150;
+  Chart.defaults.normalized = true;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.color = '#8ea3ad';
+  new Chart(document.getElementById('testChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Baseline', 'After PHASE-01', 'After PHASE-02 + PHASE-03'],
+      datasets: [
+        { label: 'Existing tests', data: [16, 16, 16], backgroundColor: 'rgba(0,245,255,0.5)' },
+        { label: 'New HTML-report tests', data: [0, 7, 7], backgroundColor: 'rgba(57,255,20,0.6)' },
+        { label: 'New xlsx-export tests', data: [0, 0, 6], backgroundColor: 'rgba(255,180,84,0.6)' }
+      ]
+    },
+    options: {
+      animation: false, resizeDelay: 150, normalized: true,
+      scales: { x: { stacked: true, grid: { color: 'rgba(255,255,255,0.06)' } },
+                y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' } } },
+      plugins: { legend: { labels: { color: '#e9f6ff' } } }
+    }
+  });
+</script>
+</body>
+</html>
