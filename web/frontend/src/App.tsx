@@ -19,10 +19,15 @@ export default function App(): JSX.Element {
     scenarioComparison,
     sensitivity,
     lastStructuredRunReady,
+    canDownloadArtifacts,
+    isDownloadingReport,
+    isDownloadingWorkbook,
     runWithExcel,
     runWithJson,
     runScenarioComparison,
     runSensitivityAnalysis,
+    downloadHtmlReport,
+    downloadExcelWorkbook,
   } = useModelRun();
 
   return (
@@ -98,8 +103,13 @@ export default function App(): JSX.Element {
               sensitivity={sensitivity}
               canRunAnalysis={lastStructuredRunReady}
               isRunningAnalysis={isRunning}
+              canDownloadArtifacts={canDownloadArtifacts}
+              isDownloadingReport={isDownloadingReport}
+              isDownloadingWorkbook={isDownloadingWorkbook}
               onRunScenarioComparison={runScenarioComparison}
               onRunSensitivity={runSensitivityAnalysis}
+              onDownloadReport={downloadHtmlReport}
+              onDownloadWorkbook={downloadExcelWorkbook}
             />
           ) : (
             <section className="results-shell results-empty-state">

@@ -1,6 +1,14 @@
 import { useCallback, useState } from "react";
 
-import { compareScenarios, runExcel, runJson, runSensitivity } from "../api/client";
+import {
+  compareScenarios,
+  downloadReport,
+  downloadWorkbook,
+  runExcel,
+  runJson,
+  runSensitivity,
+  triggerBrowserDownload,
+} from "../api/client";
 import type {
   ModelResponse,
   ScenarioComparisonResponse,
@@ -22,6 +30,8 @@ const SENSITIVITY_PRESETS: Record<string, number[]> = {
   bess_capex_usd_per_mwh: [160000, 180000, 200000, 220000, 240000],
 };
 
+type RunSource = "json" | "excel";
+
 function cloneFormData(formData: FormData): FormData {
   const copy = new FormData();
   formData.forEach((value, key) => {
@@ -40,6 +50,13 @@ function buildSensitivityFormData(baseFormData: FormData, variable: string): For
   return formData;
 }
 
+function buildExportFormData(excelFile: File): FormData {
+  const formData = new FormData();
+  formData.set("source", "excel");
+  formData.append("file", excelFile);
+  return formData;
+}
+
 interface UseModelRunResult {
   isRunning: boolean;
   error: string | null;
@@ -47,10 +64,15 @@ interface UseModelRunResult {
   scenarioComparison: ScenarioComparisonResponse | null;
   sensitivity: SensitivityResponse | null;
   lastStructuredRunReady: boolean;
+  canDownloadArtifacts: boolean;
+  isDownloadingReport: boolean;
+  isDownloadingWorkbook: boolean;
   runWithExcel: (file: File) => Promise<void>;
   runWithJson: (formData: FormData) => Promise<void>;
   runScenarioComparison: () => Promise<void>;
   runSensitivityAnalysis: (variable: string) => Promise<void>;
+  downloadHtmlReport: () => Promise<void>;
+  downloadExcelWorkbook: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -61,6 +83,10 @@ export function useModelRun(): UseModelRunResult {
   const [scenarioComparison, setScenarioComparison] = useState<ScenarioComparisonResponse | null>(null);
   const [sensitivity, setSensitivity] = useState<SensitivityResponse | null>(null);
   const [lastStructuredRunFormData, setLastStructuredRunFormData] = useState<FormData | null>(null);
+  const [lastExcelFile, setLastExcelFile] = useState<File | null>(null);
+  const [lastRunSource, setLastRunSource] = useState<RunSource | null>(null);
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false);
+  const [isDownloadingWorkbook, setIsDownloadingWorkbook] = useState(false);
 
   const runWithExcel = useCallback(async (file: File) => {
     setIsRunning(true);
@@ -71,6 +97,8 @@ export function useModelRun(): UseModelRunResult {
       setScenarioComparison(null);
       setSensitivity(null);
       setLastStructuredRunFormData(null);
+      setLastExcelFile(file);
+      setLastRunSource("excel");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown run error";
       setError(message);
@@ -88,6 +116,8 @@ export function useModelRun(): UseModelRunResult {
       setScenarioComparison(null);
       setSensitivity(null);
       setLastStructuredRunFormData(cloneFormData(formData));
+      setLastExcelFile(null);
+      setLastRunSource("json");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown run error";
       setError(message);
@@ -137,6 +167,60 @@ export function useModelRun(): UseModelRunResult {
     [lastStructuredRunFormData],
   );
 
+  function resolveExportFormData(): FormData | null {
+    if (lastRunSource === "json" && lastStructuredRunFormData !== null) {
+      return cloneFormData(lastStructuredRunFormData);
+    }
+    if (lastRunSource === "excel" && lastExcelFile !== null) {
+      return buildExportFormData(lastExcelFile);
+    }
+    return null;
+  }
+
+  const downloadHtmlReport = useCallback(async () => {
+    const formData = resolveExportFormData();
+    if (formData === null) {
+      setError("Run the model once before downloading the HTML report.");
+      return;
+    }
+
+    setIsDownloadingReport(true);
+    setError(null);
+    try {
+      const artifact = await downloadReport(formData);
+      triggerBrowserDownload(artifact);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown report download error";
+      setError(message);
+    } finally {
+      setIsDownloadingReport(false);
+    }
+    // resolveExportFormData closes over the latest source/payload state; deps below
+    // pin the actual inputs the function reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunSource, lastStructuredRunFormData, lastExcelFile]);
+
+  const downloadExcelWorkbook = useCallback(async () => {
+    const formData = resolveExportFormData();
+    if (formData === null) {
+      setError("Run the model once before downloading the Excel workbook.");
+      return;
+    }
+
+    setIsDownloadingWorkbook(true);
+    setError(null);
+    try {
+      const artifact = await downloadWorkbook(formData);
+      triggerBrowserDownload(artifact);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown workbook download error";
+      setError(message);
+    } finally {
+      setIsDownloadingWorkbook(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunSource, lastStructuredRunFormData, lastExcelFile]);
+
   const clearError = useCallback(() => setError(null), []);
 
   return {
@@ -146,10 +230,15 @@ export function useModelRun(): UseModelRunResult {
     scenarioComparison,
     sensitivity,
     lastStructuredRunReady: lastStructuredRunFormData !== null,
+    canDownloadArtifacts: lastRunSource !== null,
+    isDownloadingReport,
+    isDownloadingWorkbook,
     runWithExcel,
     runWithJson,
     runScenarioComparison,
     runSensitivityAnalysis,
+    downloadHtmlReport,
+    downloadExcelWorkbook,
     clearError,
   };
 }

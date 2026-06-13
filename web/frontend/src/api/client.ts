@@ -51,3 +51,61 @@ export async function runSensitivity(formData: FormData): Promise<SensitivityRes
 
   return parseResponse<SensitivityResponse>(response);
 }
+
+export interface DownloadResult {
+  blob: Blob;
+  filename: string;
+}
+
+function parseContentDispositionFilename(header: string | null): string | null {
+  if (header === null) {
+    return null;
+  }
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header);
+  return match ? decodeURIComponent(match[1].trim()) : null;
+}
+
+async function postForDownload(
+  url: string,
+  formData: FormData,
+  fallbackFilename: string,
+): Promise<DownloadResult> {
+  const response = await fetch(url, { method: "POST", body: formData });
+  if (!response.ok) {
+    let message = `Download failed (${response.status})`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) {
+        message = payload.error;
+      }
+    } catch {
+      // Body wasn't JSON - keep the status-code message.
+    }
+    throw new Error(message);
+  }
+
+  const filename =
+    parseContentDispositionFilename(response.headers.get("Content-Disposition")) ??
+    fallbackFilename;
+  const blob = await response.blob();
+  return { blob, filename };
+}
+
+export async function downloadReport(formData: FormData): Promise<DownloadResult> {
+  return postForDownload("/api/run-report", formData, "re-storage-report.html");
+}
+
+export async function downloadWorkbook(formData: FormData): Promise<DownloadResult> {
+  return postForDownload("/api/export-workbook", formData, "re-storage-workbook.xlsx");
+}
+
+export function triggerBrowserDownload({ blob, filename }: DownloadResult): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}

@@ -23,8 +23,13 @@ interface ResultsDashboardProps {
   sensitivity: SensitivityResponse | null;
   canRunAnalysis: boolean;
   isRunningAnalysis: boolean;
+  canDownloadArtifacts: boolean;
+  isDownloadingReport: boolean;
+  isDownloadingWorkbook: boolean;
   onRunScenarioComparison: () => Promise<void>;
   onRunSensitivity: (variable: string) => Promise<void>;
+  onDownloadReport: () => Promise<void>;
+  onDownloadWorkbook: () => Promise<void>;
 }
 
 function downloadJson(result: ModelResponse): void {
@@ -43,8 +48,13 @@ export function ResultsDashboard({
   sensitivity,
   canRunAnalysis,
   isRunningAnalysis,
+  canDownloadArtifacts,
+  isDownloadingReport,
+  isDownloadingWorkbook,
   onRunScenarioComparison,
   onRunSensitivity,
+  onDownloadReport,
+  onDownloadWorkbook,
 }: ResultsDashboardProps): JSX.Element {
   const [currency, setCurrency] = useState<CurrencyCode>("USD");
   const [sensitivityVariable, setSensitivityVariable] = useState("strike_price_vnd");
@@ -156,6 +166,24 @@ export function ResultsDashboard({
       <div className="results-actions">
         <button className="secondary-button" type="button" onClick={() => downloadJson(result)}>
           Download JSON Results
+        </button>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => void onDownloadReport()}
+          disabled={!canDownloadArtifacts || isDownloadingReport}
+          title="Re-runs the model from the last inputs to render the HTML report"
+        >
+          {isDownloadingReport ? "Generating HTML..." : "Download HTML Report"}
+        </button>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => void onDownloadWorkbook()}
+          disabled={!canDownloadArtifacts || isDownloadingWorkbook}
+          title="Re-runs the model from the last inputs to build the Excel workbook"
+        >
+          {isDownloadingWorkbook ? "Generating Excel..." : "Download Excel Workbook"}
         </button>
       </div>
     </section>

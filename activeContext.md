@@ -26,12 +26,22 @@
 - [x] Tests: 6 new (method, JSON success + sheet-name assertions, JSON missing-csv, Excel success, Excel missing-file, Excel wrong-ext) — **29 passed** (loads xlsx with `openpyxl.load_workbook` to assert `Cover`/`Assumptions`/`Assessment` present and no `Comparison`/`Sensitivity`)
 - [x] ruff clean
 
-## PHASE-03 — Frontend: download buttons + run-context resend
-- [ ] `useModelRun` persists last `FormData` AND last uploaded Excel `File` so exports can resend without re-upload
-- [ ] `api/client.ts`: `downloadReport(formData)` + `downloadWorkbook(formData)` — `fetch` → `blob()` → `URL.createObjectURL` → anchor click
-- [ ] Both functions support JSON and Excel paths
-- [ ] `ResultsDashboard.tsx`: two new buttons next to "Download JSON Results", with loading state
-- [ ] `firebase.json`: add `/api/run-report` and `/api/export-workbook` rewrites
+## PHASE-03 — Frontend: download buttons + run-context resend ✅
+- [x] `useModelRun` persists last `FormData` (JSON path), last uploaded `File` (Excel path), and tracks `lastRunSource: "json" | "excel"` so exports can resend without re-upload
+- [x] `api/client.ts`: `downloadReport(formData)`, `downloadWorkbook(formData)` — `fetch` → `blob()` → returns `{ blob, filename }`; `parseContentDispositionFilename` reads the backend-set filename when CORS exposes it, falls back to a default; new `triggerBrowserDownload({ blob, filename })` helper creates the anchor + revokes the object URL
+- [x] Both functions transparently support JSON and Excel paths (hook builds the right `FormData` from `lastRunSource`)
+- [x] `ResultsDashboard.tsx`: two new buttons next to "Download JSON Results" with per-button loading state ("Generating HTML...", "Generating Excel..."); disabled when no run has happened
+- [x] `App.tsx` threads `canDownloadArtifacts`, `isDownloadingReport`, `isDownloadingWorkbook`, `downloadHtmlReport`, `downloadExcelWorkbook` from hook → dashboard
+- [x] `firebase.json` rewrites `/api/run-report` and `/api/export-workbook` (added with PHASE-02 commit so backend was deploy-ready)
+- [x] `npm run build` clean — `tsc -b && vite build` succeeded; only the pre-existing chunk-size warning
+- [x] `dist/` still gitignored — no stale-build commits
 
 ## Review / Results
-(populated at end of sprint)
+
+**GAP-02 complete — PHASE-01 + PHASE-02 + PHASE-03 shipped (Q-001 single-run scope).**
+- **PHASE-01:** `runReport` Cloud Function (`web/functions/handlers/run_report.py`) — dual source (`json` / `excel`), re-runs model from posted inputs, returns `text/html` attachment from `generate_report()`. 7 TDD tests.
+- **PHASE-02:** `exportWorkbook` Cloud Function (`web/functions/handlers/export_workbook.py`) — same dual-source pattern; builds Cover + Assumptions + Assessment sheets via `create_workbook` / `write_*_sheet` / `save_workbook`; cover carries `assess_project()` verdict. 6 TDD tests including in-memory xlsx unzip via `openpyxl.load_workbook` to assert sheet names. `firebase.json` rewrites added.
+- **PHASE-03:** Frontend hook persists last run inputs (FormData for JSON, File for Excel); `downloadReport` / `downloadWorkbook` in `api/client.ts` blob-fetch + anchor-click; dashboard buttons with per-button spinners; CORS `Content-Disposition` exposed so the filename round-trips.
+- **Verification:** `pytest tests/unit/test_web_handlers.py` 29 passed (16 → 29 over the sprint); `npm run build` clean; pre-existing `test_waterfall_calculation` failure on main is unrelated.
+- **Deferred:** Multi-scenario/sensitivity workbook (gated behind `?full=true` flag — not surfaced in UI; needs `run_all_scenarios` timeout testing first).
+- **Recommended manual check before deploy:** locally `functions-framework --target runReport`, then trigger the dashboard buttons via Vite dev — confirm the HTML opens with charts and the xlsx opens in Excel with the three expected sheets.
