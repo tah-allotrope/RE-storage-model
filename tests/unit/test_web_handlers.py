@@ -20,6 +20,7 @@ if str(FUNCTIONS_DIR) not in sys.path:
     sys.path.append(str(FUNCTIONS_DIR))
 
 from handlers.compare_scenarios import handle_compare_scenarios  # noqa: E402
+from handlers.export_workbook import handle_export_workbook  # noqa: E402
 from handlers.run_excel import handle_run_excel  # noqa: E402
 from handlers.run_json import _build_project_payload, handle_run_json  # noqa: E402
 from handlers.run_report import handle_run_report  # noqa: E402
@@ -575,3 +576,176 @@ def test_handle_run_report_missing_dataframes_returns_422(
 
     assert status == 422
     assert "lifetime" in str(payload["error"]).lower() or "hourly" in str(payload["error"]).lower()
+
+
+# ---------------------------------------------------------------------------
+# Excel workbook export (GAP-02 PHASE-02)
+# ---------------------------------------------------------------------------
+
+
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _kpis_for_workbook() -> dict[str, Any]:
+    return {
+        "project_irr": 0.09,
+        "equity_irr": 0.14,
+        "npv_usd": 1_500_000.0,
+        "dscr_min": 1.35,
+        "dscr_avg": 1.55,
+        "simple_payback_years": 8.5,
+        "year1_solar_generation_mwh": 5500.0,
+        "year1_dppa_revenue_usd": 320_000.0,
+        "year1_grid_savings_usd": 180_000.0,
+        "year1_opex_usd": 90_000.0,
+        "year1_ebitda_usd": 410_000.0,
+        "debt_amount_usd": 12_000_000.0,
+        "exchange_rate_usd_vnd": 26_000.0,
+        "bess_power_rating_kw": 1_000.0,
+        "actual_capacity_kwp": 3_221.0,
+    }
+
+
+def test_handle_export_workbook_requires_post(app: Flask) -> None:
+    with app.test_request_context("/api/export-workbook", method="GET"):
+        response = handle_export_workbook(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    assert status == 405
+
+
+def test_handle_export_workbook_json_path_returns_xlsx(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    import pandas as pd
+
+    annual_df = pd.DataFrame(
+        {
+            "year": [1, 2],
+            "dppa_revenue_usd": [320_000.0, 330_000.0],
+            "ebitda_usd": [410_000.0, 420_000.0],
+            "cfads_usd": [400_000.0, 410_000.0],
+            "dscr": [1.35, 1.40],
+        }
+    )
+
+    def fake_run_model_from_json(_: Path) -> dict[str, Any]:
+        results = _kpis_for_workbook()
+        results["_annual_df"] = annual_df
+        return results
+
+    monkeypatch.setattr(
+        "handlers.export_workbook.run_model_from_json", fake_run_model_from_json
+    )
+
+    form_data = {
+        "project_name": "Workbook Test Project",
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context("/api/export-workbook", method="POST", data=form_data):
+        response = handle_export_workbook(request)
+
+    flask_response = response[0] if isinstance(response, tuple) else response
+    status = response[1] if isinstance(response, tuple) else flask_response.status_code
+
+    assert status == 200
+    assert flask_response.mimetype == _XLSX_MIME
+    assert "attachment" in flask_response.headers["Content-Disposition"]
+    assert "workbook-test-project" in flask_response.headers["Content-Disposition"]
+    assert flask_response.headers["Access-Control-Expose-Headers"] == "Content-Disposition"
+
+    body = flask_response.get_data()
+    assert body[:2] == b"PK"  # xlsx is a zip
+
+    import openpyxl
+
+    wb = openpyxl.load_workbook(io.BytesIO(body))
+    sheet_names = wb.sheetnames
+    assert "Cover" in sheet_names
+    assert "Assumptions" in sheet_names
+    assert any(name.startswith("Assessment") for name in sheet_names)
+    # Single-run scope: no Comparison / Sensitivity sheets.
+    assert not any(name.startswith("Comparison") for name in sheet_names)
+    assert "Sensitivity" not in sheet_names
+
+
+def test_handle_export_workbook_json_path_requires_hourly_csv(app: Flask) -> None:
+    with app.test_request_context("/api/export-workbook", method="POST", data={}):
+        response = handle_export_workbook(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert "hourly_csv" in str(payload["error"])
+
+
+def test_handle_export_workbook_excel_path_returns_xlsx(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    import pandas as pd
+
+    annual_df = pd.DataFrame(
+        {
+            "year": [1],
+            "dppa_revenue_usd": [320_000.0],
+            "ebitda_usd": [410_000.0],
+            "cfads_usd": [400_000.0],
+            "dscr": [1.35],
+        }
+    )
+
+    def fake_run_full_model(_: Path) -> dict[str, Any]:
+        results = _kpis_for_workbook()
+        results["_annual_df"] = annual_df
+        return results
+
+    monkeypatch.setattr("handlers.export_workbook.run_full_model", fake_run_full_model)
+
+    data = {
+        "source": "excel",
+        "file": (io.BytesIO(b"dummy"), "project.xlsx"),
+    }
+    with app.test_request_context("/api/export-workbook", method="POST", data=data):
+        response = handle_export_workbook(request)
+
+    flask_response = response[0] if isinstance(response, tuple) else response
+    status = response[1] if isinstance(response, tuple) else flask_response.status_code
+
+    assert status == 200
+    assert flask_response.mimetype == _XLSX_MIME
+    body = flask_response.get_data()
+    assert body[:2] == b"PK"
+
+
+def test_handle_export_workbook_excel_path_requires_file(app: Flask) -> None:
+    with app.test_request_context(
+        "/api/export-workbook", method="POST", data={"source": "excel"}
+    ):
+        response = handle_export_workbook(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert "file" in str(payload["error"])
+
+
+def test_handle_export_workbook_excel_path_rejects_non_xlsx(app: Flask) -> None:
+    data = {
+        "source": "excel",
+        "file": (io.BytesIO(b"dummy"), "project.csv"),
+    }
+    with app.test_request_context("/api/export-workbook", method="POST", data=data):
+        response = handle_export_workbook(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert ".xlsx" in str(payload["error"])

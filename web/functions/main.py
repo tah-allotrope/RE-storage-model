@@ -6,6 +6,7 @@ import functions_framework
 from flask import Request
 from flask_cors import cross_origin
 from handlers.compare_scenarios import handle_compare_scenarios
+from handlers.export_workbook import handle_export_workbook
 from handlers.run_excel import handle_run_excel
 from handlers.run_json import handle_run_json
 from handlers.run_report import handle_run_report
@@ -40,3 +41,9 @@ def runSensitivity(request: Request):  # noqa: N802
 @cross_origin(expose_headers=["Content-Disposition"])
 def runReport(request: Request):  # noqa: N802
     return handle_run_report(request)
+
+
+@functions_framework.http
+@cross_origin(expose_headers=["Content-Disposition"])
+def exportWorkbook(request: Request):  # noqa: N802
+    return handle_export_workbook(request)

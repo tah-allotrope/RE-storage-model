@@ -15,13 +15,16 @@
 - [x] Tests in `tests/unit/test_web_handlers.py`: 7 new (method, JSON success, JSON missing-csv, Excel success, Excel missing-file, Excel wrong-ext, missing-DataFrames 422) — **23 passed**
 - [x] ruff clean (after `--fix` for import ordering); mypy `return-value` warnings match pre-existing pattern in `run_excel.py` (no new regressions)
 
-## PHASE-02 — Backend: Excel workbook endpoint (single-run)
-- [ ] `web/functions/handlers/export_workbook.py` `handle_export_workbook(request)` — same dual-source pattern
-- [ ] Reuses `create_workbook` + `write_cover_sheet` + `write_assumptions_sheet` + `write_assessment_sheet` + `save_workbook` (no scenario sweep)
-- [ ] Streams xlsx with `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
-- [ ] Cleans up temp file in `finally`
-- [ ] Registers `exportWorkbook` in `main.py`
-- [ ] Tests: open xlsx with `openpyxl.load_workbook`, assert `Cover` + `Assumptions` + `Assessment` sheets exist
+## PHASE-02 — Backend: Excel workbook endpoint (single-run) ✅
+- [x] `web/functions/handlers/export_workbook.py` `handle_export_workbook(request)` — same dual-source pattern as `run_report`
+- [x] Reuses `create_workbook` + `write_cover_sheet` + `write_assumptions_sheet` + `write_assessment_sheet` + `save_workbook` (no scenario sweep — single-run scope per Q-001)
+- [x] Cover sheet carries `assess_project()` verdict; assumptions sheet filters out KPI keys (mirrors `scripts/generate_dppa_assessment.py::_extract_assumptions`)
+- [x] Streams xlsx with `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment; filename=re-storage-workbook-<slug>-<YYYYMMDD>.xlsx`, and exposes `Content-Disposition` to CORS
+- [x] Cleans up temp file in `finally`
+- [x] Registered `exportWorkbook` in `main.py` with `@cross_origin(expose_headers=["Content-Disposition"])`
+- [x] Added `/api/run-report` and `/api/export-workbook` rewrites to `firebase.json`
+- [x] Tests: 6 new (method, JSON success + sheet-name assertions, JSON missing-csv, Excel success, Excel missing-file, Excel wrong-ext) — **29 passed** (loads xlsx with `openpyxl.load_workbook` to assert `Cover`/`Assumptions`/`Assessment` present and no `Comparison`/`Sensitivity`)
+- [x] ruff clean
 
 ## PHASE-03 — Frontend: download buttons + run-context resend
 - [ ] `useModelRun` persists last `FormData` AND last uploaded Excel `File` so exports can resend without re-upload

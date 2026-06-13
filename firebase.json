@@ -7,6 +7,8 @@
       { "source": "/api/run-json", "function": "runJson" },
       { "source": "/api/compare-scenarios", "function": "compareScenarios" },
       { "source": "/api/run-sensitivity", "function": "runSensitivity" },
+      { "source": "/api/run-report", "function": "runReport" },
+      { "source": "/api/export-workbook", "function": "exportWorkbook" },
       { "source": "**", "destination": "/index.html" }
     ]
   },
