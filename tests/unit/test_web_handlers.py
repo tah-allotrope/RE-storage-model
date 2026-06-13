@@ -20,6 +20,7 @@ if str(FUNCTIONS_DIR) not in sys.path:
     sys.path.append(str(FUNCTIONS_DIR))
 
 from handlers.compare_scenarios import handle_compare_scenarios  # noqa: E402
+from handlers.compare_tariff_modes import handle_compare_tariff_modes  # noqa: E402
 from handlers.export_workbook import handle_export_workbook  # noqa: E402
 from handlers.run_excel import handle_run_excel  # noqa: E402
 from handlers.run_json import _build_project_payload, handle_run_json  # noqa: E402
@@ -862,3 +863,125 @@ def test_handle_run_json_rejects_invalid_tariff_mode(app: Flask) -> None:
 
     assert status == 400
     assert "tariff_mode" in str(payload["error"])
+
+
+# ---------------------------------------------------------------------------
+# Tariff-mode comparison (GAP-03 PHASE-03)
+# ---------------------------------------------------------------------------
+
+
+def test_handle_compare_tariff_modes_requires_post(app: Flask) -> None:
+    with app.test_request_context("/api/compare-tariff-modes", method="GET"):
+        response = handle_compare_tariff_modes(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    assert status == 405
+
+
+def test_handle_compare_tariff_modes_requires_hourly_csv(app: Flask) -> None:
+    with app.test_request_context("/api/compare-tariff-modes", method="POST", data={}):
+        response = handle_compare_tariff_modes(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 400
+    assert "hourly_csv" in str(payload["error"])
+
+
+def test_handle_compare_tariff_modes_success(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    def fake_run_tariff_mode_comparison(
+        *,
+        project_dir: Path,
+        ppa_option: int,
+        **_kwargs: Any,
+    ) -> dict[str, dict[str, Any]]:
+        assert project_dir.exists()
+        assert ppa_option == 3
+        return {
+            "1-component": {
+                "project_irr": 0.08,
+                "year1_grid_savings_usd": 303_900.0,
+                "demand_charge_savings_usd": 0.0,
+            },
+            "2-component": {
+                "project_irr": 0.075,
+                "year1_grid_savings_usd": 203_100.0,
+                "demand_charge_savings_usd": 8_000.0,
+            },
+            "delta": {
+                "project_irr": -0.005,
+                "year1_grid_savings_usd": -100_800.0,
+                "demand_charge_savings_usd": 8_000.0,
+            },
+        }
+
+    monkeypatch.setattr(
+        "handlers.compare_tariff_modes.run_tariff_mode_comparison",
+        fake_run_tariff_mode_comparison,
+    )
+
+    form_data = {
+        "project_name": "Tariff Comparison Test",
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "ppa_option": "3",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context(
+        "/api/compare-tariff-modes", method="POST", data=form_data
+    ):
+        response = handle_compare_tariff_modes(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 200
+    assert set(payload.keys()) >= {"1-component", "2-component", "delta"}
+    assert payload["1-component"]["year1_grid_savings_usd"] == pytest.approx(303_900.0)
+    assert payload["2-component"]["demand_charge_savings_usd"] == pytest.approx(8_000.0)
+    assert payload["delta"]["demand_charge_savings_usd"] == pytest.approx(8_000.0)
+
+
+def test_handle_compare_tariff_modes_sanitises_nan(
+    monkeypatch: pytest.MonkeyPatch, app: Flask
+) -> None:
+    import math
+
+    def fake_run_tariff_mode_comparison(**_kwargs: Any) -> dict[str, dict[str, Any]]:
+        return {
+            "1-component": {"project_irr": 0.08, "broken": math.nan},
+            "2-component": {"error": "voltage tier missing"},
+            "delta": {},
+        }
+
+    monkeypatch.setattr(
+        "handlers.compare_tariff_modes.run_tariff_mode_comparison",
+        fake_run_tariff_mode_comparison,
+    )
+
+    form_data = {
+        "actual_capacity_kwp": "1000",
+        "simulation_capacity_kwp": "100",
+        "hourly_csv": (
+            io.BytesIO(b"datetime,SimulationProfile_kW,Irradiation_W/m2,Load_kW,FMP,CFMP\n"),
+            "hourly.csv",
+        ),
+    }
+    with app.test_request_context(
+        "/api/compare-tariff-modes", method="POST", data=form_data
+    ):
+        response = handle_compare_tariff_modes(request)
+
+    status = response[1] if isinstance(response, tuple) else response.status_code
+    payload = _extract_response_json(response)
+
+    assert status == 200
+    # NaN must be sanitised to None for valid JSON; error string must pass through.
+    assert payload["1-component"]["broken"] is None
+    assert payload["2-component"]["error"] == "voltage tier missing"

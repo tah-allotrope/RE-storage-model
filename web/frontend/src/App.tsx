@@ -4,6 +4,7 @@ import { ExcelUploadTab } from "./components/inputs/ExcelUploadTab";
 import { ProjectForm } from "./components/inputs/ProjectForm";
 import { Layout } from "./components/layout/Layout";
 import { ResultsDashboard } from "./components/results/ResultsDashboard";
+import { TariffModeComparison } from "./components/results/TariffModeComparison";
 import { ErrorBanner } from "./components/shared/ErrorBanner";
 import { ProgressBar } from "./components/shared/ProgressBar";
 import { useModelRun } from "./hooks/useModelRun";
@@ -18,6 +19,7 @@ export default function App(): JSX.Element {
     result,
     scenarioComparison,
     sensitivity,
+    tariffComparison,
     lastStructuredRunReady,
     canDownloadArtifacts,
     isDownloadingReport,
@@ -111,6 +113,20 @@ export default function App(): JSX.Element {
               onDownloadReport={downloadHtmlReport}
               onDownloadWorkbook={downloadExcelWorkbook}
             />
+          ) : tariffComparison ? (
+            <section className="results-shell results-dashboard">
+              <div className="results-heading">
+                <div>
+                  <p className="workspace-kicker">Run Complete</p>
+                  <h3>Tariff mode comparison</h3>
+                </div>
+              </div>
+              <TariffModeComparison
+                comparison={tariffComparison}
+                currency="USD"
+                exchangeRate={26000}
+              />
+            </section>
           ) : (
             <section className="results-shell results-empty-state">
               <p className="workspace-kicker">Ready When You Are</p>

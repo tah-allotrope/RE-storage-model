@@ -2,6 +2,7 @@ import type {
   ModelResponse,
   ScenarioComparisonResponse,
   SensitivityResponse,
+  TariffModeComparisonResponse,
 } from "../types/model";
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -50,6 +51,17 @@ export async function runSensitivity(formData: FormData): Promise<SensitivityRes
   });
 
   return parseResponse<SensitivityResponse>(response);
+}
+
+export async function compareTariffModes(
+  formData: FormData,
+): Promise<TariffModeComparisonResponse> {
+  const response = await fetch("/api/compare-tariff-modes", {
+    method: "POST",
+    body: formData,
+  });
+
+  return parseResponse<TariffModeComparisonResponse>(response);
 }
 
 export interface DownloadResult {

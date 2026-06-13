@@ -117,3 +117,18 @@ export interface SensitivityResponse {
   variable: string;
   results: Record<string, SensitivityPointResponse>;
 }
+
+// GAP-03 PHASE-03: tariff-mode comparison response shape from
+// /api/compare-tariff-modes. Values are pipeline KPIs with NaN sanitised to
+// null; the "delta" key is 2-component minus 1-component for the headline
+// KPIs (project_irr, equity_irr, npv_usd, year1_grid_savings_usd,
+// demand_charge_savings_usd).
+export interface TariffModeKpis extends Partial<ModelKpis> {
+  error?: string;
+}
+
+export interface TariffModeComparisonResponse {
+  "1-component"?: TariffModeKpis;
+  "2-component"?: TariffModeKpis;
+  delta?: TariffModeKpis;
+}

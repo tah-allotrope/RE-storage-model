@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import {
   compareScenarios,
+  compareTariffModes,
   downloadReport,
   downloadWorkbook,
   runExcel,
@@ -13,6 +14,7 @@ import type {
   ModelResponse,
   ScenarioComparisonResponse,
   SensitivityResponse,
+  TariffModeComparisonResponse,
 } from "../types/model";
 
 const SENSITIVITY_PRESETS: Record<string, number[]> = {
@@ -63,6 +65,7 @@ interface UseModelRunResult {
   result: ModelResponse | null;
   scenarioComparison: ScenarioComparisonResponse | null;
   sensitivity: SensitivityResponse | null;
+  tariffComparison: TariffModeComparisonResponse | null;
   lastStructuredRunReady: boolean;
   canDownloadArtifacts: boolean;
   isDownloadingReport: boolean;
@@ -82,6 +85,7 @@ export function useModelRun(): UseModelRunResult {
   const [result, setResult] = useState<ModelResponse | null>(null);
   const [scenarioComparison, setScenarioComparison] = useState<ScenarioComparisonResponse | null>(null);
   const [sensitivity, setSensitivity] = useState<SensitivityResponse | null>(null);
+  const [tariffComparison, setTariffComparison] = useState<TariffModeComparisonResponse | null>(null);
   const [lastStructuredRunFormData, setLastStructuredRunFormData] = useState<FormData | null>(null);
   const [lastExcelFile, setLastExcelFile] = useState<File | null>(null);
   const [lastRunSource, setLastRunSource] = useState<RunSource | null>(null);
@@ -96,6 +100,7 @@ export function useModelRun(): UseModelRunResult {
       setResult(response);
       setScenarioComparison(null);
       setSensitivity(null);
+      setTariffComparison(null);
       setLastStructuredRunFormData(null);
       setLastExcelFile(file);
       setLastRunSource("excel");
@@ -111,10 +116,20 @@ export function useModelRun(): UseModelRunResult {
     setIsRunning(true);
     setError(null);
     try {
-      const response = await runJson(formData);
-      setResult(response);
-      setScenarioComparison(null);
-      setSensitivity(null);
+      const tariffMode = String(formData.get("tariff_mode") ?? "1-component");
+      if (tariffMode === "both") {
+        const comparison = await compareTariffModes(formData);
+        setTariffComparison(comparison);
+        setResult(null);
+        setScenarioComparison(null);
+        setSensitivity(null);
+      } else {
+        const response = await runJson(formData);
+        setResult(response);
+        setScenarioComparison(null);
+        setSensitivity(null);
+        setTariffComparison(null);
+      }
       setLastStructuredRunFormData(cloneFormData(formData));
       setLastExcelFile(null);
       setLastRunSource("json");
@@ -229,6 +244,7 @@ export function useModelRun(): UseModelRunResult {
     result,
     scenarioComparison,
     sensitivity,
+    tariffComparison,
     lastStructuredRunReady: lastStructuredRunFormData !== null,
     canDownloadArtifacts: lastRunSource !== null,
     isDownloadingReport,
