@@ -20,6 +20,8 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
   const isSeparate = ppaOption === "2";
   const isDppa = ppaOption === "3";
   const isFixedPpa = ppaOption === "4";
+  const tariffMode = values.tariff_mode;
+  const isTwoComponent = tariffMode === "2-component" || tariffMode === "both";
 
   return (
     <div className="form-grid">
@@ -240,6 +242,80 @@ export function DppaStep({ values, onChange, errors }: DppaStepProps): JSX.Eleme
           onChange={onChange}
         />
         {errors.tariff_peak ? <span className="field-error">{errors.tariff_peak}</span> : null}
+      </label>
+      <label>
+        Tariff mode
+        <select
+          className={fieldClassName(errors.tariff_mode)}
+          name="tariff_mode"
+          value={values.tariff_mode}
+          onChange={onChange}
+        >
+          <option value="1-component">1-component (energy only)</option>
+          <option value="2-component">2-component (Ca energy + Cp demand)</option>
+          <option value="both">Compare both modes</option>
+        </select>
+        {errors.tariff_mode ? <span className="field-error">{errors.tariff_mode}</span> : null}
+      </label>
+      <label className={!isTwoComponent ? "field-disabled" : undefined}>
+        Cp demand charge (VND/kW/month)
+        <input
+          className={fieldClassName(errors.cp_demand_vnd_per_kw)}
+          name="cp_demand_vnd_per_kw"
+          type="number"
+          step="1"
+          value={values.cp_demand_vnd_per_kw}
+          onChange={onChange}
+          disabled={!isTwoComponent}
+        />
+        {errors.cp_demand_vnd_per_kw ? (
+          <span className="field-error">{errors.cp_demand_vnd_per_kw}</span>
+        ) : null}
+      </label>
+      <label className={!isTwoComponent ? "field-disabled" : undefined}>
+        Ca off-peak rate (VND/kWh)
+        <input
+          className={fieldClassName(errors.evn_tariff_off_peak_vnd)}
+          name="evn_tariff_off_peak_vnd"
+          type="number"
+          step="1"
+          value={values.evn_tariff_off_peak_vnd}
+          onChange={onChange}
+          disabled={!isTwoComponent}
+        />
+        {errors.evn_tariff_off_peak_vnd ? (
+          <span className="field-error">{errors.evn_tariff_off_peak_vnd}</span>
+        ) : null}
+      </label>
+      <label className={!isTwoComponent ? "field-disabled" : undefined}>
+        Ca standard rate (VND/kWh)
+        <input
+          className={fieldClassName(errors.evn_tariff_standard_vnd)}
+          name="evn_tariff_standard_vnd"
+          type="number"
+          step="1"
+          value={values.evn_tariff_standard_vnd}
+          onChange={onChange}
+          disabled={!isTwoComponent}
+        />
+        {errors.evn_tariff_standard_vnd ? (
+          <span className="field-error">{errors.evn_tariff_standard_vnd}</span>
+        ) : null}
+      </label>
+      <label className={!isTwoComponent ? "field-disabled" : undefined}>
+        Ca peak rate (VND/kWh)
+        <input
+          className={fieldClassName(errors.evn_tariff_peak_vnd)}
+          name="evn_tariff_peak_vnd"
+          type="number"
+          step="1"
+          value={values.evn_tariff_peak_vnd}
+          onChange={onChange}
+          disabled={!isTwoComponent}
+        />
+        {errors.evn_tariff_peak_vnd ? (
+          <span className="field-error">{errors.evn_tariff_peak_vnd}</span>
+        ) : null}
       </label>
     </div>
   );

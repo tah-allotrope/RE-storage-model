@@ -13,13 +13,12 @@
 - [x] Tests: 5 new (defaults regression, 2-component threading, invalid-mode rejection, handler passes kwarg, handler 400s on bad mode) + updated existing test fakes to accept `**kwargs` — **34 passed**
 - [x] ruff clean
 
-## PHASE-02 — Frontend: tariff-mode + demand inputs
-- [ ] `formTypes.ts`: add `tariff_mode` (`"1-component"` default), `cp_demand_vnd_per_kw`, `evn_tariff_standard_vnd/peak/offpeak`
-- [ ] `DppaStep.tsx`: tariff-mode select; Cp + Ca rate inputs visible only when mode ≠ `1-component`
-- [ ] `App.tsx` / `useModelRun`: when `tariff_mode === "both"` route to compare endpoint (PHASE-03)
-- [ ] `KpiGrid.tsx`: add Year-1 Demand Charge Savings card
-- [ ] `model.ts`: extend `ModelKpis` with `demand_charge_savings_usd?` and `tariff_mode?`
-- [ ] `npm run build` clean
+## PHASE-02 — Frontend: tariff-mode + demand inputs ✅
+- [x] `formTypes.ts`: added `tariff_mode` (default `"1-component"`), `cp_demand_vnd_per_kw` (default `"0"`), `evn_tariff_off_peak_vnd`/`standard_vnd`/`peak_vnd` (seeded with 22 kV reference 1190 / 1833 / 3398 VND/kWh)
+- [x] `DppaStep.tsx`: tariff-mode select (1-component / 2-component / Compare both); Cp + 3 Ca rate inputs grayed out when mode = `1-component` via the existing `field-disabled` pattern
+- [x] `model.ts`: `ModelKpis` extended with optional `demand_charge_savings_usd` and `tariff_mode`
+- [x] `KpiGrid.tsx`: Year-1 Demand Charge Savings card appears only when `kpis.tariff_mode === "2-component"` (single-mode runs); for `both`, PHASE-03's comparison view carries the delta
+- [x] `npm run build` clean (no type errors, only pre-existing chunk-size warning)
 
 ## PHASE-03 — Tariff-mode comparison view
 - [ ] `web/functions/handlers/compare_tariff_modes.py` calls `run_tariff_mode_comparison`, returns `{"1-component", "2-component", "delta"}`

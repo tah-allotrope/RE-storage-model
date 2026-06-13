@@ -33,6 +33,11 @@ export interface ProjectFormValues {
   tariff_off_peak: string;
   tariff_standard: string;
   tariff_peak: string;
+  tariff_mode: string;
+  cp_demand_vnd_per_kw: string;
+  evn_tariff_off_peak_vnd: string;
+  evn_tariff_standard_vnd: string;
+  evn_tariff_peak_vnd: string;
   exchange_rate_usd_vnd: string;
   solar_usd_per_mwp: string;
   bess_usd_per_mwh: string;
@@ -81,6 +86,11 @@ export const defaultFormValues: ProjectFormValues = {
   tariff_off_peak: "45.7692307692308",
   tariff_standard: "70.5",
   tariff_peak: "130.692307692308",
+  tariff_mode: "1-component",
+  cp_demand_vnd_per_kw: "0",
+  evn_tariff_off_peak_vnd: "1190",
+  evn_tariff_standard_vnd: "1833",
+  evn_tariff_peak_vnd: "3398",
   exchange_rate_usd_vnd: "26000",
   solar_usd_per_mwp: "450000",
   bess_usd_per_mwh: "200000",

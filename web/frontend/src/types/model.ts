@@ -10,6 +10,10 @@ export interface ModelKpis {
   year1_solar_generation_mwh: number | null;
   year1_dppa_revenue_usd: number | null;
   year1_grid_savings_usd: number | null;
+  // Sprint 4 / GAP-03: surfaces when the run was configured for
+  // tariff_mode="2-component". Optional so older responses still type-check.
+  demand_charge_savings_usd?: number | null;
+  tariff_mode?: string | null;
 }
 
 export interface ScenarioKpis extends Partial<ModelKpis> {

@@ -9,6 +9,7 @@ interface KpiGridProps {
 }
 
 export function KpiGrid({ kpis, currency, exchangeRate }: KpiGridProps): JSX.Element {
+  const isTwoComponent = kpis.tariff_mode === "2-component";
   return (
     <section className="kpi-grid">
       <KpiCard label="Project IRR" value={formatPercent(kpis.project_irr)} />
@@ -21,6 +22,12 @@ export function KpiGrid({ kpis, currency, exchangeRate }: KpiGridProps): JSX.Ele
       <KpiCard label="Year 1 Solar (MWh)" value={formatNumber(kpis.year1_solar_generation_mwh, 2)} />
       <KpiCard label={`Year 1 DPPA (${currency})`} value={formatCurrency(kpis.year1_dppa_revenue_usd, currency, exchangeRate)} />
       <KpiCard label={`Year 1 Grid Savings (${currency})`} value={formatCurrency(kpis.year1_grid_savings_usd, currency, exchangeRate)} />
+      {isTwoComponent ? (
+        <KpiCard
+          label={`Year 1 Demand Charge Savings (${currency})`}
+          value={formatCurrency(kpis.demand_charge_savings_usd ?? null, currency, exchangeRate)}
+        />
+      ) : null}
     </section>
   );
 }
